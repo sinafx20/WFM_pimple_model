@@ -19,7 +19,18 @@ const PIECES = [
 ];
 
 export default function App() {
-  const [active, setActive] = useState("tp1");
+  // Production routing: ?tool=tp1…tp6 renders that single touchpoint with no dev
+  // chrome, so one deployed build serves every page (e.g. /?tool=tp3&industry=engineering).
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const requested = PIECES.find((p) => p.id === params.get("tool"));
+
+  const [active, setActive] = useState(requested ? requested.id : "tp1");
+
+  if (requested) {
+    const Only = requested.Component;
+    return <Only />;
+  }
+
   const Active = PIECES.find((p) => p.id === active).Component;
 
   return (
