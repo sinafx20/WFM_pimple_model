@@ -15,8 +15,8 @@
 // Until both are filled, submissions are skipped and the caller falls back to
 // the user's mail client, so the flow keeps working pre-integration.
 
-const PORTAL_ID = "PORTAL_ID";   // TODO (Sina/Leo): e.g. "1234567"
-const FORM_GUID = "FORM_GUID";   // TODO (Sina/Leo): e.g. "a1b2c3d4-...."
+const PORTAL_ID = "24214994";    // WorkflowMAX HubSpot Hub ID
+const FORM_GUID = "FORM_GUID";   // TODO (Sina): set after creating the "Content Tool Results" form
 
 export const isHubSpotConfigured = () =>
   PORTAL_ID && FORM_GUID && PORTAL_ID !== "PORTAL_ID" && FORM_GUID !== "FORM_GUID";

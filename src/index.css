@@ -1,35 +1,37 @@
-/* Load Bruna heading font from the local TTF files in /public/fonts */
+/* Load Bruna heading font from the local TTF files in src/assets/fonts.
+   Relative paths so Vite fingerprints them and they resolve under any base
+   (subpath Pages URL, custom domain, or iframe embed). */
 @font-face {
   font-family: "Bruna";
-  src: url("/fonts/Bruna-Light.ttf") format("truetype");
+  src: url("./assets/fonts/Bruna-Light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Bruna";
-  src: url("/fonts/Bruna-Regular.ttf") format("truetype");
+  src: url("./assets/fonts/Bruna-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Bruna";
-  src: url("/fonts/Bruna-Medium.ttf") format("truetype");
+  src: url("./assets/fonts/Bruna-Medium.ttf") format("truetype");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Bruna";
-  src: url("/fonts/Bruna-Bold.ttf") format("truetype");
+  src: url("./assets/fonts/Bruna-Bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Bruna";
-  src: url("/fonts/Bruna-Heavy.ttf") format("truetype");
+  src: url("./assets/fonts/Bruna-Heavy.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
