@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import BrandSidebar from "../shared/BrandSidebar.jsx";
+import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 
 /* ─── WFM Logo ─── */
 const Logo = () => (
@@ -50,25 +52,7 @@ const HEAD = "'Bruna', 'DM Sans', sans-serif";
 
 /* Revenue bands: prospects pick a range, we use a representative value
    for the maths so they never have to type an exact figure. */
-const REVENUE_BANDS = [
-  { id: "r1", label: "$500K - $1M", value: 750000 },
-  { id: "r2", label: "$1M - $5M", value: 3000000 },
-  { id: "r3", label: "$5M - $10M", value: 7500000 },
-  { id: "r4", label: "$10M - $20M", value: 15000000 },
-  { id: "r5", label: "$20M - $50M", value: 35000000 },
-];
-
-/* Headcount / jobs bands: the slider snaps across these ranges rather
-   than moving continuously. Representative midpoints feed the maths. */
-const COUNT_BANDS = [
-  { label: "5 to 20", value: 12 },
-  { label: "20 to 50", value: 35 },
-  { label: "50 to 100", value: 75 },
-  { label: "100 to 200", value: 150 },
-];
-
-const nearestBand = (bands, val) =>
-  bands.reduce((best, b) => (Math.abs(b.value - val) < Math.abs(best.value - val) ? b : best), bands[0]);
+// REVENUE_BANDS, COUNT_BANDS, nearestBand now imported from shared/bands.jsx
 
 /* Pre-fill the industry from the personalised campaign link, e.g.
    ?industry=architecture. Falls back to a sensible default so the
@@ -229,33 +213,7 @@ function Slider({ value, onChange, min, max, step, unit }) {
 }
 
 /* ─── BAND SLIDER (snaps across ranges) ─── */
-function BandSlider({ bands, value, onChange, suffix }) {
-  const idx = bands.indexOf(nearestBand(bands, value));
-  const pct = bands.length > 1 ? (idx / (bands.length - 1)) * 100 : 0;
-  return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ textAlign: "right", fontSize: 20, fontWeight: 700, color: "#0A2F28", marginBottom: 4 }}>
-        {bands[idx].label}<span style={{ fontSize: 14, fontWeight: 500, color: "#6C737F" }}> {suffix}</span>
-      </div>
-      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
-        <div style={{ position: "absolute", left: 0, right: 0, height: 5, background: "#E5E7EB", borderRadius: 3 }}>
-          <div style={{ height: "100%", background: "#0D8D5C", borderRadius: 3, width: `${pct}%`, transition: "width 0.1s" }} />
-        </div>
-        {/* Tick marks for each band */}
-        {bands.map((_, i) => (
-          <div key={i} style={{ position: "absolute", left: `calc(${(i / (bands.length - 1)) * 100}% - 3px)`, width: 6, height: 6, borderRadius: "50%", background: i <= idx ? "#0D8D5C" : "#CBD2DA", pointerEvents: "none" }} />
-        ))}
-        <input type="range" min={0} max={bands.length - 1} step={1} value={idx} onChange={(e) => onChange(bands[Number(e.target.value)].value)}
-          style={{ position: "absolute", left: 0, right: 0, width: "100%", height: 36, opacity: 0, cursor: "pointer", zIndex: 2, margin: 0 }} />
-        <div style={{ position: "absolute", left: `calc(${pct}% - 11px)`, width: 22, height: 22, borderRadius: "50%", background: "#0A2F28", border: "3px solid #63DB94", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", pointerEvents: "none", transition: "left 0.1s" }} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
-        <span style={{ fontSize: 11, color: "#9DA4AE" }}>{bands[0].label}</span>
-        <span style={{ fontSize: 11, color: "#9DA4AE" }}>{bands[bands.length - 1].label}</span>
-      </div>
-    </div>
-  );
-}
+// BandSlider now imported from shared/bands.jsx
 
 /* ─── ANIMATED COUNTER ─── */
 function Counter({ value, duration = 1500 }) {
@@ -438,16 +396,25 @@ export default function ProfitLeakCalculator() {
   });
 
   return (
-    <div ref={topRef} className="plc" style={{ fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "#fff" }}>
+    <div ref={topRef} className="plc-root" style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         .plc h1, .plc h2, .plc h3, .plc h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
-        @media (min-width: 768px) { body { margin: 0; background: #EDF0EE; } .plc { max-width: 560px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
+      <div className="wfm-shell">
+        <BrandSidebar
+          title="Profit Leak Calculator"
+          blurb="See what quietly slips through the gaps each year, and which fixes are worth the most."
+          step={screen === "results" ? "Your results" : screen === "leak" ? `Leak ${leakStep + 1} of ${leaks.length}` : "Quick setup"}
+          progress={progress}
+          bullets={["Your firm's annual profit leak in dollars", "Which leak is costing you the most", "What recovering it is worth"]}
+        />
+        <div className="wfm-main plc">
+
       {/* HEADER */}
-      <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+      <div className="wfm-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <Logo />
         {screen === "leak" && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>Leak {leakStep + 1}/{leaks.length}</span>
@@ -456,13 +423,13 @@ export default function ProfitLeakCalculator() {
 
       {/* PROGRESS BAR */}
       {(screen === "leak" || screen === "results") && (
-        <div style={{ height: 3, background: "#E5E7EB" }}>
+        <div className="wfm-hide-desktop" style={{ height: 3, background: "#E5E7EB" }}>
           <div style={{ height: "100%", background: screen === "results" ? "#C92A2A" : progColor, width: `${progress}%`, transition: "width 0.5s, background 0.5s", borderRadius: "0 2px 2px 0" }} />
         </div>
       )}
 
       {/* ANIMATED WRAPPER */}
-      <div style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
+      <div className="wfm-stage" style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
 
         {/* ═══ INTRO ═══ */}
         {screen === "intro" && (
@@ -696,7 +663,7 @@ export default function ProfitLeakCalculator() {
 
             {/* Leak breakdown bars */}
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0A2F28", margin: "0 0 10px" }}>Where the leakage comes from</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+            <div className="wfm-grid-2" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
               {leakResults.map((l, i) => {
                 const barW = totalLeakage > 0 ? (l.amount / totalLeakage) * 100 : 0;
                 return (
@@ -750,13 +717,15 @@ export default function ProfitLeakCalculator() {
             )}
 
             {/* CTAs — soft, tailored destination first */}
-            <button onClick={() => goTo(SOLUTION_URLS[v.id])} style={ctaBtn(true)} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
-              See how {v.label} firms plug these leaks →
-            </button>
-            <div style={{ height: 10 }} />
-            <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
-              Watch a 12-min product walkthrough
-            </button>
+            <div className="wfm-cta-row">
+              <button onClick={() => goTo(SOLUTION_URLS[v.id])} style={ctaBtn(true)} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
+                See how {v.label} firms plug these leaks →
+              </button>
+              <div className="wfm-spacer" style={{ height: 10 }} />
+              <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
+                Watch a 12-min product walkthrough
+              </button>
+            </div>
 
             {/* Share + email results */}
             <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
@@ -833,6 +802,9 @@ export default function ProfitLeakCalculator() {
           </div>
         )}
       </div>
+
+        </div>{/* .wfm-main */}
+      </div>{/* .wfm-shell */}
     </div>
   );
 }

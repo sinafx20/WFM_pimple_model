@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import brandBg from "../../assets/brand-bg.png";
 
 /* ─────────────────────────────────────
    VERTICALS
@@ -518,18 +519,82 @@ export default function WorkflowHealthCheck() {
   });
 
   return (
-    <div ref={topRef} className="hc" style={{ fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "#fff" }}>
+    <div ref={topRef} className="hc-root">
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
+        .hc-root { font-family: 'DM Sans', sans-serif; min-height: 100vh; background: #fff; }
         .hc h1, .hc h2, .hc h3, .hc h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
-        @media (min-width: 768px) { body { margin: 0; background: #EDF0EE; } .hc { max-width: 560px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; } }
+        .hc-brand { display: none; }
+        .hc-main { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; }
         @keyframes slideIn { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }
         @keyframes slideOut { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:translateX(0); } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @media (min-width: 768px) {
+          body { margin: 0; }
+          .hc-root {
+            background: url(${brandBg}) center center / cover no-repeat fixed;
+          }
+          .hc-shell { max-width: 1080px; margin: 0 auto; display: flex; align-items: stretch; }
+          .hc-brand { display: flex; flex-direction: column; width: 360px; flex-shrink: 0; background: #0A2F28; }
+          .hc-brand-inner { position: sticky; top: 0; padding: 44px 34px; display: flex; flex-direction: column; }
+          .hc-main { max-width: none; margin: 0; flex: 1 1 auto; min-width: 0; box-shadow: 0 24px 60px rgba(10,47,40,0.12); }
+          .hc-stage { max-width: 680px; margin: 0 auto; }
+          .hc-hide-desktop { display: none !important; }
+          .hc-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; align-items: start; }
+          .hc-cta-row { display: flex !important; gap: 12px; }
+          .hc-cta-row > button { width: auto !important; flex: 1; }
+          .hc-spacer { display: none !important; }
+        }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+      <div className="hc-shell">
+
+        {/* ── BRAND SIDEBAR (desktop only) ── */}
+        <aside className="hc-brand">
+          <div className="hc-brand-inner">
+            <div style={{ background: "#fff", borderRadius: 12, padding: "9px 14px", display: "inline-flex", alignSelf: "flex-start", marginBottom: 34 }}>
+              <Logo />
+            </div>
+            <h2 style={{ fontFamily: HEAD, fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1.15, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
+              Workflow Health Check
+            </h2>
+            <p style={{ fontSize: 15, color: "#9DB9AE", lineHeight: 1.6, margin: "0 0 30px" }}>
+              See how your firm manages jobs from quote through to invoice, and where the easy wins are.
+            </p>
+
+            {/* Progress */}
+            <div style={{ marginBottom: 30 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#63DB94", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 9 }}>
+                {screen === "results" ? "Your results" : screen === "question" ? `Question ${currentQ + 1} of ${QUESTIONS.length}` : "Quick setup"}
+              </div>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.12)", borderRadius: 100, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.max(progress, 5)}%`, background: "#63DB94", borderRadius: 100, transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)" }} />
+              </div>
+            </div>
+
+            {/* What you'll get */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+              {["Your maturity score vs firms your size", "The biggest gap quietly costing you margin", "Three recommendations tailored to your sector"].map((t, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#63DB94", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
+                    <svg width="11" height="9" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="#0A2F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <span style={{ fontSize: 14, color: "#E5E7EB", lineHeight: 1.45 }}>{t}</span>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: 12, color: "#6F8C82", lineHeight: 1.5, margin: "34px 0 0" }}>
+              Trusted by 100,000+ professionals. 18 years in market.
+            </p>
+          </div>
+        </aside>
+
+        {/* ── MAIN PANE ── */}
+        <div className="hc-main hc">
+
+      {/* ── HEADER (mobile) ── */}
+      <div className="hc-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <Logo />
         {screen === "question" && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>{currentQ + 1}/{QUESTIONS.length}</span>
@@ -538,13 +603,13 @@ export default function WorkflowHealthCheck() {
 
       {/* ── PROGRESS ── */}
       {(screen === "question" || screen === "results") && (
-        <div style={{ height: 3, background: "#E5E7EB" }}>
+        <div className="hc-hide-desktop" style={{ height: 3, background: "#E5E7EB" }}>
           <div style={{ height: "100%", background: "#0D8D5C", width: `${progress}%`, transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)", borderRadius: "0 2px 2px 0" }} />
         </div>
       )}
 
       {/* ── ANIMATED CONTENT ── */}
-      <div style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
+      <div className="hc-stage" style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
 
         {/* ════ INTRO ════ */}
         {screen === "intro" && (
@@ -721,7 +786,7 @@ export default function WorkflowHealthCheck() {
 
             {/* Score breakdown */}
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0A2F28", margin: "0 0 10px" }}>Your scores by area</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+            <div className="hc-grid-2" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
               {scoreBreakdown.map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#F9FAFB", borderRadius: 10, animation: `fadeUp 0.3s ease ${i * 0.05}s both` }}>
                   <span style={{ fontSize: 16 }}>{item.icon}</span>
@@ -741,7 +806,7 @@ export default function WorkflowHealthCheck() {
             {/* Recommendations (text only, no individual CTAs) */}
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0A2F28", margin: "0 0 4px" }}>Recommended focus areas</h3>
             <p style={{ fontSize: 12, color: "#6C737F", margin: "0 0 14px" }}>Based on your results for {vertical?.label} firms</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+            <div className="hc-grid-2" style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
               {recs.map((rec, i) => (
                 <div key={i} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 14, padding: "16px", animation: `fadeUp 0.4s ease ${0.2 + i * 0.08}s both` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -754,13 +819,15 @@ export default function WorkflowHealthCheck() {
             </div>
 
             {/* CTAs — soft, tailored destination first */}
-            <button onClick={() => goTo(SOLUTION_URLS[vertical.id])} style={ctaBtn(true)} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
-              See how {vertical.label} firms close these gaps →
-            </button>
-            <div style={{ height: 10 }} />
-            <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
-              Watch a 12-min product walkthrough
-            </button>
+            <div className="hc-cta-row">
+              <button onClick={() => goTo(SOLUTION_URLS[vertical.id])} style={ctaBtn(true)} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
+                See how {vertical.label} firms close these gaps →
+              </button>
+              <div className="hc-spacer" style={{ height: 10 }} />
+              <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
+                Watch a 12-min product walkthrough
+              </button>
+            </div>
 
             {/* Share + email results */}
             <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
@@ -834,6 +901,9 @@ export default function WorkflowHealthCheck() {
           </div>
         )}
       </div>
+
+        </div>{/* .hc-main */}
+      </div>{/* .hc-shell */}
     </div>
   );
 }

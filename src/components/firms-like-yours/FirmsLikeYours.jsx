@@ -210,7 +210,7 @@ export default function FirmsLikeYours() {
   };
 
   return (
-    <div className="fly" style={{
+    <div className="fly wfm-card" style={{
       fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto",
       minHeight: "100vh", background: "#fff",
     }}>
@@ -218,9 +218,10 @@ export default function FirmsLikeYours() {
       <style>{`
         .fly h1, .fly h2, .fly h3, .fly h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
         @media (min-width: 768px) {
-          body { margin: 0; background: #EDF0EE; }
-          .fly { max-width: 680px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; }
-          .fly-gallery { display: grid !important; grid-template-columns: repeat(2, 1fr); overflow: visible !important; }
+          body { margin: 0; }
+          .fly { max-width: 1040px !important; }
+          .fly-inner { max-width: 1000px; margin: 0 auto; }
+          .fly-gallery { display: grid !important; grid-template-columns: repeat(3, 1fr); overflow: visible !important; }
           .fly-card { flex: initial !important; width: auto !important; }
         }
       `}</style>
@@ -233,7 +234,7 @@ export default function FirmsLikeYours() {
         <WFMLogo />
       </div>
 
-      <div style={{ padding: "28px 24px 48px" }}>
+      <div className="fly-inner" style={{ padding: "28px 24px 48px" }}>
 
         {/* Hero */}
         <div style={{ marginBottom: 22 }}>

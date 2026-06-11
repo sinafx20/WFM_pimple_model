@@ -1,4 +1,5 @@
 import { useState } from "react";
+import IntroVideo from "./components/intro-video/IntroVideo.jsx";
 import WorkflowHealthCheck from "./components/health-check/HealthCheck.jsx";
 import ProfitLeakCalculator from "./components/profit-leak-calculator/Calculator.jsx";
 import FirmBenchmark from "./components/firm-benchmark/Benchmark.jsx";
@@ -10,6 +11,7 @@ import ResourceHub from "./components/resource-hub/ResourceHub.jsx";
 // Each piece deploys to Webflow as its own standalone page, so this switcher
 // is not shipped, it is purely a local harness.
 const PIECES = [
+  { id: "intro", label: "TP1 · Intro Video", Component: IntroVideo },
   { id: "tp1", label: "TP1 · Health Check", Component: WorkflowHealthCheck },
   { id: "tp2", label: "TP2 · Profit Leak Calculator", Component: ProfitLeakCalculator },
   { id: "tp3", label: "TP3 · Firm Benchmark", Component: FirmBenchmark },

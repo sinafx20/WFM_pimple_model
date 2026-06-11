@@ -1,0 +1,34 @@
+/* Shared desktop shell + green brand canvas for every touchpoint.
+   Mobile-first and additive: all desktop rules live behind the 768px
+   breakpoint, so each component's <=480px phone column is untouched.
+   The brand background is referenced here (one place, fingerprinted by
+   Vite) and shows as the page backdrop on desktop. */
+
+.wfm-brand { display: none; }
+
+/* Interactive tools: white content pane, centered, full-height on phone. */
+.wfm-main { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; }
+
+@media (min-width: 768px) {
+  body {
+    margin: 0;
+    background: url("../assets/brand-bg.png") center center / cover no-repeat fixed;
+  }
+
+  /* Two-pane shell (brand sidebar + content) for the interactive tools */
+  .wfm-shell { max-width: 1080px; margin: 0 auto; display: flex; align-items: stretch; }
+  .wfm-brand { display: flex; flex-direction: column; width: 360px; flex-shrink: 0; background: #0A2F28; }
+  .wfm-brand-inner { position: sticky; top: 0; padding: 44px 34px; display: flex; flex-direction: column; }
+  .wfm-main { max-width: none; margin: 0; flex: 1 1 auto; min-width: 0; box-shadow: 0 24px 60px rgba(10,47,40,0.12); }
+  .wfm-stage { max-width: 680px; margin: 0 auto; }
+
+  /* Floating centered card for the landing-style pages */
+  .wfm-card { margin: 40px auto !important; min-height: auto !important; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 60px rgba(10,47,40,0.18); border: none !important; }
+
+  /* Utilities */
+  .wfm-grid-2 { display: grid !important; grid-template-columns: 1fr 1fr; gap: 16px !important; align-items: start; }
+  .wfm-cta-row { display: flex !important; gap: 12px; }
+  .wfm-cta-row > button { width: auto !important; flex: 1; }
+  .wfm-spacer { display: none !important; }
+  .wfm-hide-desktop { display: none !important; }
+}

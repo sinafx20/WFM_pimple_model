@@ -147,7 +147,7 @@ export default function ResourceHub() {
   );
 
   return (
-    <div className="rh" style={{
+    <div className="rh wfm-card" style={{
       fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto",
       minHeight: "100vh", background: "#fff",
     }}>
@@ -155,9 +155,10 @@ export default function ResourceHub() {
       <style>{`
         .rh h1, .rh h2, .rh h3, .rh h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
         @media (min-width: 768px) {
-          body { margin: 0; background: #EDF0EE; }
-          .rh { max-width: 680px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; }
-          .rh-rows { display: grid !important; grid-template-columns: repeat(2, 1fr); }
+          body { margin: 0; }
+          .rh { max-width: 1040px !important; }
+          .rh-inner { max-width: 1000px; margin: 0 auto; }
+          .rh-rows { display: grid !important; grid-template-columns: repeat(3, 1fr); }
         }
       `}</style>
 
@@ -169,7 +170,7 @@ export default function ResourceHub() {
         <WFMLogo />
       </div>
 
-      <div style={{ padding: "28px 24px 48px" }}>
+      <div className="rh-inner" style={{ padding: "28px 24px 48px" }}>
 
         {/* Hero */}
         <div style={{ marginBottom: 22 }}>

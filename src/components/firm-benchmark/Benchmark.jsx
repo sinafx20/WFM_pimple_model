@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import BrandSidebar from "../shared/BrandSidebar.jsx";
+import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 
 /* ─── WFM Logo ─── */
 const Logo = () => (
@@ -305,32 +307,13 @@ function MetricBar({ avg, top, lower, unit }) {
   );
 }
 
-/* ─── SLIDER ─── */
-function SimpleSlider({ value, onChange, min, max, step, format }) {
-  const pct = ((value - min) / (max - min)) * 100;
-  const display = format === "$" ? fmt(value) : format === "jobs" ? `${value} jobs` : `${value} staff`;
-  return (
-    <div>
-      <div style={{ textAlign: "right", fontSize: 20, fontWeight: 700, color: "#0A2F28", marginBottom: 4 }}>{display}</div>
-      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
-        <div style={{ position: "absolute", left: 0, right: 0, height: 5, background: "#E5E7EB", borderRadius: 3 }}>
-          <div style={{ height: "100%", background: "#0D8D5C", borderRadius: 3, width: `${pct}%`, transition: "width 0.05s" }} />
-        </div>
-        <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))}
-          style={{ position: "absolute", left: 0, right: 0, width: "100%", height: 36, opacity: 0, cursor: "pointer", zIndex: 2, margin: 0 }} />
-        <div style={{ position: "absolute", left: `calc(${pct}% - 11px)`, width: 22, height: 22, borderRadius: "50%", background: "#0A2F28", border: "3px solid #63DB94", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", pointerEvents: "none", transition: "left 0.05s" }} />
-      </div>
-    </div>
-  );
-}
-
 /* ─── MAIN ─── */
 export default function FirmBenchmark() {
   const [screen, setScreen] = useState("intro");
   const [verticalId, setVerticalId] = useState(() => detectVertical().id);
-  const [revenue, setRevenue] = useState(() => detectVertical().defaults.rev);
-  const [staff, setStaff] = useState(() => detectVertical().defaults.staff);
-  const [jobs, setJobs] = useState(() => detectVertical().defaults.jobs);
+  const [revenue, setRevenue] = useState(() => nearestBand(REVENUE_BANDS, detectVertical().defaults.rev).value);
+  const [staff, setStaff] = useState(() => nearestBand(COUNT_BANDS, detectVertical().defaults.staff).value);
+  const [jobs, setJobs] = useState(() => nearestBand(COUNT_BANDS, detectVertical().defaults.jobs).value);
   const [placements, setPlacements] = useState({});
   const [metricStep, setMetricStep] = useState(0);
   const [anim, setAnim] = useState(false);
@@ -478,16 +461,25 @@ export default function FirmBenchmark() {
   });
 
   return (
-    <div ref={topRef} className="fb" style={{ fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "#fff" }}>
+    <div ref={topRef} className="fb-root" style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         .fb h1, .fb h2, .fb h3, .fb h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
-        @media (min-width: 768px) { body { margin: 0; background: #EDF0EE; } .fb { max-width: 560px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
+      <div className="wfm-shell">
+        <BrandSidebar
+          title="Firm Benchmark"
+          blurb="See how your firm stacks up against peers, and what closing the gap is worth."
+          step={screen === "results" ? "Your results" : screen === "metric" && data ? `Metric ${metricStep + 1} of ${data.items.length}` : "Quick setup"}
+          progress={progress}
+          bullets={["How you compare to firms your size", "The gap to top performers, in dollars", "Where closing it is worth the most"]}
+        />
+        <div className="wfm-main fb">
+
       {/* HEADER */}
-      <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+      <div className="wfm-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <Logo />
         {screen === "metric" && data && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>Metric {metricStep + 1}/{data.items.length}</span>
@@ -496,12 +488,12 @@ export default function FirmBenchmark() {
 
       {/* PROGRESS BAR */}
       {(screen === "metric" || screen === "results") && (
-        <div style={{ height: 3, background: "#E5E7EB" }}>
+        <div className="wfm-hide-desktop" style={{ height: 3, background: "#E5E7EB" }}>
           <div style={{ height: "100%", background: "#0D8D5C", width: `${progress}%`, transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)", borderRadius: "0 2px 2px 0" }} />
         </div>
       )}
 
-      <div style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
+      <div className="wfm-stage" style={{ opacity: anim ? 0 : 1, transform: anim ? (dir === "fwd" ? "translateX(24px)" : "translateX(-24px)") : "translateX(0)", transition: "opacity 0.22s, transform 0.22s" }}>
 
         {/* ═══ INTRO ═══ */}
         {screen === "intro" && (
@@ -587,19 +579,31 @@ export default function FirmBenchmark() {
             <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A2F28", margin: "0 0 6px" }}>Tell us about your firm</h2>
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 24px" }}>This lets us calculate what the benchmarks mean in dollars for you specifically.</p>
 
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 4 }}>Annual revenue (AUD)</div>
-            <SimpleSlider value={revenue} onChange={setRevenue} min={isProject ? 1000000 : 500000} max={isProject ? 80000000 : 50000000} step={isProject ? 500000 : 250000} format="$" />
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 8 }}>Annual revenue (AUD)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {REVENUE_BANDS.map((b) => {
+                const sel = revenue === b.value;
+                return (
+                  <button key={b.id} onClick={() => setRevenue(b.value)}
+                    style={{ flex: "1 1 calc(50% - 4px)", minWidth: 0, padding: "14px 10px", background: sel ? "#0A2F28" : "#F9FAFB", color: sel ? "#fff" : "#0A2F28", border: `1px solid ${sel ? "#0A2F28" : "#E5E7EB"}`, borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                    onMouseEnter={(e) => { if (!sel) { e.currentTarget.style.borderColor = "#0D8D5C"; e.currentTarget.style.background = "#f0fdf4"; } }}
+                    onMouseLeave={(e) => { if (!sel) { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F9FAFB"; } }}>
+                    {b.label}
+                  </button>
+                );
+              })}
+            </div>
 
-            <div style={{ height: 20 }} />
+            <div style={{ height: 24 }} />
             {isProject ? (
               <>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 4 }}>Jobs per year</div>
-                <SimpleSlider value={jobs} onChange={setJobs} min={5} max={200} step={1} format="jobs" />
+                <BandSlider bands={COUNT_BANDS} value={jobs} onChange={setJobs} suffix="jobs/yr" />
               </>
             ) : (
               <>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 4 }}>Billable staff</div>
-                <SimpleSlider value={staff} onChange={setStaff} min={5} max={200} step={1} format="staff" />
+                <BandSlider bands={COUNT_BANDS} value={staff} onChange={setStaff} suffix="staff" />
               </>
             )}
 
@@ -735,7 +739,7 @@ export default function FirmBenchmark() {
 
               {/* Breakdown bars */}
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0A2F28", margin: "0 0 10px" }}>Where the gap sits</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              <div className="wfm-grid-2" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
                 {gapResults.map((m, i) => {
                   const barW = totalGap > 0 ? (m.gapCost / totalGap) * 100 : 0;
                   const isBiggest = biggest && m.key === biggest.key;
@@ -827,11 +831,11 @@ export default function FirmBenchmark() {
               </div>
 
               {/* CTAs — soft, tailored destination first; booking demoted below */}
-              <div style={{ marginTop: 24 }}>
+              <div className="wfm-cta-row" style={{ marginTop: 24 }}>
                 <button onClick={() => goTo(SOLUTION_URLS[v.id])} style={ctaBtn(true)} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                   See how {v.label} firms close this gap →
                 </button>
-                <div style={{ height: 10 }} />
+                <div className="wfm-spacer" style={{ height: 10 }} />
                 <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
                   Watch a 12-min product walkthrough
                 </button>
@@ -866,6 +870,9 @@ export default function FirmBenchmark() {
           </div>
         )}
       </div>
+
+        </div>{/* .wfm-main */}
+      </div>{/* .wfm-shell */}
     </div>
   );
 }

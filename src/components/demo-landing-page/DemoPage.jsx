@@ -100,14 +100,14 @@ export default function DemoLandingPage() {
   const v = detectVertical();
 
   return (
-    <div className="dlp" style={{
+    <div className="dlp wfm-card" style={{
       fontFamily: "'DM Sans', sans-serif", maxWidth: 480, margin: "0 auto",
       minHeight: "100vh", background: "#fff",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         .dlp h1, .dlp h2, .dlp h3, .dlp h4 { font-family: 'Bruna', 'DM Sans', sans-serif; letter-spacing: -0.01em; }
-        @media (min-width: 768px) { body { margin: 0; background: #EDF0EE; } .dlp { max-width: 560px !important; box-shadow: 0 0 50px rgba(10,47,40,0.08); border-left: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; } }
+        @media (min-width: 768px) { body { margin: 0; } .dlp { max-width: 1040px !important; } .dlp-inner { max-width: 900px; margin: 0 auto; } }
       `}</style>
 
       {/* Header */}
@@ -118,7 +118,7 @@ export default function DemoLandingPage() {
         <WFMLogo />
       </div>
 
-      <div style={{ padding: "24px 24px 48px" }}>
+      <div className="dlp-inner" style={{ padding: "24px 24px 48px" }}>
 
         {/* Hero section */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
