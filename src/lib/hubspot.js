@@ -16,7 +16,7 @@
 // the user's mail client, so the flow keeps working pre-integration.
 
 const PORTAL_ID = "24214994";    // WorkflowMAX HubSpot Hub ID
-const FORM_GUID = "FORM_GUID";   // TODO (Sina): set after creating the "Content Tool Results" form
+const FORM_GUID = "1905567d-53d7-4103-971e-9abb13bc6796";   // Volcano Model MVP – Content Tool Results
 
 export const isHubSpotConfigured = () =>
   PORTAL_ID && FORM_GUID && PORTAL_ID !== "PORTAL_ID" && FORM_GUID !== "FORM_GUID";

@@ -400,9 +400,7 @@ export default function FirmBenchmark() {
   /* The results record sent to HubSpot (field mapping). The endpoint + portal/
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
-    wfm_tool_used: "Firm Benchmark",
     wfm_completed_benchmark: "true",
-    wfm_industry: v?.label,
     wfm_firm_size: isProject ? `${jobs} jobs/yr` : `${staff} staff`,
     wfm_revenue_band: fmt(revenue),
     wfm_benchmark_gap: Math.round(totalGap),

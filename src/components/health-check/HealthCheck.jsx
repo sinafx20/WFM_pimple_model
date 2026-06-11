@@ -451,9 +451,7 @@ export default function WorkflowHealthCheck() {
   /* The results record sent to HubSpot (field mapping). The endpoint + portal/
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
-    wfm_tool_used: "Workflow Health Check",
     wfm_completed_health_check: "true",
-    wfm_industry: vertical?.label,
     wfm_firm_size: FIRM_SIZES.find((s) => s.id === firmSize)?.label,
     wfm_health_score: totalScore,
     wfm_maturity_tier: tier.label,

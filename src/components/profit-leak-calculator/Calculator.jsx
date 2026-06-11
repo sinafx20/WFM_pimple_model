@@ -329,9 +329,7 @@ export default function ProfitLeakCalculator() {
   /* The results record sent to HubSpot (field mapping). The endpoint + portal/
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
-    wfm_tool_used: "Profit Leak Calculator",
     wfm_completed_calculator: "true",
-    wfm_industry: v?.label,
     wfm_revenue_band: revLabel,
     wfm_firm_size: countLabel,
     wfm_profit_leak: Math.round(totalLeakage),
