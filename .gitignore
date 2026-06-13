@@ -1,7 +1,27 @@
-node_modules
-dist
-dist-ssr
-*.local
-.vite
-.DS_Store
+# build output
+dist/
+dist-ssr/
+
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
 npm-debug.log*
+
+# local + env
+*.local
+.env
+.env.production
+
+# macOS
+.DS_Store
+
+# wrangler / cloudflare
+.wrangler
+.dev.vars*
+
+# webflow cli build artifacts
+.tmp/
