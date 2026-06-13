@@ -73,43 +73,35 @@ const goTo = (url) => {
 const TESTIMONIALS = [
   {
     id: 1, vertical: "architecture", featured: true,
-    firmName: "[Architecture Firm Name]", descriptor: "Large multi-disciplinary practice", location: "[City, State]",
+    firmName: "Guymer Bailey Architects", descriptor: "Architecture & design practice", location: "",
     quote: "We went from chasing timesheets every Friday to seeing exactly where every job stands in real time. It changed how we run the practice.",
     quoteName: "[Director Name]", quoteTitle: "Managing Director",
     tags: ["Live job profitability", "One source of truth", "Faster fee proposals"],
-    youtubeId: "REPLACE_VIDEO_ID_ARCH",
+    youtubeId: "_cJ92E9e4iE",
   },
   {
     id: 2, vertical: "engineering",
-    firmName: "[Engineering Firm Name]", descriptor: "Multi-disciplinary consultancy", location: "[City, State]",
+    firmName: "Engenera", descriptor: "Engineering consultancy", location: "",
     quote: "One system from proposal through to invoice means we're not re-entering data three times. Our finance team got their week back.",
     quoteName: "[Director Name]", quoteTitle: "Finance Director",
     tags: ["Real-time cost visibility", "Field-to-finance connected", "No double entry"],
-    youtubeId: "REPLACE_VIDEO_ID_ENG",
+    youtubeId: "00OLg-Xh0pw",
   },
   {
     id: 3, vertical: "consulting",
-    firmName: "[Consulting Firm Name]", descriptor: "Advisory & professional services firm", location: "[City, State]",
+    firmName: "Your HR System", descriptor: "Advisory & professional services", location: "",
     quote: "We can finally see engagement profitability while the work is happening, not months later. That changed how we price and staff.",
     quoteName: "[Partner Name]", quoteTitle: "Managing Partner",
     tags: ["Engagement margin clarity", "Variations captured", "Faster billing"],
-    youtubeId: "REPLACE_VIDEO_ID_CONS",
+    youtubeId: "555tHkAxi4I",
   },
   {
     id: 4, vertical: "creative",
-    firmName: "[Creative Agency Name]", descriptor: "Independent creative agency", location: "[City, State]",
+    firmName: "BlueRock Digital", descriptor: "Creative & digital agency", location: "",
     quote: "We used to absorb revision rounds because tracking them was painful. Now the system does it, and we invoice for the work we actually do.",
     quoteName: "[Director Name]", quoteTitle: "Creative Director",
     tags: ["Scope creep under control", "Live utilisation", "Invoicing in days, not weeks"],
-    youtubeId: "REPLACE_VIDEO_ID_CRE",
-  },
-  {
-    id: 5, vertical: "architecture", // 5th video — reassign vertical to match your real footage
-    firmName: "[Architecture Firm Name]", descriptor: "Growing design studio", location: "[City, State]",
-    quote: "The reporting we get now would have taken our team days to pull together by hand. It's just there when we need it.",
-    quoteName: "[Director Name]", quoteTitle: "Associate Director",
-    tags: ["Reporting on tap", "Capacity at a glance", "Connected to Xero"],
-    youtubeId: "REPLACE_VIDEO_ID_5",
+    youtubeId: "rIAXJ3Qpi-s",
   },
 ];
 
