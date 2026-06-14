@@ -1,87 +1,90 @@
 # Volcano Model MVP — build & wiring status
 
-Handoff/resume doc. Last updated 2026-06-11. (No secrets in here.)
+Handoff/resume doc. Last updated 2026-06-14. (No secrets in here.)
 
 ## What's built (in this repo)
-- 6 content tools + a new **TP1 intro video page** (`?tool=intro`) that bridges the
-  TP1 email and the Health Check. Reads `?firstname=&company=&industry=&email=&video=`
-  from the campaign link; CTA carries identity through to `?tool=tp1`.
-- **Desktop redesign across all touchpoints** (responsive, mobile column untouched):
-  - Shared `src/styles/shell.css` (green brand-bg canvas + two-pane/card/grid utils),
-    `src/components/shared/BrandSidebar.jsx`, `src/components/shared/bands.jsx`.
-  - Interactive tools (Health Check, Calculator, Benchmark): branded left sidebar +
-    white content pane on desktop; results in 2-col grids; CTAs side-by-side.
-  - Landing pages (Intro, Demo, Firms, Resource): float as a white card on the green
-    canvas, widened to ~1040px (Firms/Resource grids → 3 cols).
-  - `src/assets/brand-bg.png` = WorkflowMAX brand backdrop (logo painted out). ~1.3MB,
-    compress to WebP at polish time.
-- Benchmark inputs now use the Calculator's banded format (shared `bands.jsx`).
+- 6 content tools + a **TP1 intro video page** (`?tool=intro`), full desktop redesign
+  (green brand-bg canvas, two-pane BrandSidebar for interactive tools, floating ~1040px
+  card for landing pages; shared `src/styles/shell.css` + `src/components/shared/bands.jsx`).
+  Responsive, mobile column untouched.
+- **TP5 "Firms like yours" is fully real** — videos + firms + people + quotes:
+  Guymer Bailey Architects (Kavan Applegate, featured), Engenera (Luphus Oosthuizen),
+  Your HR System (Steve Luxmoore), BlueRock Digital (Sarah No). Construction & Civil
+  have no video and fall back gracefully.
 
-## Deployment (GitHub Pages)
-- Remote is **SSH** (`git@github.com:sinafx20/WFM_pimple_model.git`); push works via SSH
-  key (HTTPS has no creds). Repo: https://github.com/sinafx20/WFM_pimple_model
-- `.github/workflows/deploy.yml` builds + publishes `dist/` to Pages on push to `main`.
-- Build is path-agnostic (`vite.config.js` `base: "./"`).
-- ⚠️ **TODO (manual, one-time):** repo **Settings → Pages → Source: "GitHub Actions"**.
-  Then live at `https://sinafx20.github.io/WFM_pimple_model/?tool=intro`. Custom domain
-  `tools.workflowmax.com` is a later step (add `public/CNAME` + DNS once DNS is ready).
+## Hosting / build — NOW ASTRO on Webflow Cloud (migrated 2026-06-13)
+Webflow Cloud only serves **Astro/Next.js** (not a raw Vite SPA — that's why the first
+deploy 404'd). So the app was migrated to the official Webflow Cloud Astro scaffold,
+reusing 100% of the React components:
+- **Astro 5 + @astrojs/react + @astrojs/cloudflare**, React 19. `astro.config.mjs`
+  `base: "/app"` (the Webflow Cloud mount path). `webflow.json` = `{"cloud":{"framework":"astro"}}`.
+  `src/pages/index.astro` renders `<App client:only="react">`; `Layout.astro` imports
+  `index.css` + `shell.css` + DM Sans; favicon = `WFM-Logo.svg`.
+- Removed Vite entry (`index.html`, `vite.config.js`, `src/main.jsx`) + the old GitHub
+  Pages workflow. **`npm run dev` is now `astro dev`** (serves at `localhost:4321/app/…`);
+  `npm run build` = `astro build` → Cloudflare Worker (`dist/_worker.js` + `dist/app/`).
+  Builds clean locally.
+- **Deployed to Webflow Cloud:** project "Landing Pages" (this GitHub repo connected),
+  env `main`, mount path `/app`, URL `https://workflowmax-lp.webflow.io/app`.
 
-## HubSpot wiring (Portal ID 24214994, Pro tier)
-DONE & verified end-to-end (submission → contact → properties):
-- Property group **"Volcano Model MVP"** (internal `wfm_content_tools`) + **11 properties**:
-  `wfm_completed_health_check/_calculator/_benchmark` (checkbox), `wfm_firm_size`,
-  `wfm_revenue_band`, `wfm_health_score`, `wfm_maturity_tier`, `wfm_profit_leak`,
-  `wfm_benchmark_gap`, `wfm_biggest_issue`, `wfm_results_summary`.
+### 🔴 OPEN: Webflow Cloud still 404s at `/app`
+After the Astro migration (commit `9d5b964`) the URL still returned 404 when last checked.
+**Need the Webflow Cloud → Deployments status for `9d5b964`** (Success / Building / Failed
++ build log) to diagnose. Likely culprits:
+- Build not triggered / still building → "Deploy latest commit".
+- Build failed → read the log.
+- Built OK but 404 → base-path mismatch. The official starter uses a literal
+  `"CLOUD_MOUNT_PATH"` token that Webflow swaps in; we hardcoded `"/app"`. If the
+  GitHub-connected build doesn't swap, `/app` is correct; if Webflow strips the `/app`
+  prefix before the worker, switch `astro.config` base back to `"CLOUD_MOUNT_PATH"`.
+Starter reference: github.com/Webflow-Examples/hello-world-astro (cloned to /tmp during setup).
+
+## HubSpot wiring (Portal ID 24214994, Pro tier) — capture verified end-to-end
+- Property group **"Volcano Model MVP"** (`wfm_content_tools`) + **11 `wfm_*` properties**.
 - Form **"Volcano Model MVP – Content Tool Results"**, GUID
-  `1905567d-53d7-4103-971e-9abb13bc6796` → wired into `src/lib/hubspot.js`
-  (Portal ID `24214994` also set). Tools POST here; form submission also shows as a
-  timeline activity (the "summary in timeline").
-- Dropped `wfm_industry` + `wfm_tool_used` from each tool's `hubspotFields()` and from the
-  form (industry comes from Clay enrichment; tool implied by completion flag).
+  `1905567d-53d7-4103-971e-9abb13bc6796` → wired into `src/lib/hubspot.js` (Portal ID set).
+- Dropped `wfm_industry` + `wfm_tool_used` (industry from Clay; tool implied by completion flag).
 
-## Lead scoring — "Volcano Lead Score" (engagement score)
-Property `volcano_lead_score` (+ `volcano_lead_score_threshold`). Rules built:
+## Lead score — "Volcano Lead Score" (engagement score) — LIVE + SCOPED
+Property `volcano_lead_score`. Rules:
 - **Tool Completions**: form submission of our form → **+25**, group limit **75**.
-- **Buying Signals**: Meeting booked → **+30**; Page visit (Base URL is any of the 5
-  solution pages) → **+10**.
-- **Email engagement**: DEFERRED until the TP email sequence + a `Volcano Model MVP`
-  campaign exist (so it scopes to those emails, not any marketing email).
-- Tiers (interpreted later in the Step 5 workflow, NOT on the property):
-  **Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+**.
+- **Buying Signals**: Meeting booked **+30**; Page visit (Base URL is any of 5 solution pages) **+10**.
+- **Email engagement**: DEFERRED until the TP email sequence + a `Volcano Model MVP` campaign exist.
+- Tiers (applied in the Step-5 workflow, NOT on the property): **Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+**.
+- ✅ **Scoped** via Contacts tab → "Score specific contacts" → segment **`Volcano Model MVP_all targets`**.
+  Out-of-scope contacts clear to blank; the earlier "scored the whole DB" issue is resolved
+  (read-only score, engine clears excluded contacts).
+- **Campaign audience** = the `VolcanoV1_*` active lists (industry-split: Construction, Architecture,
+  Creative, Consulting, Engineering; **Civil list still TBD**). Owners split Sina/Denzel within them.
 
-### ⛔ WHERE WE LEFT OFF — score is scoring the WHOLE database
-A lead score computes for every contact; the Meeting/Page-visit rules fire for any
-contact, not just campaign ones. **Fix:** turn the score OFF, scope it to a campaign
-audience, turn back on (non-members recalc to 0).
-- Campaign audience = the **Sina + Denzel target lists** (the 250 split by AE), or a
-  combined **"Volcano Model MVP – Targets"** list. Build these (needed for sequence +
-  routing anyway), then either set the score's **audience** (Settings/Contacts tab) to
-  that list, OR add a per-rule condition "Contact is member of [campaign list]".
-- Future cleaner marker: "**HeyGen video URL is known**" (Clay enriches it per contact) —
-  but contacts aren't enriched yet, so use the campaign lists for now.
+### End-to-end test (2026-06-13) — PASSED
+- MCP-created test contact **Volcano Testlead** `volcano-test-lead@example.com` (id **228104221186**),
+  added to the segment by Sina.
+- Fired a Health Check submission → all `wfm_` properties populated + form-submission timeline
+  activity. `volcano_lead_score` read `0` (in-scope, eval pending) → becomes **+25** on the next
+  batch eval (~30 min) or instantly via the scoring tool's **"Test a contact"** button.
+- Full chain proven: tool completion → contact + properties + timeline → score.
 
 ## Remaining work
-HubSpot:
-1. **Scope the Volcano score** to the campaign audience (above) and re-enable.
+1. **Fix Webflow Cloud 404** (get deploy status for `9d5b964`; maybe base token vs `/app`).
 2. **Step 5 — routing workflow**: branch on `volcano_lead_score` bands → Warm notify AE /
-   Hot AE task / Eruption create Lead + AE call. Owner-by-vertical: **Sina** =
-   architecture, construction, consulting · **Denzel** = civil, engineering, creative.
-3. **Step 6 — tracking**: paste HubSpot tracking code into Webflow (Project Settings →
-   Custom Code) + on the tool pages. Needed for page-view scoring + de-anonymisation.
-   Then verify the page-view rule (consider operator "contains" if "is equal to" misses).
-4. Create property `volcano_heygen_video_url` (HeyGen link) when Clay is ready to write it
+   Hot AE task / Eruption create Lead + AE call. Owner-by-vertical: **Sina** = architecture,
+   construction, consulting · **Denzel** = civil, engineering, creative.
+3. **Step 6 — tracking**: HubSpot tracking code into Webflow (Project Settings → Custom Code)
+   + on the tool pages. Enables page-view scoring + de-anonymisation. Then verify the page-view
+   rule (switch operator to "contains" if "is equal to" misses).
+4. `src/components/resource-hub/ResourceHub.jsx` — `TOOL_URLS` → live tool URLs (once the
+   Webflow Cloud URL works, e.g. `https://workflowmax-lp.webflow.io/app?tool=tp1`).
+5. Create property `volcano_heygen_video_url` (HeyGen link) when Clay is ready to write it
    (also used in the TP1 email link). NOT created yet.
-5. Build the `Volcano Model MVP` campaign + TP email sequence, then add the email scoring
-   rules scoped to it.
+6. Build the `Volcano Model MVP` campaign + TP email sequence, then add the email scoring rules scoped to it.
 
-Code placeholders before go-live:
-- `src/components/resource-hub/ResourceHub.jsx` — `TOOL_URLS` → live tool URLs.
-- `src/components/firms-like-yours/FirmsLikeYours.jsx` — real testimonial `youtubeId`s +
-  `[Firm Name]`/`[Director Name]`.
-
-Housekeeping:
-- Delete demo contact **volcano-demo@example.com** (id 227675012614) once done testing.
-- **Rotate the HubSpot Private App token** ("Content Tools Setup") — it was shared in chat.
+## Housekeeping
+- Delete test contacts when done: `volcano-test-lead@example.com` (228104221186) and
+  `volcano-demo@example.com` (227675012614).
+- **Rotate the HubSpot Private App token** ("Content Tools Setup") — shared in chat; won't
+  carry to another device, so a fresh token is needed next session to script HubSpot.
 
 ## TP1 email link format (for Clay/HubSpot)
-`https://tools.workflowmax.com/?tool=intro&firstname={{contact.firstname}}&company={{contact.company}}&industry=<architecture|engineering|consulting|construction|civil|creative>&email={{contact.email}}&video={{contact.volcano_heygen_video_url}}`
+`https://<live-tool-host>/?tool=intro&firstname={{contact.firstname}}&company={{contact.company}}&industry=<architecture|engineering|consulting|construction|civil|creative>&email={{contact.email}}&video={{contact.volcano_heygen_video_url}}`
+(host = the working Webflow Cloud URL once the 404 is fixed, e.g. `workflowmax-lp.webflow.io/app`)
