@@ -7,6 +7,15 @@ import react from "@astrojs/react";
 export default defineConfig({
   base: "/app",
   output: "server",
+  // Webflow Cloud docs: set assetsPrefix to the same mount path as `base`,
+  // and disable Astro's CSRF origin check (Webflow proxies requests, so the
+  // Origin header won't match the worker's own host).
+  build: {
+    assetsPrefix: "/app",
+  },
+  security: {
+    checkOrigin: false,
+  },
   adapter: cloudflare({
     platformProxy: {
       enabled: true,
