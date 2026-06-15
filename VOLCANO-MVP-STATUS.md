@@ -27,7 +27,22 @@ reusing 100% of the React components:
 - **Deployed to Webflow Cloud:** project "Landing Pages" (this GitHub repo connected),
   env `main`, mount path `/app`, URL `https://workflowmax-lp.webflow.io/app`.
 
-### 🔴 OPEN: Webflow Cloud still 404s at `/app`
+### ✅ ROOT CAUSE FOUND (2026-06-15): the Webflow SITE was never published
+The 404 was never a build/deploy/config problem. Deploys are green; the local Cloudflare
+worker serves `/app` with HTTP 200 (verified via `wrangler dev`). Proof it's a publish issue:
+`curl -I` on the live host shows the **root `/`, bare `/app`, and `/app?tool=tp1` all return
+the IDENTICAL Webflow 404** (same `ETag W/"6a2b0461-38a"`, `surrogate-key …404req`,
+`CF-Cache-Status: HIT`, 5-day cache). i.e. requests hit Webflow's normal **site** CDN, which
+has no page there — the Cloud `/app` mount is not registered on the live edge.
+**FIX: publish the Webflow site** the Cloud project is attached to (Designer → Publish to
+`workflowmax-lp.webflow.io`). Webflow docs: "if you deployed to an existing site, publish the
+site and confirm the environment's mount path matches." The green Cloud deploy already placed
+the worker; publishing wires the site CDN routing to it.
+Also note: **Webflow's edge 301-strips trailing slashes** (`/app/` → `/app`), so the canonical
+URLs are **bare** `…/app?tool=tp1` (NO trailing slash).
+
+---
+### (historical) earlier investigation before root cause was found
 After the Astro migration (commit `9d5b964`) the URL still returned 404 when last checked.
 
 **Local build is verified correct (2026-06-15, Claude):** ran `npm install` + `npm run build`
