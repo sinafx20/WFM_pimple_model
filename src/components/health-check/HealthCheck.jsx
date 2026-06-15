@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
-import brandBg from "../../assets/brand-bg.png";
 
 /* ─────────────────────────────────────
    VERTICALS
@@ -530,7 +529,11 @@ export default function WorkflowHealthCheck() {
         @media (min-width: 768px) {
           body { margin: 0; }
           .hc-root {
-            background: url(${brandBg}) center center / cover no-repeat fixed;
+            /* Transparent on desktop so the global green brand canvas (set on
+               body in shell.css) shows through. Painting it here from a
+               JS-imported asset URL doesn't survive Webflow Cloud's asset
+               rewriting, unlike the CSS-file reference in shell.css. */
+            background: transparent;
           }
           .hc-shell { max-width: 1080px; margin: 0 auto; display: flex; align-items: stretch; }
           .hc-brand { display: flex; flex-direction: column; width: 360px; flex-shrink: 0; background: #0A2F28; }
