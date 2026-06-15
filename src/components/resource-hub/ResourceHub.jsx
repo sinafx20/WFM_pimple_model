@@ -59,15 +59,16 @@ const BOOKING_URLS = {
 };
 const FREE_TRIAL_URL = "https://app.workflowmax.com/register/sign_up";
 
-/* The other touchpoints' live pages. TODO (Leo): set each to its
-   workflowmax.com/... URL once published. "#" is a safe no-op until then.
-   Append ?industry= so the linked tool stays personalised to this prospect. */
+/* The other touchpoints live in this same deployed app, reached via ?tool=.
+   Relative query-only links so they stay correct on any host/mount path
+   (e.g. /app on Webflow Cloud, or a future custom domain). withIndustry()
+   resolves them against the current page and carries ?industry= through. */
 const TOOL_URLS = {
-  healthCheck: "#",
-  calculator: "#",
-  benchmark: "#",
-  walkthrough: "#",
-  stories: "#",
+  healthCheck: "?tool=tp1",
+  calculator: "?tool=tp2",
+  benchmark: "?tool=tp3",
+  walkthrough: "?tool=tp4",
+  stories: "?tool=tp5",
 };
 
 const goTo = (url) => {
@@ -75,11 +76,13 @@ const goTo = (url) => {
 };
 
 /* Carry the current ?industry= through to the linked tool so personalisation
-   persists across the journey. */
+   persists across the journey. Resolve against the full current URL (not just
+   the origin) so the deploy path/mount (e.g. /app) is preserved. */
 const withIndustry = (url, industryId) => {
   if (!url || url === "#") return url;
   try {
-    const u = new URL(url, typeof window !== "undefined" ? window.location.origin : "https://workflowmax.com");
+    const base = typeof window !== "undefined" ? window.location.href : "https://workflowmax.com/app";
+    const u = new URL(url, base);
     if (industryId) u.searchParams.set("industry", industryId);
     return u.toString();
   } catch {

@@ -18,6 +18,16 @@ const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       rel="stylesheet"
     />
     <title>WorkflowMAX</title>
+    <!-- HubSpot tracking (portal 24214994). Lives here because the tool pages
+         are served by this Astro app, not by Webflow's page renderer, so the
+         site-wide Webflow custom code does not reach them. Sets the hubspotutk
+         cookie that src/lib/hubspot.js attaches to form submissions. -->
+    <script
+      type="text/javascript"
+      id="hs-script-loader"
+      async
+      defer
+      src="https://js.hs-scripts.com/24214994.js"></script>
   </head>
   <body>
     <slot />
