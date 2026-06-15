@@ -95,17 +95,26 @@ Property `volcano_lead_score`. Rules:
 - Full chain proven: tool completion → contact + properties + timeline → score.
 
 ## Remaining work
-1. **Fix Webflow Cloud 404** (get deploy status for `9d5b964`; maybe base token vs `/app`).
-2. **Step 5 — routing workflow**: branch on `volcano_lead_score` bands → Warm notify AE /
-   Hot AE task / Eruption create Lead + AE call. Owner-by-vertical: **Sina** = architecture,
-   construction, consulting · **Denzel** = civil, engineering, creative.
-3. **Step 6 — tracking**: HubSpot tracking code into Webflow (Project Settings → Custom Code)
-   + on the tool pages. Enables page-view scoring + de-anonymisation. Then verify the page-view
-   rule (switch operator to "contains" if "is equal to" misses).
-4. `src/components/resource-hub/ResourceHub.jsx` — `TOOL_URLS` → live tool URLs (once the
-   Webflow Cloud URL works, e.g. `https://workflowmax-lp.webflow.io/app?tool=tp1`).
+1. **Fix Webflow Cloud 404** → ROOT CAUSE = site not published (see top section). Waiting on a
+   colleague to grant Sina publish permission, then Publish the site. After publish, test BOTH
+   `https://lp.workflowmax.com/app?tool=tp1` (the site's real custom domain) and the
+   `workflowmax-lp.webflow.io/app` staging URL.
+2. **Step 5 — routing workflow** (HubSpot, not built yet): branch on `volcano_lead_score` bands →
+   Warm notify AE / Hot AE task / Eruption create Lead + AE call. Owner-by-vertical: **Sina** =
+   architecture, construction, consulting · **Denzel** = civil, engineering, creative.
+3. ✅ **Step 6 tracking — DONE in code** (commit `e6ebc63`): HubSpot loader (portal 24214994) added
+   to `src/layouts/Layout.astro` <head> so it fires on the tool pages (the Astro app, NOT reachable
+   via Webflow site custom code). `hubspot.js` already attaches the resulting `hubspotutk` cookie to
+   submissions. STILL TODO: also paste the same script into Webflow → Custom Code for the native
+   `lp.workflowmax.com` solution pages; then verify the page-view scoring rule (switch operator to
+   "contains" if "is equal to" misses).
+4. ✅ **DONE in code** (commit `e6ebc63`): `ResourceHub.jsx` `TOOL_URLS` now point to the sibling
+   tools via relative `?tool=tp1..tp5` (host/mount-agnostic; `withIndustry` preserves the `/app`
+   base + carries `?industry=`). No further URL wiring needed — every other tool's solution/booking/
+   walkthrough/free-trial link was already real.
 5. Create property `volcano_heygen_video_url` (HeyGen link) when Clay is ready to write it
-   (also used in the TP1 email link). NOT created yet.
+   (also used in the TP1 email link). NOT created yet. **TP1 code is already done** — `IntroVideo.jsx`
+   `resolveVideo()` reads `?video=` and handles HeyGen share→embed + direct `.mp4`.
 6. Build the `Volcano Model MVP` campaign + TP email sequence, then add the email scoring rules scoped to it.
 
 ## Housekeeping
