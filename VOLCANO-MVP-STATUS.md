@@ -29,15 +29,29 @@ reusing 100% of the React components:
 
 ### 🔴 OPEN: Webflow Cloud still 404s at `/app`
 After the Astro migration (commit `9d5b964`) the URL still returned 404 when last checked.
-**Need the Webflow Cloud → Deployments status for `9d5b964`** (Success / Building / Failed
-+ build log) to diagnose. Likely culprits:
-- Build not triggered / still building → "Deploy latest commit".
-- Build failed → read the log.
-- Built OK but 404 → base-path mismatch. The official starter uses a literal
-  `"CLOUD_MOUNT_PATH"` token that Webflow swaps in; we hardcoded `"/app"`. If the
-  GitHub-connected build doesn't swap, `/app` is correct; if Webflow strips the `/app`
-  prefix before the worker, switch `astro.config` base back to `"CLOUD_MOUNT_PATH"`.
-Starter reference: github.com/Webflow-Examples/hello-world-astro (cloned to /tmp during setup).
+
+**Local build is verified correct (2026-06-15, Claude):** ran `npm install` + `npm run build`
+clean. Confirmed in `dist/`: assets emit to `dist/app/_astro/*`, the SSR worker references
+them as `/app/_astro/...` (no bare `/_astro/` leaks), and `dist/_routes.json` routes `/*` to
+the worker while excluding `/app/_astro/*` as static. So the **artifacts are correct — the 404
+is on the Webflow Cloud side**, not the build.
+
+**Done this session (commit `5ee893d`, pushed to `main` to re-trigger a fresh deploy):**
+aligned `astro.config.mjs` to the current official Webflow Cloud Astro docs —
+added `build.assetsPrefix: "/app"` (docs say it must match `base`) and
+`security.checkOrigin: false` (Webflow proxies requests; the Origin header won't match the
+worker host, which would otherwise reject form POSTs). Note: current Webflow docs use a
+**literal** mount path (`/app`), not the older `"CLOUD_MOUNT_PATH"` token from the
+hello-world-astro starter, so `base: "/app"` is correct as long as the env mount path is `/app`.
+
+**🟡 Sina to check in the Webflow Cloud dashboard (only place this is visible):**
+1. Project "Landing Pages" → env `main` → **Deployments**: is commit `5ee893d` Success /
+   Building / Failed? If Failed, read the build log (paste back). If no deploy appears,
+   hit **"Deploy latest commit"** (GitHub auto-deploy may not be wired).
+2. Confirm the environment's **mount path is exactly `/app`** (must match `base`/`assetsPrefix`).
+3. Once it returns 200 at `https://workflowmax-lp.webflow.io/app`, unblocks remaining-work #4
+   (ResourceHub `TOOL_URLS`) and #3 (tracking code).
+Starter reference: github.com/Webflow-Examples/hello-world-astro.
 
 ## HubSpot wiring (Portal ID 24214994, Pro tier) — capture verified end-to-end
 - Property group **"Volcano Model MVP"** (`wfm_content_tools`) + **11 `wfm_*` properties**.
