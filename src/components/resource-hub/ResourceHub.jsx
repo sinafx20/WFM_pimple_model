@@ -1,4 +1,5 @@
 import CredibilityStrip from "../shared/CredibilityStrip.jsx";
+import FirmBadge from "../shared/FirmBadge.jsx";
 
 /* ─── WFM Logo ─── */
 const WFMLogo = () => (
@@ -75,15 +76,24 @@ const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
 };
 
-/* Carry the current ?industry= through to the linked tool so personalisation
-   persists across the journey. Resolve against the full current URL (not just
-   the origin) so the deploy path/mount (e.g. /app) is preserved. */
+/* Carry the current ?industry= + firm identity (?company=, ?logo=, ?firstname=)
+   through to the linked tool so personalisation persists across the journey.
+   Resolve against the full current URL (not just the origin) so the deploy
+   path/mount (e.g. /app) is preserved. */
+const PERSONALISATION_PARAMS = ["company", "logo", "domain", "firstname", "email"];
 const withIndustry = (url, industryId) => {
   if (!url || url === "#") return url;
   try {
     const base = typeof window !== "undefined" ? window.location.href : "https://workflowmax.com/app";
     const u = new URL(url, base);
     if (industryId) u.searchParams.set("industry", industryId);
+    if (typeof window !== "undefined") {
+      const cur = new URLSearchParams(window.location.search);
+      for (const p of PERSONALISATION_PARAMS) {
+        const v = cur.get(p);
+        if (v) u.searchParams.set(p, v);
+      }
+    }
     return u.toString();
   } catch {
     return url;
@@ -167,10 +177,11 @@ export default function ResourceHub() {
 
       {/* Header */}
       <div style={{
-        padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "16px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
       }}>
         <WFMLogo />
+        <FirmBadge align="center" />
       </div>
 
       <div className="rh-inner" style={{ padding: "28px 24px 48px" }}>

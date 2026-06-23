@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import FirmBadge from "../shared/FirmBadge.jsx";
+import PersonalBridge from "../shared/PersonalBridge.jsx";
+import { getFirm } from "../../lib/personalize.js";
 
 /* ─────────────────────────────────────
    VERTICALS
@@ -556,6 +559,7 @@ export default function WorkflowHealthCheck() {
             <div style={{ background: "#fff", borderRadius: 12, padding: "9px 14px", display: "inline-flex", alignSelf: "flex-start", marginBottom: 34 }}>
               <Logo />
             </div>
+            <FirmBadge variant="dark" style={{ marginTop: -16, marginBottom: 26 }} />
             <h2 style={{ fontFamily: HEAD, fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1.15, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
               Workflow Health Check
             </h2>
@@ -601,6 +605,13 @@ export default function WorkflowHealthCheck() {
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>{currentQ + 1}/{QUESTIONS.length}</span>
         )}
       </div>
+
+      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) */}
+      {getFirm().company && (
+        <div className="hc-hide-desktop" style={{ textAlign: "center", padding: "12px 20px 0", background: "#fff" }}>
+          <FirmBadge align="center" />
+        </div>
+      )}
 
       {/* ── PROGRESS ── */}
       {(screen === "question" || screen === "results") && (
@@ -877,8 +888,15 @@ export default function WorkflowHealthCheck() {
               )}
             </div>
 
+            {/* Personalised bridge into the booking CTA */}
+            <PersonalBridge
+              headline={(name) => `${name} could move up a level sooner than you'd think.`}
+              sub="Most firms close their biggest gap in weeks, not a system overhaul. Let's map the fastest path on a quick call."
+              style={{ marginTop: 28 }}
+            />
+
             {/* Bottom booking CTA (optional, high-intent path) */}
-            <div style={{ background: "#0A2F28", borderRadius: 16, padding: "24px 20px", textAlign: "center", marginTop: 24 }}>
+            <div style={{ background: "#0A2F28", borderRadius: 16, padding: "24px 20px", textAlign: "center", marginTop: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "0 0 8px" }}>Prefer to talk it through?</h3>
               <p style={{ fontSize: 14, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                 No pressure to book. Explore at your own pace and one of our {vertical.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.

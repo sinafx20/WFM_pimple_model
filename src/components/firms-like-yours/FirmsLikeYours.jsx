@@ -1,5 +1,7 @@
 import { useState } from "react";
 import CredibilityStrip from "../shared/CredibilityStrip.jsx";
+import FirmBadge from "../shared/FirmBadge.jsx";
+import PersonalBridge from "../shared/PersonalBridge.jsx";
 
 /* ─── WFM Logo ─── */
 const WFMLogo = () => (
@@ -220,10 +222,11 @@ export default function FirmsLikeYours() {
 
       {/* Header */}
       <div style={{
-        padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "16px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
       }}>
         <WFMLogo />
+        <FirmBadge align="center" />
       </div>
 
       <div className="fly-inner" style={{ padding: "28px 24px 48px" }}>
@@ -344,6 +347,13 @@ export default function FirmsLikeYours() {
             </p>
           </div>
         )}
+
+        {/* Personalised bridge from the proof into the CTA */}
+        <PersonalBridge
+          headline={(name) => `${name} could be the next story here.`}
+          sub="These firms started exactly where you are. Give us 20 minutes and we'll prove it on your own jobs."
+          style={{ margin: "4px 0 22px" }}
+        />
 
         {/* Final CTA */}
         <div style={{

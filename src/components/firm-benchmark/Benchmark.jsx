@@ -2,6 +2,9 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
+import FirmBadge from "../shared/FirmBadge.jsx";
+import PersonalBridge from "../shared/PersonalBridge.jsx";
+import { getFirm } from "../../lib/personalize.js";
 import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 
 /* ─── WFM Logo ─── */
@@ -484,6 +487,13 @@ export default function FirmBenchmark() {
         )}
       </div>
 
+      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) */}
+      {getFirm().company && (
+        <div className="wfm-hide-desktop" style={{ textAlign: "center", padding: "12px 20px 0", background: "#fff" }}>
+          <FirmBadge align="center" />
+        </div>
+      )}
+
       {/* PROGRESS BAR */}
       {(screen === "metric" || screen === "results") && (
         <div className="wfm-hide-desktop" style={{ height: 3, background: "#E5E7EB" }}>
@@ -839,8 +849,15 @@ export default function FirmBenchmark() {
                 </button>
               </div>
 
+              {/* Personalised bridge into the booking CTA */}
+              <PersonalBridge
+                headline={(name) => `${name} could capture a real slice of this.`}
+                sub="These gaps close faster with one connected system. Let's prove it on your own numbers."
+                style={{ marginTop: 24 }}
+              />
+
               {/* Booking (optional, high-intent path) */}
-              <div style={{ background: "#0A2F28", borderRadius: 16, padding: "22px 18px", textAlign: "center", marginTop: 24 }}>
+              <div style={{ background: "#0A2F28", borderRadius: 16, padding: "22px 18px", textAlign: "center", marginTop: 20 }}>
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: "#fff", margin: "0 0 8px" }}>Prefer to talk it through?</h3>
                 <p style={{ fontSize: 13, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                   No pressure to book. Explore at your own pace and one of our {v.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.

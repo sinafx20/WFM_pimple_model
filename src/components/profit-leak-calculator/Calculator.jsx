@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
+import FirmBadge from "../shared/FirmBadge.jsx";
+import { getFirm } from "../../lib/personalize.js";
 import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 
 /* ─── WFM Logo ─── */
@@ -418,6 +420,13 @@ export default function ProfitLeakCalculator() {
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>Leak {leakStep + 1}/{leaks.length}</span>
         )}
       </div>
+
+      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) */}
+      {getFirm().company && (
+        <div className="wfm-hide-desktop" style={{ textAlign: "center", padding: "12px 20px 0", background: "#fff" }}>
+          <FirmBadge align="center" />
+        </div>
+      )}
 
       {/* PROGRESS BAR */}
       {(screen === "leak" || screen === "results") && (

@@ -2,6 +2,8 @@
 // Calculator, Benchmark). Hidden on phones via .wfm-brand; the green canvas
 // + white content pane come from src/styles/shell.css.
 
+import FirmBadge from "./FirmBadge.jsx";
+
 const Logo = () => (
   <svg width="120" height="36" viewBox="0 0 134 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <g clipPath="url(#lbs)">
@@ -34,6 +36,7 @@ export default function BrandSidebar({ title, blurb, step, progress = 0, bullets
         <div style={{ background: "#fff", borderRadius: 12, padding: "9px 14px", display: "inline-flex", alignSelf: "flex-start", marginBottom: 34 }}>
           <Logo />
         </div>
+        <FirmBadge variant="dark" style={{ marginTop: -16, marginBottom: 26 }} />
         <h2 style={{ fontFamily: "'Bruna', 'DM Sans', sans-serif", fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1.15, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
           {title}
         </h2>

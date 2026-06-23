@@ -82,6 +82,10 @@ const goToHealthCheck = () => {
   const next = new URLSearchParams({ tool: "tp1" });
   if (q.get("industry")) next.set("industry", q.get("industry"));
   if (q.get("email")) next.set("email", q.get("email"));
+  // Carry firm identity so the personalised badge persists into the Health Check.
+  for (const p of ["company", "logo", "domain", "firstname"]) {
+    if (q.get(p)) next.set(p, q.get(p));
+  }
   window.location.href = `${window.location.pathname}?${next.toString()}`;
 };
 
@@ -117,7 +121,8 @@ export default function IntroVideo() {
         @media (min-width: 768px) { body { margin: 0; } .iv { max-width: 1040px !important; } .iv-inner { max-width: 900px; margin: 0 auto; } }
       `}</style>
 
-      {/* Header */}
+      {/* Header — IntroVideo already personalises in the hero (pill + "Hi {name}"),
+          so no FirmBadge here to avoid naming the firm twice on one screen. */}
       <div style={{
         padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "center",
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
