@@ -1,0 +1,123 @@
+<!--
+  REFERENCE ONLY — Sina's existing outreach email, kept as the design baseline
+  for master-branded.html. Not for sending as-is (HubSpot-syntax tokens, no
+  unsubscribe/preheader, mojibake emoji). See master-branded.html for the
+  cleaned, reusable version.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkflowMax</title>
+<style type="text/css">
+body { margin: 0 !important; padding: 0 !important; background-color: #ffffff; }
+table { border-spacing: 0; font-family: sans-serif; color: #666666; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+td { padding: 0; border-collapse: collapse; }
+img { border: 0; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; display: block; }
+.wrapper { width: 100%; table-layout: fixed; }
+.webkit { max-width: 650px; margin: 0 auto; }
+.outer { margin: 0 auto; width: 100%; max-width: 650px; }
+div, p, a, li, td { -webkit-text-size-adjust: none; }
+@media only screen and (max-width: 480px) {
+.retira { display: none !important; }
+}
+</style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff;">
+<center class="wrapper">
+<div class="webkit">
+<table class="outer" align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:650px; border-collapse:collapse;">
+<tbody>
+
+  <!-- HEADER: LOGO -->
+  <tr>
+    <td align="center" bgcolor="#0A2D29" style="padding: 25px 0; background-color: #0A2D29;">
+      <a target="_blank" href="https://www.workflowmax.com" data-hs-link-id="0">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Logos/WFM_Light_Logo.png" width="181" alt="WorkflowMAX" style="width:181px; height:auto; margin: 0 auto;">
+      </a>
+    </td>
+  </tr>
+
+  <!-- WARM INTRODUCTION -->
+  <tr>
+    <td bgcolor="#F4F4F4" style="padding: 25px 25px 15px 25px;">
+      <p style="color:#000000; font-size:16px; line-height:24px; margin: 0 0 8px 0;">
+        Hi {{ contact.firstname }},
+      </p>
+      <p style="color:#000000; font-size:15px; line-height:22px; margin: 0;">
+        Hope you're having a great week over at {{ contact.company }}. I recorded a quick video for you - there's a pattern I keep noticing with {{ contact.industry }} firms your size, and I thought it was worth sharing.
+      </p>
+    </td>
+  </tr>
+
+  <!-- VIDEO THUMBNAIL -->
+  <tr>
+    <td align="center" bgcolor="#F4F4F4" style="padding: 0 20px 20px 20px; line-height: 0; font-size: 0;">
+      <a target="_blank" href="{{ contact.landing_page_url }}" data-hs-link-id="0" style="text-decoration:none; display:inline-block; line-height:0;">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/Ryan_Email.png" width="610" alt="Watch video" style="width:100%; max-width:610px; height:auto; display:block; border-radius:4px;">
+      </a>
+    </td>
+  </tr>
+
+  <!-- CTA INVITATION TEXT -->
+  <tr>
+    <td bgcolor="#F4F4F4" style="padding: 10px 25px 5px 25px;">
+      <p style="color:#000000; font-size:15px; line-height:22px; text-align:center; margin: 0 0 10px 0;">
+        I've also put together a <b>personalized page for {{ contact.company }}</b> with a workflow health check and a few resources I think you'll find useful.
+      </p>
+      <p style="color:#000000; font-size:15px; line-height:22px; text-align:center; margin: 0 0 20px 0;">
+        Take a look below
+      </p>
+    </td>
+  </tr>
+
+  <!-- CTA BUTTON -->
+  <tr>
+    <td align="center" bgcolor="#F4F4F4" style="padding: 5px 20px 30px 20px;">
+      <a href="{{ contact.landing_page_url }}" target="_blank" data-hs-link-id="0" style="background-color:#46B347; border-radius:20px; color:#ffffff; display:inline-block; font-size:15px; font-weight:bold; line-height:44px; text-align:center; text-decoration:none; width:260px;">
+        See {{ contact.company }}'s Page
+      </a>
+    </td>
+  </tr>
+
+  <!-- CLOSING / SIGNATURE -->
+  <tr>
+    <td bgcolor="#F4F4F4" style="padding: 10px 20px 30px 20px;">
+      <p style="color:#000000; font-size:15px; line-height:22px; margin:0;">
+        If any of it sparks something, <a href="https://workflowmax.com/meetings/ryan-kagan2?uuid=4ca470ac-d908-49f2-8d73-2554cd97e2c9" target="_blank" data-hs-link-id="0" style="color:#46B347; font-weight:bold; text-decoration:underline;">I'd love to chat</a>.<br><br>
+        Talk soon,
+      </p>
+      <div align="center" style="margin-top:20px;">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/Ryan_Round.png" width="100" alt="Ryan Kagan" style="display:block; margin: 0 auto 10px auto;">
+        <p style="color:#000000; font-size:15px; margin:0;"><b>Ryan Kagan</b></p>
+        <p style="color:#000000; font-size:15px; margin:0;">Chief Revenue Officer</p>
+        <p style="color:#000000; font-size:15px; margin:0;">WorkflowMAX</p>
+      </div>
+    </td>
+  </tr>
+
+  <!-- FOOTER: SOCIAL MEDIA -->
+  <tr>
+    <td bgcolor="#0A2D29" align="center" style="padding: 10px 10px 10px 10px; background-color: #0A2D29;">
+      <p style="color:#FFFFFF; font-size:12px; font-weight:bold; margin: 0 0 10px 0;">Follow us on Social Media</p>
+      <table border="0" cellpadding="0" cellspacing="0" align="center">
+        <tr>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.instagram.com/workflowmax/" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Instagram_WFM.png" width="30" alt="Instagram"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="#" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/TikTok_WFM.png" width="30" alt="TikTok"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.facebook.com/workflowmaxx" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Facebook_WFM.png" width="30" alt="Facebook"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.youtube.com/channel/UCMZHYTWFWE-mbcKCz6BMTuQ" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/YouTube_WFM.png" width="30" alt="YouTube"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.linkedin.com/company/workflowmax" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/LinkedIn_WFM.png" width="30" alt="Linkedin"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://workflowmax.com/blog" data-hs-link-id="0"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Blog_WFM.png" width="30" alt="Blog"></a></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</tbody>
+</table>
+</div>
+</center>
+</body>
+</html>

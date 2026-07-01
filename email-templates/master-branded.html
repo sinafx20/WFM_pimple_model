@@ -1,0 +1,188 @@
+<!--
+  WorkflowMAX — Volcano Model — BRANDED master email (v2)
+  ============================================================================
+  Design baseline: Sina's "Outreach Email" (see _reference-outreach-email.html).
+  This is the cleaned, reusable version: fixed emoji, added preheader, bulletproof
+  CTA button, optional video block, and a compliant footer (unsubscribe + address).
+
+  ---------------------------------------------------------------------------
+  MERGE TOKENS — pick ONE syntax to match where you actually send from:
+    HubSpot   (default below):  {{ contact.firstname }}  {{ contact.company }}
+                                {{ contact.industry }}    {{ contact.landing_page_url }}
+    Instantly (cold/domain rot): {{firstName}}  {{companyName}}  {{industry}}  {{toolLink}}
+
+  ⚠️ If you send from INSTANTLY, find-and-replace before sending:
+      {{ contact.firstname }}        -> {{firstName}}
+      {{ contact.company }}          -> {{companyName}}
+      {{ contact.industry }}         -> {{industry}}          (custom CSV column)
+      {{ contact.landing_page_url }} -> {{toolLink}}          (custom CSV column)
+  Leaving HubSpot tokens in an Instantly send = blank fields.
+
+  ---------------------------------------------------------------------------
+  HOW TO USE
+    - Replace every [[ ... ]] slot with copy.
+    - VIDEO BLOCK is optional: keep it for TP1 intro / TP4 demo emails; delete the
+      whole "VIDEO THUMBNAIL" <tr> for text-only sends in the sequence.
+    - SIGNATURE defaults to Ryan Kagan (CRO). Swap name/title/headshot/booking link
+      per sender if you route by rep (Sina / Denzel).
+    - FOOTER: fill the physical address; let the platform inject the unsubscribe
+      link (Instantly auto-appends when enabled; HubSpot uses {{ unsubscribe_link }}).
+    - Test-send to Gmail AND Outlook before launch.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>WorkflowMAX</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style type="text/css">
+body { margin: 0 !important; padding: 0 !important; background-color: #ffffff; }
+table { border-spacing: 0; font-family: Arial, Helvetica, sans-serif; color: #666666; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+td { padding: 0; border-collapse: collapse; }
+img { border: 0; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; display: block; }
+.wrapper { width: 100%; table-layout: fixed; }
+.webkit { max-width: 650px; margin: 0 auto; }
+.outer { margin: 0 auto; width: 100%; max-width: 650px; }
+div, p, a, li, td { -webkit-text-size-adjust: none; }
+a { color: #46B347; }
+@media only screen and (max-width: 480px) {
+  .sp-pad { padding-left: 20px !important; padding-right: 20px !important; }
+}
+</style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff;">
+
+<!-- PREHEADER — inbox preview line (hidden in body). ~50-90 chars. -->
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#ffffff;">
+  [[ PREHEADER — e.g. A 60-second workflow health check, built for {{ contact.company }}. ]]&zwnj;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</div>
+
+<center class="wrapper">
+<div class="webkit">
+<table class="outer" align="center" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:650px; border-collapse:collapse;">
+<tbody>
+
+  <!-- HEADER: LOGO -->
+  <tr>
+    <td align="center" bgcolor="#0A2D29" style="padding: 25px 0; background-color: #0A2D29;">
+      <a target="_blank" href="https://www.workflowmax.com">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Logos/WFM_Light_Logo.png" width="181" alt="WorkflowMAX" style="width:181px; height:auto; margin: 0 auto;">
+      </a>
+    </td>
+  </tr>
+
+  <!-- WARM INTRODUCTION -->
+  <tr>
+    <td class="sp-pad" bgcolor="#F4F4F4" style="padding: 25px 25px 15px 25px;">
+      <p style="color:#000000; font-size:16px; line-height:24px; margin: 0 0 8px 0;">
+        Hi {{ contact.firstname }}, &#128075;
+      </p>
+      <p style="color:#000000; font-size:15px; line-height:22px; margin: 0;">
+        [[ OPENING — reference {{ contact.company }} / {{ contact.industry }}. e.g.
+        "Hope things are going well over at {{ contact.company }}. I recorded a quick
+        video for you — there's a pattern I keep seeing with {{ contact.industry }}
+        firms your size that's worth sharing." ]]
+      </p>
+    </td>
+  </tr>
+
+  <!-- VIDEO THUMBNAIL (optional — delete this <tr> for text-only emails) -->
+  <tr>
+    <td class="sp-pad" align="center" bgcolor="#F4F4F4" style="padding: 0 20px 20px 20px; line-height: 0; font-size: 0;">
+      <a target="_blank" href="{{ contact.landing_page_url }}" style="text-decoration:none; display:inline-block; line-height:0;">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/Ryan_Email.png" width="610" alt="Watch the video" style="width:100%; max-width:610px; height:auto; display:block; border-radius:4px;">
+      </a>
+    </td>
+  </tr>
+
+  <!-- CTA INVITATION TEXT -->
+  <tr>
+    <td class="sp-pad" bgcolor="#F4F4F4" style="padding: 10px 25px 5px 25px;">
+      <p style="color:#000000; font-size:15px; line-height:22px; text-align:center; margin: 0 0 10px 0;">
+        [[ INVITATION — e.g. I've put together a <b>personalized page for
+        {{ contact.company }}</b> with a workflow health check and a few resources
+        I think you'll find useful. ]]
+      </p>
+      <p style="color:#000000; font-size:15px; line-height:22px; text-align:center; margin: 0 0 20px 0;">
+        Take a look below &#128071;
+      </p>
+    </td>
+  </tr>
+
+  <!-- CTA BUTTON (bulletproof — renders in Outlook too) -->
+  <tr>
+    <td align="center" bgcolor="#F4F4F4" style="padding: 5px 20px 30px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+        <tr>
+          <td align="center" bgcolor="#46B347" style="border-radius:24px;">
+            <!--[if mso]>&nbsp;&nbsp;&nbsp;&nbsp;<![endif]-->
+            <a href="{{ contact.landing_page_url }}" target="_blank"
+               style="display:inline-block; padding:13px 36px; font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:24px;">
+              [[ BUTTON — e.g. See {{ contact.company }}'s Page ]]
+            </a>
+            <!--[if mso]>&nbsp;&nbsp;&nbsp;&nbsp;<![endif]-->
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- CLOSING / SIGNATURE -->
+  <tr>
+    <td class="sp-pad" bgcolor="#F4F4F4" style="padding: 10px 20px 30px 20px;">
+      <p style="color:#000000; font-size:15px; line-height:22px; margin:0;">
+        [[ CLOSING — e.g. If any of it sparks something,
+        <a href="https://workflowmax.com/meetings/ryan-kagan2?uuid=4ca470ac-d908-49f2-8d73-2554cd97e2c9" target="_blank" style="color:#46B347; font-weight:bold; text-decoration:underline;">I'd love to chat</a>. ]]<br><br>
+        Talk soon,
+      </p>
+      <div align="center" style="margin-top:20px;">
+        <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/Ryan_Round.png" width="100" alt="[[ Sender name ]]" style="display:block; margin: 0 auto 10px auto;">
+        <p style="color:#000000; font-size:15px; margin:0;"><b>[[ Sender name — e.g. Ryan Kagan ]]</b></p>
+        <p style="color:#000000; font-size:15px; margin:0;">[[ Title — e.g. Chief Revenue Officer ]]</p>
+        <p style="color:#000000; font-size:15px; margin:0;">WorkflowMAX</p>
+      </div>
+    </td>
+  </tr>
+
+  <!-- FOOTER: SOCIAL MEDIA -->
+  <tr>
+    <td bgcolor="#0A2D29" align="center" style="padding: 16px 10px 10px 10px; background-color: #0A2D29;">
+      <p style="color:#FFFFFF; font-size:12px; font-weight:bold; margin: 0 0 10px 0;">Follow us on Social Media</p>
+      <table border="0" cellpadding="0" cellspacing="0" align="center">
+        <tr>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.instagram.com/workflowmax/"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Instagram_WFM.png" width="30" alt="Instagram"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.tiktok.com/@workflowmax"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/TikTok_WFM.png" width="30" alt="TikTok"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.facebook.com/workflowmaxx"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Facebook_WFM.png" width="30" alt="Facebook"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.youtube.com/channel/UCMZHYTWFWE-mbcKCz6BMTuQ"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/YouTube_WFM.png" width="30" alt="YouTube"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://www.linkedin.com/company/workflowmax"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/LinkedIn_WFM.png" width="30" alt="LinkedIn"></a></td>
+          <td style="padding:0 5px;"><a target="_blank" href="https://workflowmax.com/blog"><img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Social/Blog_WFM.png" width="30" alt="Blog"></a></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- FOOTER: COMPLIANCE (required — address + unsubscribe) -->
+  <tr>
+    <td bgcolor="#0A2D29" align="center" style="padding: 4px 20px 22px 20px; background-color: #0A2D29;">
+      <p style="color:#7E938E; font-size:11px; line-height:16px; margin: 12px 0 6px 0;">
+        WorkflowMAX &middot; [[ Physical mailing address — required ]]
+      </p>
+      <p style="color:#7E938E; font-size:11px; line-height:16px; margin: 0;">
+        You're receiving this because [[ reason ]].
+        <!-- Instantly auto-appends unsubscribe when enabled. For HubSpot use: -->
+        <a href="[[ UNSUBSCRIBE LINK / platform token ]]" style="color:#9FB5AF; text-decoration:underline;">Unsubscribe</a>
+      </p>
+    </td>
+  </tr>
+
+</tbody>
+</table>
+</div>
+</center>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!--
+  WorkflowMAX — Volcano Model — LIGHT master email (for Instantly cold outbound)
+  ----------------------------------------------------------------------------
+  WHY THIS VERSION: cold sending from rotating domains lands in the primary
+  inbox only when the email looks like a personal 1:1 note. No images, no
+  buttons, one plain text link. THIS is the one to send from Instantly.
+
+  HOW TO USE:
+   1. Paste this whole block into Instantly's email body (Code/HTML view).
+   2. Replace every [[ ... ]] slot with your copy.
+   3. Merge tags in {{ }} are Instantly variables — {{firstName}},
+      {{companyName}}, {{email}} are built in; {{industry}} and {{toolLink}}
+      are CUSTOM columns you add to your lead CSV.
+   4. Use spintax {optionA|optionB} on the subject + first line for variation.
+   5. Let Instantly append its own unsubscribe link (Settings → enable it) —
+      do NOT hand-roll one here.
+-->
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.55; color: #222222;">
+
+  <p>Hi {{firstName}},</p>
+
+  <p>[[ OPENING LINE — make it specific to {{companyName}} / their industry. e.g.
+  "I put together a 60-second benchmark for {{industry}} firms and pulled one for {{companyName}}." ]]</p>
+
+  <p>[[ ONE-SENTENCE WHY IT MATTERS — the gap / insight the tool surfaces. ]]</p>
+
+  <p>[[ THE LINK — keep it as a plain text link, not a button:
+  Here it is &rarr; <a href="{{toolLink}}" style="color: #0A6B4B;">{{toolLink}}</a> ]]</p>
+
+  <p>[[ SOFT CLOSE — low-pressure ask. e.g. "Worth a look? Happy to walk you through it." ]]</p>
+
+  <p>
+    [[ Rep first name ]]<br>
+    WorkflowMAX
+  </p>
+
+</div>

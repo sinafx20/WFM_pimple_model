@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volcano Personalization Studio</title>
+<style>
+  :root{--green:#0A2F28;--money:#63DB94;--line:#e4e8e6;--muted:#6b7a75;--ok:#0D8D5C;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--green);background:#f4f6f5}
+  header{background:var(--green);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  header b span{color:var(--money)}
+  header .sub{color:#9fc4b7;font-size:12px}
+  header .grow{flex:1}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;padding:8px 12px}
+  button.primary{background:var(--money);border:0;color:var(--green);font-weight:700}
+  button:disabled{opacity:.5;cursor:default}
+  .layout{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 49px)}
+  .panel{overflow:auto;padding:14px}
+  .panel.left{border-right:1px solid var(--line);background:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:#fff}
+  tr.row{cursor:pointer} tr.row:hover{background:#f0f7f4} tr.row.sel{background:#e3f5ec}
+  .pill{font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px}
+  .pill.svc{background:#0D8D5C18;color:#087443}.pill.prj{background:#b4540e18;color:#b4540e}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+  .dot.y{background:var(--ok)}.dot.n{background:#ccd3d0}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+  label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin:10px 0 4px}
+  textarea,select,input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--green)}
+  textarea{min-height:190px;line-height:1.55;resize:vertical}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .row2{display:flex;gap:12px}.row2>*{flex:1}
+  .muted{color:var(--muted);font-size:12px}
+  .status{margin-top:12px;padding:10px;border-radius:8px;background:#f0f3f2;font-size:13px;display:none}
+  .status.show{display:block}
+  video{width:100%;border-radius:10px;margin-top:10px;background:#000}
+  .phase2{border:1px dashed #c9a23d;background:#fdf7e7;border-radius:10px;padding:12px;font-size:12px;color:#7a5b12}
+  .casting{font-size:12px}.casting .own{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .casting select{width:auto;padding:5px 8px;flex:1}
+  .avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px;margin-top:4px}
+  .av{cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden}
+  .av img{width:100%;height:60px;object-fit:cover;display:block;background:#e3e7e5}
+  .av.sel{border-color:var(--money)}
+  .av .nm{font-size:9px;padding:2px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<header>
+  <b>Workflow<span>MAX</span></b> <span class="sub">Personalization Studio</span>
+  <div class="grow"></div>
+  <button id="pull" class="primary">Pull contacts</button>
+  <span id="pullinfo" class="sub"></span>
+</header>
+
+<div class="layout">
+  <div class="panel left">
+    <div class="card casting" id="castingCard" style="display:none">
+      <h2>Casting (owner &rarr; presenter)</h2>
+      <div id="castingRows"></div>
+      <div class="muted" style="margin-top:6px">Saved on this machine. Each contact defaults to its owner's presenter; you can override per contact.</div>
+    </div>
+    <div class="card" id="batchbar" style="display:none">
+      <div class="row2"><button id="genSel" class="primary">Generate selected (0)</button><button id="writeSel" disabled>Write back selected (0)</button><button id="pushSel" disabled>Push to Instantly (0)</button></div>
+      <div id="batchprog" class="muted" style="margin-top:8px">Preview one first. Then tick contacts (or the header box), Generate, and you'll be prompted to write back.</div>
+    </div>
+    <table id="tbl"><thead><tr><th><input type="checkbox" id="selall" title="Select all"></th><th>Contact</th><th>Vertical</th><th>Owner</th><th>Status</th></tr></thead><tbody id="rows">
+      <tr><td colspan="5" class="muted" style="padding:14px">Click "Pull contacts" to load the Volcano list.</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="panel" id="editor">
+    <div class="muted" style="padding:20px">Select a contact to draft their video.</div>
+  </div>
+</div>
+
+<script>
+const PRESETS = {
+  sina:   { name:'Sina',   fullName:'Sina Zarei',     title:'Account Executive', booking:'https://meetings.hubspot.com/szarei',          avatar:'b8f33c1ab4cd48dbb356d9d38871703a', voice:'2ef6edfd75494239bc22093fb671b7b3' },
+  denzel: { name:'Denzel', fullName:'Denzel Kereama', title:'Account Executive', booking:'https://meetings.hubspot.com/denzel-kereama', avatar:'b8aebde6a4664874ac1b014ea17e4635', voice:'13cb23d75356448b828aed75430c1df0' },
+};
+const MAP = { architecture:['services','architecture'],engineering:['services','engineering'],consulting:['services','consulting'],creative:['services','creative'],construction:['project','construction'],civil:['project','civil'] };
+const classify = v => { const k=(v||'').toLowerCase(); for(const x in MAP) if(k.includes(x)) return {model:MAP[x][0],word:MAP[x][1]}; return {model:'services',word:'professional services'}; };
+
+function script(c, presenter){
+  const {model,word}=classify(c.vertical), f=c.firstName||'there', co=c.company||'your firm', P=presenter||'Sina';
+  if(model==='project') return `Hey ${f}, I'm ${P} from WorkflowMAX. I record a few of these each week for ${word} firms, and I wanted to send ${co} one, because there's a pattern I keep seeing on jobs your size. The work gets delivered and the client's happy, but the final margin often comes in under the one you quoted. Sometimes it's variations that got done but never invoiced. Sometimes it's costs that crept in before anyone caught them. On a single job that's easy to absorb, but over a year of jobs it adds up fast. The hard part is that you can't recover margin you can't see. So I've put together a short Workflow Health Check for you, just below this video. It takes about two minutes, and it shows you where ${co} sits today, and the biggest gap between the margin you quote and the margin you deliver. Even if WorkflowMAX is never the right fit for you, you'll walk away knowing your number. Have a look, and if it's useful, I'd genuinely love to compare notes. Thanks ${f}, and have a great day.`;
+  return `Hey ${f}, I'm ${P} from WorkflowMAX. I record a few of these each week for ${word} firms, and I wanted to send ${co} one, because there's a pattern I keep seeing with firms your size. The work gets done and the clients are happy, but a slice of the time behind it never quite makes it onto an invoice. Sometimes it's a few unbilled minutes a day. Sometimes it's scope that quietly creeps past the fee. On its own that's nothing, but over a year, for a firm your size, it can add up to tens of thousands. The hard part is that you can't win back what you can't see. So I've put together a short Workflow Health Check for you, just below this video. It takes about two minutes, and it shows you where ${co} sits today, and the one area most likely to be leaking margin. Even if WorkflowMAX is never the right fit for you, you'll walk away knowing your number. Have a look, and if it's useful, I'd genuinely love to compare notes. Thanks ${f}, and have a great day.`;
+}
+
+const $=s=>document.querySelector(s);
+let CONTACTS=[], AVATARS=[], VOICES=[], casting=JSON.parse(localStorage.getItem('casting')||'{}');
+const PREVIEW_BASE='https://lp.workflowmax.com/app'; // live pages; use http://localhost:4321/app while testing the dev server
+
+$('#pull').onclick = async () => {
+  $('#pull').disabled=true; $('#pullinfo').textContent='loading…';
+  const d = await fetch('/api/contacts').then(r=>r.json());
+  CONTACTS = d.contacts||[];
+  $('#pullinfo').textContent = `${d.count} contacts`;
+  $('#pull').disabled=false;
+  renderCasting(); renderRows();
+  $('#batchbar').style.display='block'; updateCounts(); bindBatch();
+  $('#selall').onchange=e=>{ document.querySelectorAll('input.cbx').forEach(cb=>{ cb.checked=e.target.checked; const c=CONTACTS.find(x=>x.id===cb.dataset.id); if(c)c._sel=e.target.checked; }); updateCounts(); };
+  if(!AVATARS.length){ fetch('/api/avatars').then(r=>r.json()).then(a=>AVATARS=[...(a.avatars||[]),...(a.photos||[])]); fetch('/api/voices').then(r=>r.json()).then(v=>VOICES=v.voices||[]); }
+};
+
+function renderCasting(){
+  const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
+  $('#castingCard').style.display='block';
+  $('#castingRows').innerHTML = owners.map(o=>{
+    const n=CONTACTS.filter(c=>c.owner===o).length;
+    const cur=casting[o]||'';
+    return `<div class="own"><span class="muted">owner ${o} (${n})</span>
+      <select data-owner="${o}"><option value="">— pick presenter —</option>
+        <option value="sina" ${cur==='sina'?'selected':''}>Sina</option>
+        <option value="denzel" ${cur==='denzel'?'selected':''}>Denzel</option></select></div>`;
+  }).join('');
+  document.querySelectorAll('#castingRows select').forEach(s=>s.onchange=e=>{ casting[e.target.dataset.owner]=e.target.value; localStorage.setItem('casting',JSON.stringify(casting)); if(SELECTED) openContact(SELECTED); });
+}
+function statusBadge(c){ const s=c._status;
+  if(c._pushed) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
+  if(s==='submitting'||s==='rendering') return '<span class="muted">generating…</span>';
+  if(s==='rendered') return '<span style="color:#b4540e;font-weight:600">ready</span>';
+  if(s==='hosting') return '<span class="muted">hosting…</span>';
+  if(s==='done') return '<span style="color:#087443;font-weight:700">written ✓</span>';
+  if(s==='err') return '<span style="color:#b42318" title="'+(''+(c._err||'')).replace(/"/g,"&#39;")+'">error</span>';
+  return '<span class="dot '+(c.hasVideo?'y':'n')+'"></span>';
+}
+function updateSt(c){ const el=document.getElementById('st-'+c.id); if(el) el.innerHTML=statusBadge(c); }
+function updateCounts(){ const n=CONTACTS.filter(c=>c._sel).length, ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length, push=CONTACTS.filter(c=>c._sel&&(c._status==='done'||c.hasVideo)&&!c._pushed).length; const g=$('#genSel'),w=$('#writeSel'),p=$('#pushSel'); if(g)g.textContent='Generate selected ('+n+')'; if(w){ w.textContent='Write back selected ('+ready+')'; w.disabled=ready===0; } if(p){ p.textContent='Push to Instantly ('+push+')'; p.disabled=push===0; } }
+function renderRows(){
+  $('#rows').innerHTML = CONTACTS.map(c=>{
+    const {model}=classify(c.vertical);
+    return `<tr class="row" id="row-${c.id}">
+      <td><input type="checkbox" class="cbx" data-id="${c.id}" ${c._sel?'checked':''}></td>
+      <td class="ct"><b>${c.firstName||'(no name)'}</b><br><span class="muted">${c.company||''}</span></td>
+      <td><span class="pill ${model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></td>
+      <td class="muted">${(casting[c.owner]?PRESETS[casting[c.owner]].name:c.owner)||'-'}</td>
+      <td id="st-${c.id}">${statusBadge(c)}</td></tr>`;
+  }).join('');
+  document.querySelectorAll('tr.row').forEach(r=>r.onclick=e=>{ if(e.target.classList.contains('cbx'))return; document.querySelectorAll('tr.row').forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); openContact(CONTACTS.find(c=>c.id===r.id.slice(4))); });
+  document.querySelectorAll('input.cbx').forEach(cb=>cb.onchange=e=>{ const c=CONTACTS.find(x=>x.id===e.target.dataset.id); if(c)c._sel=e.target.checked; updateCounts(); });
+}
+
+let SELECTED=null;
+function openContact(c){
+  SELECTED=c;
+  const presetKey=casting[c.owner]||'sina';
+  const preset=PRESETS[presetKey];
+  $('#editor').innerHTML = `
+    <div class="card">
+      <h2>${c.firstName} @ ${c.company} <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></h2>
+      <div class="muted">${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b></div>
+      <label>Script (editable)</label>
+      <textarea id="script">${script(c, preset.name).replace(/</g,'&lt;')}</textarea>
+      <div class="row2">
+        <div><label>Voice filter</label><input id="vf" type="text" placeholder="filter voices…"><select id="voice" style="margin-top:4px"></select></div>
+        <div><label>Avatar (filter)</label><input id="af" type="text" placeholder="filter avatars…"><div id="avgrid" class="avgrid"></div></div>
+      </div>
+      <button id="gen" class="primary" style="margin-top:14px">Generate preview</button>
+      <div id="st" class="status"></div>
+    </div>
+    <div class="phase2"><b>Write-back is live.</b> Generate a preview, then "Host &amp; write back" stores the durable video URL + personalization blob on this contact. Firm logo from <code>${c.domain||'domain'}</code> activates once a <b>pk_</b> logo.dev token is in <code>.env</code>.</div>`;
+  // voice select
+  const vsel=$('#voice'), vf=$('#vf');
+  const fillV=q=>{ const list=VOICES.filter(v=>(`${v.name} ${v.language} ${v.gender}`).toLowerCase().includes(q.toLowerCase())); vsel.innerHTML=list.slice(0,400).map(v=>`<option value="${v.id}" ${v.id===preset.voice?'selected':''}>${v.name} — ${v.language} ${v.gender}</option>`).join(''); if(![...vsel.options].some(o=>o.selected)&&list.length) {} };
+  fillV(''); vf.oninput=e=>fillV(e.target.value);
+  // avatar grid
+  let avSel=preset.avatar;
+  const ag=$('#avgrid'), af=$('#af');
+  const fillA=q=>{ const list=AVATARS.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())); ag.innerHTML=list.slice(0,120).map(a=>`<div class="av ${a.id===avSel?'sel':''}" data-id="${a.id}" title="${a.name}"><img loading="lazy" src="${a.preview||''}" onerror="this.style.visibility='hidden'"><div class="nm">${a.name}</div></div>`).join(''); ag.querySelectorAll('.av').forEach(el=>el.onclick=()=>{avSel=el.dataset.id; ag.querySelectorAll('.av').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');}); };
+  fillA(preset.name); af.oninput=e=>fillA(e.target.value);
+  $('#gen').onclick=async()=>{
+    const body={avatar_id:avSel, voice_id:vsel.value, script:$('#script').value, width:1280, height:720, background:'#FFFFFF'};
+    setSt('Submitting to HeyGen…'); $('#gen').disabled=true;
+    const r=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if(!r.video_id){ $('#gen').disabled=false; return setSt('Rejected: <code>'+JSON.stringify(r.error||r.raw)+'</code>',true); }
+    setSt('Generating… (id '+r.video_id+')'); poll(r.video_id);
+  };
+  function poll(id){ fetch('/api/status?video_id='+id).then(r=>r.json()).then(s=>{
+    if(s.status==='completed'){ $('#gen').disabled=false;
+      setSt('<b>Preview ready.</b><video controls src="'+s.video_url+'"></video>'+
+        '<button id="wb" class="primary" style="margin-top:10px">Host on HubSpot CDN &amp; write back</button>'+
+        '<div class="muted" style="margin-top:4px">Re-hosts the MP4 durably (HeyGen links expire), builds the personalization blob, and writes it to this contact.</div>');
+      $('#wb').onclick=async()=>{
+        $('#wb').disabled=true; setSt('Hosting video on HubSpot CDN…');
+        const h=await fetch('/api/host',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({video_url:s.video_url, name:(c.company||'volcano')+'-'+c.id})}).then(r=>r.json());
+        if(!h.url){ return setSt('Host failed: <code>'+JSON.stringify(h.error)+'</code>',true); }
+        setSt('Writing back to HubSpot…');
+        const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id, video:h.url, firstName:c.firstName, company:c.company, vertical:c.vertical, email:c.email, domain:c.domain, presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
+        if(!w.ok){ return setSt('Write-back failed: <code>'+JSON.stringify(w.error)+'</code>',true); }
+        c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._brand=w.brand_color; c._logo=w.logo; renderRows();
+        setSt('<b>Written back to HubSpot.</b><video controls src="'+h.url+'"></video>'+
+          '<div style="margin-top:8px"><a target="_blank" href="'+PREVIEW_BASE+'?tool=intro&'+w.blob+'">Preview landing page ↗</a> &nbsp; <button id="pushOne" class="primary" style="padding:6px 12px">Push to Instantly</button></div>'+
+          '<div class="muted" style="margin-top:6px">Hosted: <code>'+h.url+'</code></div>'+
+          '<div class="muted">Blob: <code>'+w.blob+'</code></div>'+
+          (w.logo?'<div class="muted">Logo: <code>'+w.logo+'</code></div>':'<div class="muted">No firm logo yet — add a pk_ LOGODEV_TOKEN to .env.</div>'));
+        const pb=document.getElementById('pushOne'); if(pb) pb.onclick=async()=>{ pb.disabled=true; pb.textContent='Pushing…'; await pushOne(c); pb.textContent=c._pushed?'Pushed ✓':'Push failed'; };
+      };
+      return; }
+    if(s.status==='failed'){ $('#gen').disabled=false; return setSt('Failed: <code>'+JSON.stringify(s.error)+'</code>',true); }
+    setSt('Status: '+(s.status||'processing')+'…'); setTimeout(()=>poll(id),7000);
+  }); }
+  function setSt(h,e){ const el=$('#st'); el.className='status show'; el.style.background=e?'#fdeceb':'#f0f3f2'; el.innerHTML=h; }
+}
+
+// ---- batch generate + write-back ----
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function pool(items,n,fn){ let i=0; await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const idx=i++; await fn(items[idx],idx);} })); }
+async function generateOne(c){
+  const preset=PRESETS[casting[c.owner]||'sina'];
+  c._status='submitting'; updateSt(c);
+  const r=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({avatar_id:preset.avatar,voice_id:preset.voice,script:script(c,preset.name),width:1280,height:720,background:'#FFFFFF'})}).then(r=>r.json());
+  if(!r.video_id){ c._status='err'; c._err=JSON.stringify(r.error||r.raw); updateSt(c); return; }
+  c._status='rendering'; updateSt(c);
+  for(let k=0;k<100;k++){ await sleep(8000); const s=await fetch('/api/status?video_id='+r.video_id).then(r=>r.json()); if(s.status==='completed'){ c._video=s.video_url; c._status='rendered'; updateSt(c); return; } if(s.status==='failed'){ c._status='err'; c._err=JSON.stringify(s.error); updateSt(c); return; } }
+  c._status='err'; c._err='timeout'; updateSt(c);
+}
+async function writeOne(c){
+  if(!c._video) return;
+  c._status='hosting'; updateSt(c);
+  const h=await fetch('/api/host',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({video_url:c._video,name:(c.company||'volcano')+'-'+c.id})}).then(r=>r.json());
+  if(!h.url){ c._status='err'; c._err='host failed'; updateSt(c); return; }
+  const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:h.url,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
+  if(w.ok){ c._status='done'; c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._brand=w.brand_color; c._logo=w.logo; } else { c._status='err'; c._err='writeback failed'; }
+  updateSt(c);
+}
+function bindBatch(){
+  $('#genSel').onclick=async()=>{
+    const sel=CONTACTS.filter(c=>c._sel && !c._video);
+    if(!sel.length) return alert('Tick some contacts first (already-generated ones are skipped).');
+    if(!confirm(sel.length+' videos will be generated on HeyGen (uses credits, ~1 min each, 3 at a time). Keep this tab open. Continue?')) return;
+    $('#genSel').disabled=true; let done=0,fail=0;
+    await pool(sel,3,async c=>{ await generateOne(c); if(c._video)done++; else fail++; $('#batchprog').textContent='Generated '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
+    $('#genSel').disabled=false; updateCounts();
+    const ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length;
+    if(ready && confirm('Generation done ('+done+' ok'+(fail?', '+fail+' failed':'')+'). Write '+ready+' videos + URLs back to HubSpot now?')) $('#writeSel').click();
+  };
+  $('#writeSel').onclick=async()=>{
+    const sel=CONTACTS.filter(c=>c._sel && c._video && c._status!=='done');
+    if(!sel.length) return alert('Nothing ready to write back.');
+    $('#writeSel').disabled=true; let done=0,fail=0;
+    await pool(sel,3,async c=>{ await writeOne(c); if(c._status==='done')done++; else fail++; $('#batchprog').textContent='Written '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); });
+    updateCounts();
+    const canPush=CONTACTS.filter(c=>c._sel&&c._status==='done'&&!c._pushed).length;
+    if(canPush && confirm('Write-back complete ('+done+' ok'+(fail?', '+fail+' failed':'')+'). Push '+canPush+' leads to their Pimple campaigns in Instantly now?')) $('#pushSel').click();
+    else alert('Write-back complete: '+done+' done'+(fail?', '+fail+' failed':'')+'.');
+  };
+  $('#pushSel').onclick=async()=>{
+    const sel=CONTACTS.filter(c=>c._sel && (c._status==='done'||c.hasVideo) && !c._pushed);
+    if(!sel.length) return alert('No written-back contacts to push. Write back first.');
+    if(!confirm('Push '+sel.length+' leads to their Pimple - {vertical} campaigns in Instantly?')) return;
+    $('#pushSel').disabled=true; let done=0,fail=0;
+    await pool(sel,3,async c=>{ await pushOne(c); if(c._pushed)done++; else fail++; $('#batchprog').textContent='Pushed '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
+    updateCounts(); alert('Push complete: '+done+' pushed'+(fail?', '+fail+' failed':'')+'.');
+  };
+}
+async function pushOne(c){
+  if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
+  const pr=PRESETS[casting[c.owner]||'sina'];
+  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
+  if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
+  updateSt(c);
+}
+</script>
+</body>
+</html>
