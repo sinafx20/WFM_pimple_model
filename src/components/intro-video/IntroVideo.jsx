@@ -108,6 +108,7 @@ export default function IntroVideo() {
   // for previews/tests when the link carries no name.
   const firstName = param("firstname", "first_name", "fname") || "Sina";
   const company = param("company", "company_name", "firm");
+  const firmLogo = param("logo");
   const video = resolveVideo();
   // Click-to-play cover: the co-branded thumb already has a play button burned in,
   // so native controls stay hidden until playback starts (avoids two play buttons).
@@ -127,13 +128,37 @@ export default function IntroVideo() {
         @media (min-width: 768px) { body { margin: 0; } .iv { max-width: 1040px !important; } .iv-inner { max-width: 900px; margin: 0 auto; } }
       `}</style>
 
-      {/* Header — IntroVideo already personalises in the hero (pill + "Hi {name}"),
-          so no FirmBadge here to avoid naming the firm twice on one screen. */}
+      {/* Header — WFM logo, plus a "Prepared for {firm}" chip when the campaign
+          link carries the company (and its logo). The hero pill names the person,
+          this names the firm, so nothing repeats. */}
       <div style={{
-        padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "12px 20px", display: "flex", alignItems: "center", gap: 12,
+        justifyContent: company ? "space-between" : "center",
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
       }}>
         <WFMLogo />
+        {company && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0,
+            padding: "6px 12px", background: "#f6fef9", border: "1px solid #73e2a330",
+            borderRadius: 100,
+          }}>
+            {firmLogo && (
+              <img
+                src={firmLogo}
+                alt={company}
+                style={{ height: 20, width: "auto", maxWidth: 80, objectFit: "contain", borderRadius: 4 }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+            <span style={{
+              fontSize: 12, fontWeight: 600, color: "#0A2F28", minWidth: 0,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>
+              Prepared for {company}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="iv-inner" style={{ padding: "24px 24px 48px" }}>
