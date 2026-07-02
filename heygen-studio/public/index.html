@@ -11,6 +11,22 @@
   header b span{color:var(--money)}
   header .sub{color:#9fc4b7;font-size:12px}
   header .grow{flex:1}
+  .navlink{color:#cfeede;font-size:12px;text-decoration:none;border:1px solid rgba(255,255,255,.22);padding:5px 11px;border-radius:7px}
+  .navlink:hover{background:rgba(255,255,255,.08)}
+  .navbtn{color:#cfeede;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,.22);padding:5px 11px;border-radius:7px;cursor:pointer}
+  .navbtn:hover{background:rgba(255,255,255,.08)}
+  .modal{position:fixed;inset:0;background:rgba(10,47,40,.55);z-index:100;align-items:center;justify-content:center;padding:24px}
+  .modalbox{background:#fff;border-radius:14px;padding:20px;max-width:840px;width:100%;max-height:90vh;overflow:auto}
+  .modalbox h2{font-size:15px;margin:0 0 4px}
+  .modalbox textarea{width:100%;min-height:150px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;line-height:1.55;color:var(--green);margin-bottom:6px;resize:vertical}
+  .modalbtns{display:flex;gap:10px;align-items:center;margin-top:8px}.modalbtns .grow{flex:1}
+  .ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer}
+  .listpick{position:relative}
+  #listsearch{width:240px;padding:7px 11px;border:0;border-radius:8px;font:inherit;font-size:13px;color:var(--green)}
+  #listresults{position:absolute;top:38px;right:0;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;max-height:280px;overflow:auto;z-index:30;display:none;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+  #listresults div{padding:8px 11px;font-size:12px;cursor:pointer;color:var(--green);border-bottom:1px solid #f0f3f2}
+  #listresults div:hover{background:#f0f7f4}
+  #listresults .sz{color:var(--muted);font-size:11px}
   button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;padding:8px 12px}
   button.primary{background:var(--money);border:0;color:var(--green);font-weight:700}
   button:disabled{opacity:.5;cursor:default}
@@ -47,9 +63,15 @@
 </head>
 <body>
 <header>
-  <b>Workflow<span>MAX</span></b> <span class="sub">Personalization Studio</span>
+  <b>Workflow<span>MAX</span></b> <span class="sub">Studio</span>
+  <a id="cockpitLink" class="navlink" href="/dashboard?list=3698">Cockpit &#8599;</a>
+  <button id="editScripts" class="navbtn">&#9998; Scripts</button>
   <div class="grow"></div>
-  <button id="pull" class="primary">Pull contacts</button>
+  <div class="listpick">
+    <input id="listsearch" type="text" placeholder="Search HubSpot lists…" autocomplete="off" value="Volcano Model MVP_all targets">
+    <div id="listresults"></div>
+  </div>
+  <button id="pull" class="primary">Pull</button>
   <span id="pullinfo" class="sub"></span>
 </header>
 
@@ -74,6 +96,23 @@
   </div>
 </div>
 
+<div id="scriptModal" class="modal" style="display:none">
+  <div class="modalbox">
+    <h2>Script templates <span class="muted" style="font-weight:400">&mdash; edits apply to every contact &amp; the batch</span></h2>
+    <div class="muted" style="margin-bottom:10px">Tokens filled per contact: <b>{firstName}</b> · <b>{company}</b> · <b>{industry}</b> · <b>{presenter}</b>. Two templates, chosen by model.</div>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Services &mdash; architecture / engineering / consulting / creative</label>
+    <textarea id="tplServices"></textarea>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Project &mdash; construction / civil</label>
+    <textarea id="tplProject"></textarea>
+    <div class="modalbtns">
+      <button id="tplReset" class="ghost">Reset to default</button>
+      <div class="grow"></div>
+      <button id="tplCancel" class="ghost">Cancel</button>
+      <button id="tplSave" class="primary" style="padding:9px 16px">Save &mdash; applies to all</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const PRESETS = {
   sina:   { name:'Sina',   fullName:'Sina Zarei',     title:'Account Executive', booking:'https://meetings.hubspot.com/szarei',          avatar:'b8f33c1ab4cd48dbb356d9d38871703a', voice:'2ef6edfd75494239bc22093fb671b7b3' },
@@ -82,19 +121,30 @@ const PRESETS = {
 const MAP = { architecture:['services','architecture'],engineering:['services','engineering'],consulting:['services','consulting'],creative:['services','creative'],construction:['project','construction'],civil:['project','civil'] };
 const classify = v => { const k=(v||'').toLowerCase(); for(const x in MAP) if(k.includes(x)) return {model:MAP[x][0],word:MAP[x][1]}; return {model:'services',word:'professional services'}; };
 
+// Editable master script templates (tokens: {firstName} {company} {industry} {presenter}).
+// Saved to localStorage so edits apply to EVERY contact + the batch "Generate".
+const DEFAULT_TEMPLATES = {
+  services: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX, so I'll keep this quick. Here's something most {industry} MDs underestimate. The biggest drain on margin usually isn't pricing or headcount, it's the time that gets worked but never billed. It might be a few unbilled minutes on each job, or scope that quietly creeps past the fee. It never shows up on a report, which is exactly why it compounds. For a firm {company}'s size, that's often tens of thousands a year, hiding in plain sight. The point isn't to guess, it's to see your number. So I built you a 2-minute Workflow Health Check, just below this video. It shows where {company} sits today, and the single gap costing you the most. Even if we never work together, you'll walk away knowing that number. Worth a look?`,
+  project: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX, so I'll keep this quick. Here's what most {industry} MDs miss. The margin you lose usually isn't on the quote, it's between the quote and the final number. It's the variations that got done but never invoiced, or the costs that crept in before anyone flagged them. On one job it's noise, but across a year it's real money, and it stays invisible until the job closes out. The fix starts with seeing it. So I built you a 2-minute Workflow Health Check, just below this video. It shows where {company} sits, and the biggest gap between the margin you quote and the margin you actually deliver. Even if we never work together, you'll walk away knowing that number. Worth a look?`,
+};
+const templates = () => Object.assign({}, DEFAULT_TEMPLATES, JSON.parse(localStorage.getItem('scriptTemplates')||'{}'));
 function script(c, presenter){
-  const {model,word}=classify(c.vertical), f=c.firstName||'there', co=c.company||'your firm', P=presenter||'Sina';
-  if(model==='project') return `Hey ${f}, I'm ${P} from WorkflowMAX. I record a few of these each week for ${word} firms, and I wanted to send ${co} one, because there's a pattern I keep seeing on jobs your size. The work gets delivered and the client's happy, but the final margin often comes in under the one you quoted. Sometimes it's variations that got done but never invoiced. Sometimes it's costs that crept in before anyone caught them. On a single job that's easy to absorb, but over a year of jobs it adds up fast. The hard part is that you can't recover margin you can't see. So I've put together a short Workflow Health Check for you, just below this video. It takes about two minutes, and it shows you where ${co} sits today, and the biggest gap between the margin you quote and the margin you deliver. Even if WorkflowMAX is never the right fit for you, you'll walk away knowing your number. Have a look, and if it's useful, I'd genuinely love to compare notes. Thanks ${f}, and have a great day.`;
-  return `Hey ${f}, I'm ${P} from WorkflowMAX. I record a few of these each week for ${word} firms, and I wanted to send ${co} one, because there's a pattern I keep seeing with firms your size. The work gets done and the clients are happy, but a slice of the time behind it never quite makes it onto an invoice. Sometimes it's a few unbilled minutes a day. Sometimes it's scope that quietly creeps past the fee. On its own that's nothing, but over a year, for a firm your size, it can add up to tens of thousands. The hard part is that you can't win back what you can't see. So I've put together a short Workflow Health Check for you, just below this video. It takes about two minutes, and it shows you where ${co} sits today, and the one area most likely to be leaking margin. Even if WorkflowMAX is never the right fit for you, you'll walk away knowing your number. Have a look, and if it's useful, I'd genuinely love to compare notes. Thanks ${f}, and have a great day.`;
+  const {model,word}=classify(c.vertical);
+  return templates()[model]
+    .replace(/{firstName}/g, c.firstName||'there')
+    .replace(/{company}/g, c.company||'your firm')
+    .replace(/{industry}/g, word)
+    .replace(/{presenter}/g, presenter||'Sina');
 }
 
 const $=s=>document.querySelector(s);
 let CONTACTS=[], AVATARS=[], VOICES=[], casting=JSON.parse(localStorage.getItem('casting')||'{}');
 const PREVIEW_BASE='https://lp.workflowmax.com/app'; // live pages; use http://localhost:4321/app while testing the dev server
+let currentList={id:'3698',name:'Volcano Model MVP_all targets'};
 
 $('#pull').onclick = async () => {
   $('#pull').disabled=true; $('#pullinfo').textContent='loading…';
-  const d = await fetch('/api/contacts').then(r=>r.json());
+  const d = await fetch('/api/contacts?list='+encodeURIComponent(currentList.id)).then(r=>r.json());
   CONTACTS = d.contacts||[];
   $('#pullinfo').textContent = `${d.count} contacts`;
   $('#pull').disabled=false;
@@ -103,6 +153,26 @@ $('#pull').onclick = async () => {
   $('#selall').onchange=e=>{ document.querySelectorAll('input.cbx').forEach(cb=>{ cb.checked=e.target.checked; const c=CONTACTS.find(x=>x.id===cb.dataset.id); if(c)c._sel=e.target.checked; }); updateCounts(); };
   if(!AVATARS.length){ fetch('/api/avatars').then(r=>r.json()).then(a=>AVATARS=[...(a.avatars||[]),...(a.photos||[])]); fetch('/api/voices').then(r=>r.json()).then(v=>VOICES=v.voices||[]); }
 };
+
+// --- searchable HubSpot list picker ---
+(function(){
+  const inp=$('#listsearch'), box=$('#listresults'); let t;
+  inp.addEventListener('input',()=>{ clearTimeout(t); const q=inp.value.trim(); t=setTimeout(async()=>{
+    const d=await fetch('/api/lists?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>({lists:[]}));
+    const lists=(d.lists||[]).slice(0,40);
+    box.innerHTML=lists.map(l=>`<div data-id="${l.id}" data-name="${(l.name||'').replace(/"/g,'&quot;')}">${l.name} <span class="sz">· ${l.size||0}</span></div>`).join('')||'<div class="sz" style="cursor:default">no matches</div>';
+    box.style.display='block';
+    box.querySelectorAll('div[data-id]').forEach(el=>el.onclick=()=>{ currentList={id:el.dataset.id,name:el.dataset.name}; inp.value=el.dataset.name; box.style.display='none'; $('#cockpitLink').href='/dashboard?list='+currentList.id; });
+  },250); });
+  inp.addEventListener('focus',()=>{ if(box.innerHTML) box.style.display='block'; });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.listpick')) box.style.display='none'; });
+})();
+
+// --- script template editor (edits apply to all contacts + the batch) ---
+$('#editScripts').onclick=()=>{ const t=templates(); $('#tplServices').value=t.services; $('#tplProject').value=t.project; $('#scriptModal').style.display='flex'; };
+$('#tplCancel').onclick=()=>{ $('#scriptModal').style.display='none'; };
+$('#tplReset').onclick=()=>{ $('#tplServices').value=DEFAULT_TEMPLATES.services; $('#tplProject').value=DEFAULT_TEMPLATES.project; };
+$('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringify({services:$('#tplServices').value.trim(), project:$('#tplProject').value.trim()})); $('#scriptModal').style.display='none'; if(SELECTED) openContact(SELECTED); alert('Saved. New scripts will be used for every generate from now on.'); };
 
 function renderCasting(){
   const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];

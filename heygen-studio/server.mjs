@@ -20,6 +20,11 @@ const LOGODEV = () => envGet('LOGODEV_TOKEN');
 const INSTANTLY = () => envGet('INSTANTLY_API_KEY');
 if (!KEY) { console.error('No HEYGEN_API_KEY (env or .env).'); process.exit(1); }
 
+// Clean names for natural pronunciation + no legal suffixes (applied everywhere: script, thumbnail, blob, email, LinkedIn).
+const LEGAL = /[\s,]+(?:pty\.?\s*ltd\.?|pte\.?\s*ltd\.?|p\/l|proprietary\s+limited|limited|ltd\.?|l\.?l\.?c\.?|incorporated|inc\.?|corporation|corp\.?|gmbh|plc|pty\.?|s\.?a\.?|s\.?r\.?l\.?|b\.?v\.?)\.?\s*$/i;
+function cleanCompany(name) { let s = (name || '').trim(); for (let i = 0; i < 3; i++) { const n = s.replace(LEGAL, '').replace(/[,\s]+$/, '').trim(); if (n === s) break; s = n; } return s || (name || '').trim(); }
+function cleanFirst(name) { const s = (name || '').trim(); const r = s.replace(/^(?:[A-Za-z]\.?\s+)+/, '').trim(); return r || s; }
+
 const hg = (p, opts = {}) => fetch(`https://api.heygen.com${p}`, {
   ...opts,
   headers: { 'X-Api-Key': KEY, 'accept': 'application/json', 'content-type': 'application/json', ...(opts.headers || {}) },
@@ -82,6 +87,45 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html' });
       return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
     }
+    if (u.pathname === '/dashboard') {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      return res.end(fs.readFileSync(path.join(__dirname, 'public', 'dashboard.html')));
+    }
+
+    // --- Engagement cockpit: join HubSpot contacts with Instantly engagement, rank ---
+    if (u.pathname === '/api/dashboard') {
+      const T = HUB(), K = INSTANTLY();
+      const LIST = u.searchParams.get('list') || '3698';
+      const hs = (p, o = {}) => fetch(`https://api.hubapi.com${p}`, { ...o, headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json', ...(o.headers || {}) } });
+      // 1) contacts
+      let after, ids = [];
+      do { const r = await hs(`/crm/v3/lists/${LIST}/memberships?limit=100${after ? `&after=${after}` : ''}`); const b = await r.json(); ids.push(...(b.results || []).map(x => x.recordId)); after = b.paging?.next?.after; } while (after);
+      const props = ['firstname', 'company', 'email', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_thumb_url', 'volcano_lead_score', 'linkedin_url'];
+      const contacts = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        const r = await hs('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
+        (await r.json()).results?.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.linkedin_url }); });
+      }
+      // 2) Instantly engagement across Pimple campaigns
+      const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json()).items || []).filter(c => /pimple/i.test(c.name));
+      const eng = {};
+      for (const camp of camps) {
+        let starting, guard = 0;
+        do {
+          const r = await fetch('https://api.instantly.ai/api/v2/leads/list', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify({ campaign: camp.id, limit: 100, ...(starting ? { starting_after: starting } : {}) }) });
+          const b = await r.json(); const items = b.items || [];
+          items.forEach(l => { if (l.email) eng[l.email.toLowerCase()] = { opens: l.email_open_count || 0, clicks: l.email_click_count || 0, replies: l.email_reply_count || 0, campaign: camp.name }; });
+          starting = b.next_starting_after; guard++;
+        } while (starting && guard < 20);
+      }
+      // 3) join + rank
+      const rows = contacts.map(c => {
+        const e = eng[c.email] || { opens: 0, clicks: 0, replies: 0, campaign: '' };
+        const hubEng = e.opens * 2 + e.clicks * 10 + e.replies * 30;
+        return { ...c, opens: e.opens, clicks: e.clicks, replies: e.replies, emailLive: !!eng[c.email], hubEng, total: hubEng + c.hsScore };
+      }).sort((a, b) => b.total - a.total);
+      return json(res, 200, { count: rows.length, emailLive: rows.filter(r => r.emailLive).length, rows });
+    }
 
     if (u.pathname === '/api/avatars') {
       const data = await cached('avatars.cache.json', 864e5, async () => {
@@ -113,6 +157,14 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, data);
     }
 
+    if (u.pathname === '/api/lists') {
+      const q = u.searchParams.get('q') || '';
+      const r = await fetch('https://api.hubapi.com/crm/v3/lists/search', { method: 'POST', headers: { authorization: `Bearer ${HUB()}`, 'content-type': 'application/json' }, body: JSON.stringify({ query: q, count: 40 }) });
+      const b = await r.json();
+      const lists = (b.lists || []).map(l => ({ id: l.listId, name: l.name, size: +(l.additionalProperties?.hs_list_size || 0) }));
+      return json(res, 200, { lists });
+    }
+
     if (u.pathname === '/api/contacts') {
       const TOKEN = (fs.readFileSync(path.join(__dirname, '.env'), 'utf8').match(/HUBSPOT_TOKEN\s*=\s*(.+)/) || [])[1]?.trim();
       const hsb = (p, o = {}) => fetch(`https://api.hubapi.com${p}`, { ...o, headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...(o.headers || {}) } });
@@ -126,7 +178,7 @@ const server = http.createServer(async (req, res) => {
         (await r.json()).results?.forEach(c => {
           const p = c.properties;
           const domain = (p.domain || p.website || (p.email || '').split('@')[1] || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-          contacts.push({ id: c.id, firstName: p.firstname || '', company: p.company || '', email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url });
+          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url });
         });
       }
       return json(res, 200, { list: LIST, count: contacts.length, contacts });
@@ -138,6 +190,7 @@ const server = http.createServer(async (req, res) => {
         ? { type: 'talking_photo', talking_photo_id: body.avatar_id }
         : { type: 'avatar', avatar_id: body.avatar_id, avatar_style: 'normal' };
       const payload = {
+        caption: true, // burn-in subtitles
         video_inputs: [{
           character,
           voice: { type: 'text', input_text: body.script, voice_id: body.voice_id },
@@ -155,7 +208,7 @@ const server = http.createServer(async (req, res) => {
       const r = await hg(`/v1/video_status.get?video_id=${encodeURIComponent(id)}`);
       const b = await r.json();
       const d = b?.data || {};
-      return json(res, r.status, { status: d.status, video_url: d.video_url, thumbnail_url: d.thumbnail_url, duration: d.duration, error: d.error });
+      return json(res, r.status, { status: d.status, video_url: d.video_url_caption || d.video_url, thumbnail_url: d.thumbnail_url, duration: d.duration, error: d.error });
     }
 
     // --- Phase 2: host video durably on HubSpot CDN ---
@@ -176,6 +229,7 @@ const server = http.createServer(async (req, res) => {
     // --- Phase 2: build personalization blob + write back to HubSpot ---
     if (u.pathname === '/api/writeback' && req.method === 'POST') {
       const c = await readBody(req); // {contactId, video, firstName, company, vertical, email, domain}
+      c.firstName = cleanFirst(c.firstName); c.company = cleanCompany(c.company);
       const T = HUB();
       const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
       const industry = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
@@ -227,6 +281,7 @@ const server = http.createServer(async (req, res) => {
     // --- Instantly: push one contact as a lead into its matching Pimple campaign ---
     if (u.pathname === '/api/instantly/push' && req.method === 'POST') {
       const c = await readBody(req); // {contactId, email, firstName, company, vertical, domain, blob?, video?, thumb?, brand_color?}
+      c.firstName = cleanFirst(c.firstName); c.company = cleanCompany(c.company);
       if (!c.email) return json(res, 200, { ok: false, error: 'no email' });
       let blob = c.blob, video = c.video, thumb = c.thumb, brand = c.brand_color;
       if (!blob || !thumb || !brand) { // fall back to HubSpot-stored values

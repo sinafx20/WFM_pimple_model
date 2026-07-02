@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volcano GTM Cockpit</title>
+<style>
+  :root{--green:#0A2F28;--money:#63DB94;--line:#e4e8e6;--muted:#6b7a75;}
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--green);background:#f4f6f5}
+  header{background:var(--green);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:5}
+  header b span{color:var(--money)} .grow{flex:1}
+  .navlink{color:#cfeede;font-size:12px;text-decoration:none;border:1px solid rgba(255,255,255,.22);padding:5px 11px;border-radius:7px}
+  .navlink:hover{background:rgba(255,255,255,.08)}
+  header .stat{font-size:12px;color:#9fc4b7} header .stat b{color:#fff;font-size:15px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:0;background:var(--money);color:var(--green);font-weight:700;padding:8px 14px}
+  .wrap{padding:18px 22px}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:56px;background:#fff;cursor:pointer;user-select:none}
+  td.num,th.num{text-align:center}
+  tr.hot td{background:#f0fbf5}
+  .pill{font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px}
+  .pill.svc{background:#0D8D5C18;color:#087443}.pill.prj{background:#b4540e18;color:#b4540e}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%}.dot.y{background:#087443}.dot.n{background:#ccd3d0}
+  .score{font-weight:800}
+  .band{font-size:10px;font-weight:700;padding:1px 7px;border-radius:100px}
+  .b-cold{background:#eceff1;color:#607d8b}.b-warm{background:#fff3e0;color:#b4540e}.b-hot{background:#ffe0e0;color:#c62828}.b-erupt{background:#0A2F28;color:#63DB94}
+  .muted{color:var(--muted)} .rank{color:#9AA3A0;font-weight:700}
+  .note{font-size:12px;color:var(--muted);margin:0 0 12px}
+</style>
+</head>
+<body>
+<header>
+  <b>Workflow<span>MAX</span></b> <span>GTM Cockpit</span>
+  <a class="navlink" href="/">&#8592; Studio</a>
+  <div class="grow"></div>
+  <span class="stat"><b id="s-total">–</b> contacts</span>
+  <span class="stat"><b id="s-email">–</b> in email</span>
+  <span class="stat"><b id="s-hot">–</b> hot+</span>
+  <button id="refresh">Refresh</button>
+</header>
+<div class="wrap">
+  <p class="note">Ranked by total engagement (HubSpot volcano score + live email engagement). Email opens/clicks/replies polled from Instantly. LinkedIn columns activate once HeyReach is wired. Bands: Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+.</p>
+  <table id="tbl"><thead><tr>
+    <th>#</th><th data-k="company">Contact</th><th data-k="vertical">Vertical</th><th data-k="owner">Owner</th>
+    <th class="num">Assets</th><th class="num">Email</th><th class="num">LI</th>
+    <th class="num" data-k="opens">Opens</th><th class="num" data-k="clicks">Clicks</th><th class="num" data-k="replies">Replies</th>
+    <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th>
+  </tr></thead><tbody id="rows"><tr><td colspan="14" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
+</div>
+<script>
+let ROWS=[], sortK='total', sortDir=-1;
+const band=s=> s>=100?['Eruption','b-erupt']: s>=65?['Hot','b-hot']: s>=25?['Warm','b-warm']:['Cold','b-cold'];
+const model=v=>/construction|civil/i.test(v)?'prj':'svc';
+async function load(){
+  document.getElementById('refresh').disabled=true;
+  const list=new URLSearchParams(location.search).get('list')||'3698';
+  const d=await fetch('/api/dashboard?list='+encodeURIComponent(list)).then(r=>r.json());
+  ROWS=d.rows||[];
+  document.getElementById('s-total').textContent=d.count;
+  document.getElementById('s-email').textContent=d.emailLive;
+  document.getElementById('s-hot').textContent=ROWS.filter(r=>r.total>=65).length;
+  document.getElementById('refresh').disabled=false;
+  render();
+}
+function render(){
+  const rows=[...ROWS].sort((a,b)=>{const x=a[sortK],y=b[sortK];return (typeof x==='number'?x-y:(''+x).localeCompare(''+y))*sortDir;});
+  document.getElementById('rows').innerHTML=rows.map((r,i)=>{
+    const [bn,bc]=band(r.total);
+    return `<tr class="${r.total>=65?'hot':''}">
+      <td class="rank">${i+1}</td>
+      <td><b>${r.firstName||'(no name)'}</b><br><span class="muted">${r.company||''}</span></td>
+      <td><span class="pill ${model(r.vertical)}">${r.vertical||'?'}</span></td>
+      <td class="muted">${r.owner||'-'}</td>
+      <td class="num"><span class="dot ${r.hasAssets?'y':'n'}"></span></td>
+      <td class="num"><span class="dot ${r.emailLive?'y':'n'}"></span></td>
+      <td class="num"><span class="dot ${r.linkedin?'y':'n'}"></span></td>
+      <td class="num">${r.opens||0}</td><td class="num">${r.clicks||0}</td><td class="num">${r.replies||0}</td>
+      <td class="num">${r.hubEng||0}</td><td class="num">${r.hsScore||0}</td>
+      <td class="num score">${r.total||0}</td>
+      <td><span class="band ${bc}">${bn}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="14" class="muted" style="padding:16px">No contacts.</td></tr>';
+}
+document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k; if(sortK===k)sortDir*=-1; else{sortK=k;sortDir=(k==='company'||k==='vertical'||k==='owner')?1:-1;} render();});
+document.getElementById('refresh').onclick=load;
+load();
+</script>
+</body>
+</html>

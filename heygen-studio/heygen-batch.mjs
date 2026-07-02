@@ -27,6 +27,9 @@ const limArg = (args[args.indexOf('--limit') + 1]) || (GENERATE ? '3' : 'all');
 const LIMIT = limArg === 'all' ? Infinity : parseInt(limArg, 10);
 
 const hs = (p, o = {}) => fetch(`https://api.hubapi.com${p}`, { ...o, headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...(o.headers || {}) } });
+const LEGAL = /[\s,]+(?:pty\.?\s*ltd\.?|pte\.?\s*ltd\.?|p\/l|proprietary\s+limited|limited|ltd\.?|l\.?l\.?c\.?|incorporated|inc\.?|corporation|corp\.?|gmbh|plc|pty\.?|s\.?a\.?|s\.?r\.?l\.?|b\.?v\.?)\.?\s*$/i;
+const cleanCompany = n => { let s = (n || '').trim(); for (let i = 0; i < 3; i++) { const x = s.replace(LEGAL, '').replace(/[,\s]+$/, '').trim(); if (x === s) break; s = x; } return s || (n || '').trim(); };
+const cleanFirst = n => { const s = (n || '').trim(); const r = s.replace(/^(?:[A-Za-z]\.?\s+)+/, '').trim(); return r || s; };
 const hg = (p, o = {}) => fetch(`https://api.heygen.com${p}`, { ...o, headers: { 'X-Api-Key': HEYGEN, 'content-type': 'application/json', accept: 'application/json', ...(o.headers || {}) } });
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -63,7 +66,7 @@ async function readContacts(ids) {
   for (let i = 0; i < ids.length; i += 100) {
     const r = await hs('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: ['firstname', 'company', 'email', 'volcano_icp_vertical'], inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
     const b = await r.json();
-    out.push(...(b.results || []).map(c => ({ id: c.id, firstName: c.properties.firstname, company: c.properties.company, email: c.properties.email, vertical: c.properties.volcano_icp_vertical })));
+    out.push(...(b.results || []).map(c => ({ id: c.id, firstName: cleanFirst(c.properties.firstname), company: cleanCompany(c.properties.company), email: c.properties.email, vertical: c.properties.volcano_icp_vertical })));
   }
   return out;
 }
@@ -78,7 +81,7 @@ async function ensureVideoProp() {
   return 'created';
 }
 async function genVideo(script) {
-  const payload = { video_inputs: [{ character: { type: 'avatar', avatar_id: AVATAR_ID, avatar_style: 'normal' }, voice: { type: 'text', input_text: script, voice_id: VOICE_ID }, background: { type: 'color', value: '#FFFFFF' } }], dimension: DIM };
+  const payload = { caption: true, video_inputs: [{ character: { type: 'avatar', avatar_id: AVATAR_ID, avatar_style: 'normal' }, voice: { type: 'text', input_text: script, voice_id: VOICE_ID }, background: { type: 'color', value: '#FFFFFF' } }], dimension: DIM };
   const r = await hg('/v2/video/generate', { method: 'POST', body: JSON.stringify(payload) });
   const b = await r.json();
   if (!b?.data?.video_id) throw new Error('generate failed: ' + JSON.stringify(b?.error || b));
@@ -89,7 +92,7 @@ async function poll(id, maxMin = 12) {
   while (Date.now() < until) {
     const r = await hg(`/v1/video_status.get?video_id=${id}`);
     const d = (await r.json())?.data || {};
-    if (d.status === 'completed') return d.video_url;
+    if (d.status === 'completed') return d.video_url_caption || d.video_url;
     if (d.status === 'failed') throw new Error('video failed: ' + JSON.stringify(d.error));
     await sleep(8000);
   }
