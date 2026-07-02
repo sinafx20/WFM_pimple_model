@@ -10,9 +10,15 @@
 .wfm-main { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; }
 
 @media (min-width: 768px) {
+  /* Paint the canvas via html, not body: the floating card's 40px top margin
+     collapses through body, so a body background starts 40px down and leaves
+     a grey line of html background showing at the top of the viewport. */
+  html {
+    background: url("../assets/brand-bg.png") center center / cover no-repeat fixed;
+  }
   body {
     margin: 0;
-    background: url("../assets/brand-bg.png") center center / cover no-repeat fixed;
+    background: transparent; /* index.css sets #F1F1F1, which would cover the html canvas */
   }
 
   /* Two-pane shell (brand sidebar + content) for the interactive tools */
