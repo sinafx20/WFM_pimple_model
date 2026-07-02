@@ -235,16 +235,7 @@ const server = http.createServer(async (req, res) => {
       const industry = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
       const logoTok = LOGODEV();
       const logo = (logoTok && c.domain) ? `https://img.logo.dev/${encodeURIComponent(c.domain)}?token=${logoTok}&size=200&format=png&retina=true` : '';
-      const parts = [
-        `firstname=${encodeURIComponent(c.firstName || '')}`,
-        `company=${encodeURIComponent(c.company || '')}`,
-        `industry=${encodeURIComponent(industry)}`,
-        `email=${encodeURIComponent(c.email || '')}`,
-        `video=${encodeURIComponent(c.video || '')}`,
-      ];
-      if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
-      const blob = parts.join('&');
-      // composite the co-branded thumbnail + extract brand colour
+      // composite the co-branded thumbnail + extract brand colour (before the blob, so thumb= can ride in it)
       let thumb = '', brand = '#0A2F28';
       if (logoTok && c.domain) {
         try {
@@ -254,6 +245,16 @@ const server = http.createServer(async (req, res) => {
           thumb = await uploadPublic(img, `thumb-${c.contactId}.png`);
         } catch (e) { /* leave thumb blank on failure */ }
       }
+      const parts = [
+        `firstname=${encodeURIComponent(c.firstName || '')}`,
+        `company=${encodeURIComponent(c.company || '')}`,
+        `industry=${encodeURIComponent(industry)}`,
+        `email=${encodeURIComponent(c.email || '')}`,
+        `video=${encodeURIComponent(c.video || '')}`,
+      ];
+      if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
+      if (thumb) parts.push(`thumb=${encodeURIComponent(thumb)}`);
+      const blob = parts.join('&');
       const ensure = async (name, label) => {
         const g = await fetch(`https://api.hubapi.com/crm/v3/properties/contacts/${name}`, { headers: { authorization: `Bearer ${T}` } });
         if (g.status === 200) return;

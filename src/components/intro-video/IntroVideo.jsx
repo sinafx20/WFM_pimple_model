@@ -1,3 +1,5 @@
+import { useRef, useState } from "react";
+
 /* ─── WFM Logo ─── */
 const WFMLogo = () => (
   <svg width="134" height="40" viewBox="0 0 134 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -107,6 +109,10 @@ export default function IntroVideo() {
   const firstName = param("firstname", "first_name", "fname") || "Sina";
   const company = param("company", "company_name", "firm");
   const video = resolveVideo();
+  // Click-to-play cover: the co-branded thumb already has a play button burned in,
+  // so native controls stay hidden until playback starts (avoids two play buttons).
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
 
   const headline = firstName ? `Hi ${firstName}, I recorded a short video message for you` : "I recorded a short video message for you";
 
@@ -154,13 +160,32 @@ export default function IntroVideo() {
           background: "#0A2F28", boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
         }}>
           {video.kind === "file" && (
-            <video
-              src={video.src}
-              poster={video.thumb || undefined}
-              controls
-              playsInline
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
-            />
+            <>
+              <video
+                ref={videoRef}
+                src={video.src}
+                controls={playing || !video.thumb}
+                playsInline
+                preload="metadata"
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              {video.thumb && !playing && (
+                <button
+                  onClick={() => { setPlaying(true); videoRef.current?.play(); }}
+                  aria-label="Play video"
+                  style={{
+                    position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                    padding: 0, border: "none", background: "transparent", cursor: "pointer",
+                  }}
+                >
+                  <img
+                    src={video.thumb}
+                    alt={`A personal video for ${firstName || company || "you"}`}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </button>
+              )}
+            </>
           )}
           {video.kind === "iframe" && (
             <iframe
