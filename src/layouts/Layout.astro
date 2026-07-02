@@ -29,17 +29,30 @@ const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       defer
       src="https://js.hs-scripts.com/24214994.js"></script>
     <!-- The tracking script also injects HubSpot "web interactives" (CTA banners),
-         which render as an empty strip pushed above the page. These pages never
-         use HubSpot CTAs, so keep all interactive anchors out of the layout. -->
+         which render as a strip pushed above the page. These pages never use
+         HubSpot CTAs. HubSpot's injected stylesheet overrides plain CSS with
+         higher-specificity !important rules, so a MutationObserver pins inline
+         display:none (which nothing can override) on every anchor it creates. -->
     <style>
-      #hs-web-interactives-top-push-anchor,
-      #hs-web-interactives-bottom-push-anchor,
-      #hs-web-interactives-top-anchor,
-      #hs-web-interactives-bottom-anchor,
-      #hs-web-interactives-floating-container {
+      html body [id^="hs-web-interactives"] {
         display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
       }
     </style>
+    <script is:inline>
+      (function () {
+        var hide = function () {
+          document.querySelectorAll('[id^="hs-web-interactives"]').forEach(function (el) {
+            el.style.setProperty("display", "none", "important");
+            el.style.setProperty("height", "0", "important");
+            el.style.setProperty("min-height", "0", "important");
+          });
+        };
+        new MutationObserver(hide).observe(document.documentElement, { childList: true, subtree: true });
+        document.addEventListener("DOMContentLoaded", hide);
+      })();
+    </script>
   </head>
   <body>
     <slot />
