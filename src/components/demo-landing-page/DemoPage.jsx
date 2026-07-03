@@ -43,6 +43,16 @@ const demoVideoId = () => {
     ? (new URLSearchParams(window.location.search).get("presenter") || "").toLowerCase() : "";
   return DEMO_VIDEOS[p] || DEMO_VIDEOS.sina;
 };
+/* Cover for the video window: the blob's ?demo_thumb= is the same co-branded
+   composite used in the demo email (product frame | firm logo, play button
+   burned in); the presenter's YouTube frame is the fallback. */
+const demoCover = () => {
+  if (typeof window !== "undefined") {
+    const d = (new URLSearchParams(window.location.search).get("demo_thumb") || "").trim();
+    if (/^https:\/\//.test(d)) return { src: d, composite: true };
+  }
+  return { src: `https://img.youtube.com/vi/${demoVideoId()}/maxresdefault.jpg`, composite: false };
+};
 
 const WALKTHROUGH_POINTS = [
   {
@@ -115,6 +125,7 @@ export default function DemoLandingPage() {
   const [playing, setPlaying] = useState(false);
   const v = detectVertical();
   const videoId = demoVideoId();
+  const cover = demoCover();
 
   return (
     <div className="dlp wfm-card" style={{
@@ -173,31 +184,33 @@ export default function DemoLandingPage() {
           {!playing ? (
             <>
               <img
-                src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+                src={cover.src}
                 alt="WorkflowMAX Product Walkthrough"
                 style={{
                   position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
                   objectFit: "cover",
                 }}
               />
-              {/* Play button overlay */}
-              <div style={{
-                position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(10, 47, 40, 0.3)",
-                transition: "background 0.2s",
-              }}>
+              {/* Play button overlay — the co-branded composite already has one burned in */}
+              {!cover.composite && (
                 <div style={{
-                  width: 72, height: 72, borderRadius: "50%",
-                  background: "#63DB94", display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-                  transition: "transform 0.2s",
+                  position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(10, 47, 40, 0.3)",
+                  transition: "background 0.2s",
                 }}>
-                  <svg width="28" height="32" viewBox="0 0 28 32" fill="none">
-                    <path d="M28 16L0 32V0L28 16Z" fill="#0A2F28"/>
-                  </svg>
+                  <div style={{
+                    width: 72, height: 72, borderRadius: "50%",
+                    background: "#63DB94", display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    transition: "transform 0.2s",
+                  }}>
+                    <svg width="28" height="32" viewBox="0 0 28 32" fill="none">
+                      <path d="M28 16L0 32V0L28 16Z" fill="#0A2F28"/>
+                    </svg>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           ) : (
             <iframe

@@ -42,6 +42,14 @@ const PRESENTER_META = {
   sina: { booking: 'https://meetings.hubspot.com/szarei', demoVideo: 'X7RX3Bzz0sk' },
   denzel: { booking: 'https://meetings.hubspot.com/denzel-kereama', demoVideo: '699el1Gba3M' },
 };
+// Hand-picked product-demo frames (Sina chose these) for the demo-email thumbnail's
+// left half. Drop demo-frame-<presenter>.png next to server.mjs; the presenter's
+// YouTube maxres frame is the fallback when the file is missing.
+const DEMO_FRAME = { sina: path.join(__dirname, 'demo-frame-sina.png'), denzel: path.join(__dirname, 'demo-frame-denzel.png') };
+const demoFrameBuf = async (pKey, meta) => {
+  try { return fs.readFileSync(DEMO_FRAME[pKey]); } catch {}
+  return Buffer.from(await (await fetch(`https://img.youtube.com/vi/${meta.demoVideo}/maxresdefault.jpg`)).arrayBuffer());
+};
 const logoImgUrl = (domain) => `https://img.logo.dev/${encodeURIComponent(domain)}?token=${LOGODEV()}&size=300&format=png&retina=true`;
 const rgbHex = ({ r, g, b }) => '#' + [r, g, b].map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0')).join('');
 async function vibrant(buf) {
@@ -254,8 +262,8 @@ const server = http.createServer(async (req, res) => {
           const rgb = await vibrant(logoBuf); brand = rgbHex(rgb);
           const img = await composeThumb(pKey, logoBuf, rgb);
           thumb = await uploadPublic(img, `thumb-${c.contactId}.png`);
-          try { // demo-email thumbnail: product-demo frame (presenter's YouTube recording) | firm logo
-            const frame = Buffer.from(await (await fetch(`https://img.youtube.com/vi/${pMeta.demoVideo}/maxresdefault.jpg`)).arrayBuffer());
+          try { // demo-email thumbnail: hand-picked product-demo frame | firm logo
+            const frame = await demoFrameBuf(pKey, pMeta);
             const dimg = await composeThumb(pKey, logoBuf, rgb, frame);
             demoThumb = await uploadPublic(dimg, `demo-thumb-${c.contactId}.png`);
           } catch (e) { /* leave demo thumb blank on failure */ }
@@ -272,6 +280,7 @@ const server = http.createServer(async (req, res) => {
       ];
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
       if (thumb) parts.push(`thumb=${encodeURIComponent(thumb)}`);
+      if (demoThumb) parts.push(`demo_thumb=${encodeURIComponent(demoThumb)}`);
       const blob = parts.join('&');
       const ensure = async (name, label) => {
         const g = await fetch(`https://api.hubapi.com/crm/v3/properties/contacts/${name}`, { headers: { authorization: `Bearer ${T}` } });
