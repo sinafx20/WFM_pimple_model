@@ -34,9 +34,15 @@ const Check = () => (
   </div>
 );
 
-/* ─── Video placeholder YouTube ID ─── */
-// Replace this with your actual YouTube video ID
-const YOUTUBE_VIDEO_ID = "X7RX3Bzz0sk";
+/* ─── Product walkthrough YouTube IDs, one recording per presenter ───
+   The campaign blob carries ?presenter= (sina|denzel) so the page plays the
+   walkthrough recorded by whoever actually sent the email. Sina = fallback. */
+const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" };
+const demoVideoId = () => {
+  const p = typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("presenter") || "").toLowerCase() : "";
+  return DEMO_VIDEOS[p] || DEMO_VIDEOS.sina;
+};
 
 const WALKTHROUGH_POINTS = [
   {
@@ -91,6 +97,15 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
+/* The campaign blob carries ?booking= so the page books with the presenter
+   who actually sent the email (Sina or Denzel); vertical map is the fallback. */
+const bookingUrl = (id) => {
+  if (typeof window !== "undefined") {
+    const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
+    if (/^https:\/\/meetings\.hubspot\.com\//.test(b)) return b;
+  }
+  return BOOKING_URLS[id];
+};
 const FREE_TRIAL_URL = "https://app.workflowmax.com/register/sign_up";
 const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
@@ -99,6 +114,7 @@ const goTo = (url) => {
 export default function DemoLandingPage() {
   const [playing, setPlaying] = useState(false);
   const v = detectVertical();
+  const videoId = demoVideoId();
 
   return (
     <div className="dlp wfm-card" style={{
@@ -157,7 +173,7 @@ export default function DemoLandingPage() {
           {!playing ? (
             <>
               <img
-                src={`https://img.youtube.com/vi/${YOUTUBE_VIDEO_ID}/maxresdefault.jpg`}
+                src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
                 alt="WorkflowMAX Product Walkthrough"
                 style={{
                   position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
@@ -185,7 +201,7 @@ export default function DemoLandingPage() {
             </>
           ) : (
             <iframe
-              src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?rel=0&modestbranding=1&autoplay=1`}
+              src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`}
               style={{
                 position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
                 border: "none",
@@ -248,7 +264,7 @@ export default function DemoLandingPage() {
             Start your free trial →
           </button>
           <button
-            onClick={() => goTo(BOOKING_URLS[v.id])}
+            onClick={() => goTo(bookingUrl(v.id))}
             style={{
               padding: "13px 32px", marginTop: 10, background: "transparent", color: "#63DB94",
               border: "1px solid #63DB9450", borderRadius: 100, fontSize: 15, fontWeight: 600,

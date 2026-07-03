@@ -35,6 +35,13 @@ const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', c => d
 
 // --- co-branded thumbnail compositor ---
 const FACE = { sina: path.join(__dirname, 'face-sina.png'), denzel: path.join(__dirname, 'face-denzel.png') };
+// Per-presenter routing: booking link (rides in the blob so the LP books the
+// actual sender) and the product-demo recording (YouTube ID) for tp4 + the
+// demo-email thumbnail. Mirrors PRESENTERS in public/index.html.
+const PRESENTER_META = {
+  sina: { booking: 'https://meetings.hubspot.com/szarei', demoVideo: 'X7RX3Bzz0sk' },
+  denzel: { booking: 'https://meetings.hubspot.com/denzel-kereama', demoVideo: '699el1Gba3M' },
+};
 const logoImgUrl = (domain) => `https://img.logo.dev/${encodeURIComponent(domain)}?token=${LOGODEV()}&size=300&format=png&retina=true`;
 const rgbHex = ({ r, g, b }) => '#' + [r, g, b].map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0')).join('');
 async function vibrant(buf) {
@@ -48,10 +55,12 @@ async function vibrant(buf) {
   }
   return best || { r: 10, g: 47, b: 40 };
 }
-async function composeThumb(presenterKey, logoBuf, rgb) {
+async function composeThumb(presenterKey, logoBuf, rgb, leftBuf = null) {
+  // leftBuf overrides the presenter face frame (e.g. a product-demo video frame
+  // for the demo-email thumbnail); layout is otherwise identical.
   const W = 1088, H = 612, faceW = 653, panelW = W - faceW;
   const facePath = FACE[presenterKey] || FACE.sina;
-  const face = await sharp(facePath).resize({ width: faceW, height: H, fit: 'cover', position: 'attention' }).toBuffer();
+  const face = await sharp(leftBuf || facePath).resize({ width: faceW, height: H, fit: 'cover', position: 'attention' }).toBuffer();
   const cardW = 330, cardH = 210;
   const card = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${cardW}" height="${cardH}"><rect rx="18" width="${cardW}" height="${cardH}" fill="#ffffff"/></svg>`))
     .composite([{ input: await sharp(logoBuf).resize({ width: cardW - 56, height: cardH - 56, fit: 'inside' }).toBuffer(), gravity: 'center' }]).png().toBuffer();
@@ -235,14 +244,21 @@ const server = http.createServer(async (req, res) => {
       const industry = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
       const logoTok = LOGODEV();
       const logo = (logoTok && c.domain) ? `https://img.logo.dev/${encodeURIComponent(c.domain)}?token=${logoTok}&size=200&format=png&retina=true` : '';
-      // composite the co-branded thumbnail + extract brand colour (before the blob, so thumb= can ride in it)
-      let thumb = '', brand = '#0A2F28';
+      const pKey = (c.presenter || 'sina').toLowerCase();
+      const pMeta = PRESENTER_META[pKey] || PRESENTER_META.sina;
+      // composite the co-branded thumbnails + extract brand colour (before the blob, so thumb= can ride in it)
+      let thumb = '', demoThumb = '', brand = '#0A2F28';
       if (logoTok && c.domain) {
         try {
           const logoBuf = Buffer.from(await (await fetch(logoImgUrl(c.domain))).arrayBuffer());
           const rgb = await vibrant(logoBuf); brand = rgbHex(rgb);
-          const img = await composeThumb(c.presenter || 'sina', logoBuf, rgb);
+          const img = await composeThumb(pKey, logoBuf, rgb);
           thumb = await uploadPublic(img, `thumb-${c.contactId}.png`);
+          try { // demo-email thumbnail: product-demo frame (presenter's YouTube recording) | firm logo
+            const frame = Buffer.from(await (await fetch(`https://img.youtube.com/vi/${pMeta.demoVideo}/maxresdefault.jpg`)).arrayBuffer());
+            const dimg = await composeThumb(pKey, logoBuf, rgb, frame);
+            demoThumb = await uploadPublic(dimg, `demo-thumb-${c.contactId}.png`);
+          } catch (e) { /* leave demo thumb blank on failure */ }
         } catch (e) { /* leave thumb blank on failure */ }
       }
       const parts = [
@@ -251,6 +267,8 @@ const server = http.createServer(async (req, res) => {
         `industry=${encodeURIComponent(industry)}`,
         `email=${encodeURIComponent(c.email || '')}`,
         `video=${encodeURIComponent(c.video || '')}`,
+        `presenter=${encodeURIComponent(pKey)}`,
+        `booking=${encodeURIComponent(pMeta.booking)}`,
       ];
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
       if (thumb) parts.push(`thumb=${encodeURIComponent(thumb)}`);
@@ -266,9 +284,10 @@ const server = http.createServer(async (req, res) => {
       await ensure('volcano_personalization', 'Volcano personalization blob');
       await ensure('volcano_thumb_url', 'Volcano thumbnail URL');
       await ensure('volcano_brand_color', 'Volcano brand colour');
-      const patch = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}`, { method: 'PATCH', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ properties: { volcano_heygen_video_url: c.video || '', volcano_personalization: blob, volcano_thumb_url: thumb, volcano_brand_color: brand } }) });
+      await ensure('volcano_demo_thumb_url', 'Volcano demo thumbnail URL');
+      const patch = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}`, { method: 'PATCH', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ properties: { volcano_heygen_video_url: c.video || '', volcano_personalization: blob, volcano_thumb_url: thumb, volcano_brand_color: brand, volcano_demo_thumb_url: demoThumb } }) });
       const pb = await patch.json();
-      return json(res, patch.status < 300 ? 200 : patch.status, { ok: patch.status < 300, blob, logo, thumb, brand_color: brand, error: patch.status >= 300 ? pb : null });
+      return json(res, patch.status < 300 ? 200 : patch.status, { ok: patch.status < 300, blob, logo, thumb, demo_thumb: demoThumb, brand_color: brand, error: patch.status >= 300 ? pb : null });
     }
 
     // --- Instantly: list campaigns ---
@@ -284,12 +303,13 @@ const server = http.createServer(async (req, res) => {
       const c = await readBody(req); // {contactId, email, firstName, company, vertical, domain, blob?, video?, thumb?, brand_color?}
       c.firstName = cleanFirst(c.firstName); c.company = cleanCompany(c.company);
       if (!c.email) return json(res, 200, { ok: false, error: 'no email' });
-      let blob = c.blob, video = c.video, thumb = c.thumb, brand = c.brand_color;
-      if (!blob || !thumb || !brand) { // fall back to HubSpot-stored values
-        const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=volcano_personalization,volcano_heygen_video_url,volcano_thumb_url,volcano_brand_color`, { headers: { authorization: `Bearer ${HUB()}` } });
+      let blob = c.blob, video = c.video, thumb = c.thumb, brand = c.brand_color, demoThumb = c.demo_thumb;
+      if (!blob || !thumb || !brand || !demoThumb) { // fall back to HubSpot-stored values
+        const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=volcano_personalization,volcano_heygen_video_url,volcano_thumb_url,volcano_brand_color,volcano_demo_thumb_url`, { headers: { authorization: `Bearer ${HUB()}` } });
         const gp = (await g.json())?.properties || {};
         blob = blob || gp.volcano_personalization; video = video || gp.volcano_heygen_video_url;
         thumb = thumb || gp.volcano_thumb_url; brand = brand || gp.volcano_brand_color;
+        demoThumb = demoThumb || gp.volcano_demo_thumb_url;
       }
       const logo = c.logo || (LOGODEV() && c.domain ? logoImgUrl(c.domain) : '');
       const K = INSTANTLY();
@@ -299,7 +319,7 @@ const server = http.createServer(async (req, res) => {
       const word = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
       const camp = camps.find(x => /pimple/i.test(x.name) && word && x.name.toLowerCase().includes(word));
       if (!camp) return json(res, 200, { ok: false, error: `no Pimple campaign for vertical "${c.vertical || '?'}"` });
-      const body = { campaign: camp.id, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
+      const body = { campaign: camp.id, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
       return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });

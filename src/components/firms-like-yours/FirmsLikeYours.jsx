@@ -62,6 +62,15 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
+/* The campaign blob carries ?booking= so the page books with the presenter
+   who actually sent the email (Sina or Denzel); vertical map is the fallback. */
+const bookingUrl = (id) => {
+  if (typeof window !== "undefined") {
+    const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
+    if (/^https:\/\/meetings\.hubspot\.com\//.test(b)) return b;
+  }
+  return BOOKING_URLS[id];
+};
 const FREE_TRIAL_URL = "https://app.workflowmax.com/register/sign_up";
 const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
@@ -370,7 +379,7 @@ export default function FirmsLikeYours() {
             onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
             Start your free trial →
           </button>
-          <button onClick={() => goTo(BOOKING_URLS[routeV])} style={outlineGreen}
+          <button onClick={() => goTo(bookingUrl(routeV))} style={outlineGreen}
             onMouseEnter={(e) => { e.currentTarget.style.background = "#63DB9410"; e.currentTarget.style.borderColor = "#63DB94"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#63DB9450"; }}>
             Book a walkthrough

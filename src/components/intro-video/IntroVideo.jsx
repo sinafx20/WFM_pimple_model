@@ -41,6 +41,15 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
+/* The campaign blob carries ?booking= so the page books with the presenter
+   who actually sent the email (Sina or Denzel); vertical map is the fallback. */
+const bookingUrl = (id) => {
+  if (typeof window !== "undefined") {
+    const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
+    if (/^https:\/\/meetings\.hubspot\.com\//.test(b)) return b;
+  }
+  return BOOKING_URLS[id];
+};
 const WEBSITE_URL = "https://www.workflowmax.com";
 
 const qs = () =>
@@ -284,7 +293,7 @@ export default function IntroVideo() {
               Prefer to talk it through first? Grab a time that suits you.
             </p>
             <button
-              onClick={() => goTo(BOOKING_URLS[v.id])}
+              onClick={() => goTo(bookingUrl(v.id))}
               style={{
                 padding: "13px 32px", background: "transparent", color: "#0A2F28",
                 border: "1px solid #0A2F2830", borderRadius: 100, fontSize: 15, fontWeight: 600,

@@ -87,7 +87,22 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
-const WALKTHROUGH_URL = "https://www.youtube.com/watch?v=X7RX3Bzz0sk"; // product walkthrough
+/* The campaign blob carries ?booking= and ?presenter= so the page books with —
+   and shows the product walkthrough recorded by — the presenter who actually
+   sent the email (Sina or Denzel); the vertical map / Sina video is the fallback. */
+const bookingUrl = (id) => {
+  if (typeof window !== "undefined") {
+    const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
+    if (/^https:\/\/meetings\.hubspot\.com\//.test(b)) return b;
+  }
+  return BOOKING_URLS[id];
+};
+const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" }; // product walkthrough per presenter
+const walkthroughUrl = () => {
+  const p = typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("presenter") || "").toLowerCase() : "";
+  return `https://www.youtube.com/watch?v=${DEMO_VIDEOS[p] || DEMO_VIDEOS.sina}`;
+};
 
 /* Open a CTA destination in a new tab so the prospect keeps their results.
    No-op for unconfigured links so a placeholder never navigates to nowhere. */
@@ -844,7 +859,7 @@ export default function FirmBenchmark() {
                   See how {v.label} firms close this gap →
                 </button>
                 <div className="wfm-spacer" style={{ height: 10 }} />
-                <button onClick={() => goTo(WALKTHROUGH_URL)} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
+                <button onClick={() => goTo(walkthroughUrl())} style={ctaBtn(false)} onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }} onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}>
                   Watch a 12-min product walkthrough
                 </button>
               </div>
@@ -862,7 +877,7 @@ export default function FirmBenchmark() {
                 <p style={{ fontSize: 13, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                   No pressure to book. Explore at your own pace and one of our {v.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.
                 </p>
-                <button onClick={() => goTo(BOOKING_URLS[v.id])} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
+                <button onClick={() => goTo(bookingUrl(v.id))} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                   Book a time
                 </button>
               </div>

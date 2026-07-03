@@ -259,7 +259,7 @@ function openContact(c){
         setSt('Writing back to HubSpot…');
         const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id, video:h.url, firstName:c.firstName, company:c.company, vertical:c.vertical, email:c.email, domain:c.domain, presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
         if(!w.ok){ return setSt('Write-back failed: <code>'+JSON.stringify(w.error)+'</code>',true); }
-        c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._brand=w.brand_color; c._logo=w.logo; renderRows();
+        c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; renderRows();
         setSt('<b>Written back to HubSpot.</b><video controls src="'+h.url+'"></video>'+
           '<div style="margin-top:8px"><a target="_blank" href="'+PREVIEW_BASE+'?tool=intro&'+w.blob+'">Preview landing page ↗</a> &nbsp; <button id="pushOne" class="primary" style="padding:6px 12px">Push to Instantly</button></div>'+
           '<div class="muted" style="margin-top:6px">Hosted: <code>'+h.url+'</code></div>'+
@@ -292,7 +292,7 @@ async function writeOne(c){
   const h=await fetch('/api/host',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({video_url:c._video,name:(c.company||'volcano')+'-'+c.id})}).then(r=>r.json());
   if(!h.url){ c._status='err'; c._err='host failed'; updateSt(c); return; }
   const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:h.url,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
-  if(w.ok){ c._status='done'; c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._brand=w.brand_color; c._logo=w.logo; } else { c._status='err'; c._err='writeback failed'; }
+  if(w.ok){ c._status='done'; c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; } else { c._status='err'; c._err='writeback failed'; }
   updateSt(c);
 }
 function bindBatch(){
@@ -328,7 +328,7 @@ function bindBatch(){
 async function pushOne(c){
   if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
   const pr=PRESETS[casting[c.owner]||'sina'];
-  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
+  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
   if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
   updateSt(c);
 }
