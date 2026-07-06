@@ -12,6 +12,10 @@
   .navlink:hover{background:rgba(255,255,255,.08)}
   header .stat{font-size:12px;color:#9fc4b7} header .stat b{color:#fff;font-size:15px}
   button{font:inherit;cursor:pointer;border-radius:8px;border:0;background:var(--money);color:var(--green);font-weight:700;padding:8px 14px}
+  select{font:inherit;font-size:12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#0e3b32;color:#cfeede;padding:7px 9px;max-width:230px}
+  .libtn{background:#0A66C2;color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px}
+  .libtn:disabled{opacity:.45;cursor:default}
+  .li-ok{color:#087443;font-weight:700;font-size:11px}.li-err{color:#c62828;font-size:10px}
   .wrap{padding:18px 22px}
   table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
   th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
@@ -36,16 +40,17 @@
   <span class="stat"><b id="s-total">–</b> contacts</span>
   <span class="stat"><b id="s-email">–</b> in email</span>
   <span class="stat"><b id="s-hot">–</b> hot+</span>
+  <select id="hr-camp" title="HeyReach campaign for LinkedIn pushes"><option value="">LinkedIn: checking…</option></select>
   <button id="refresh">Refresh</button>
 </header>
 <div class="wrap">
-  <p class="note">Ranked by total engagement (HubSpot volcano score + live email engagement). Email opens/clicks/replies polled from Instantly. LinkedIn columns activate once HeyReach is wired. Bands: Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+.</p>
+  <p class="note">Ranked by total engagement (HubSpot volcano score + live email engagement). Email opens/clicks/replies polled from Instantly. LinkedIn: pick a HeyReach campaign (top right), then push contacts with a LinkedIn URL — each lead carries intro_link / health_check_link / thumb / booking / industry as custom fields for DM templates. Bands: Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+.</p>
   <table id="tbl"><thead><tr>
     <th>#</th><th data-k="company">Contact</th><th data-k="vertical">Vertical</th><th data-k="owner">Owner</th>
     <th class="num">Assets</th><th class="num">Email</th><th class="num">LI</th>
     <th class="num" data-k="opens">Opens</th><th class="num" data-k="clicks">Clicks</th><th class="num" data-k="replies">Replies</th>
-    <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th>
-  </tr></thead><tbody id="rows"><tr><td colspan="14" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
+    <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th><th class="num">LI push</th>
+  </tr></thead><tbody id="rows"><tr><td colspan="15" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
 </div>
 <script>
 let ROWS=[], sortK='total', sortDir=-1;
@@ -78,12 +83,32 @@ function render(){
       <td class="num">${r.hubEng||0}</td><td class="num">${r.hsScore||0}</td>
       <td class="num score">${r.total||0}</td>
       <td><span class="band ${bc}">${bn}</span></td>
+      <td class="num" id="li-${r.id}">${r.linkedin?`<button class="libtn" onclick="pushLI('${r.id}')" ${HR_READY?'':'disabled'}>&rarr; LI</button>`:'<span class="muted">–</span>'}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="14" class="muted" style="padding:16px">No contacts.</td></tr>';
+  }).join('') || '<tr><td colspan="15" class="muted" style="padding:16px">No contacts.</td></tr>';
+}
+let HR_READY=false;
+async function loadHeyReach(){
+  const sel=document.getElementById('hr-camp');
+  const st=await fetch('/api/heyreach/status').then(r=>r.json()).catch(()=>({configured:false}));
+  if(!st.configured){ sel.innerHTML='<option value="">LinkedIn: add HEYREACH_API_KEY to .env</option>'; HR_READY=false; render(); return; }
+  if(st.valid===false){ sel.innerHTML='<option value="">LinkedIn: API key invalid ('+st.http+')</option>'; HR_READY=false; render(); return; }
+  const d=await fetch('/api/heyreach/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
+  if(!d.campaigns.length){ sel.innerHTML='<option value="">LinkedIn: no campaigns'+(d.error?' ('+String(d.error).slice(0,60)+')':'')+'</option>'; HR_READY=false; render(); return; }
+  sel.innerHTML='<option value="">LinkedIn: pick campaign…</option>'+d.campaigns.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  sel.onchange=()=>{ HR_READY=!!sel.value; render(); };
+}
+async function pushLI(id){
+  const camp=document.getElementById('hr-camp').value;
+  const cell=document.getElementById('li-'+id);
+  cell.innerHTML='<span class="muted">…</span>';
+  const r=await fetch('/api/heyreach/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:id,campaignId:camp})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  cell.innerHTML=r.ok?'<span class="li-ok">&#10003; queued</span>':`<span class="li-err" title="${(r.error||'failed').replace(/"/g,'&quot;')}">&#10007;</span>`;
 }
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k; if(sortK===k)sortDir*=-1; else{sortK=k;sortDir=(k==='company'||k==='vertical'||k==='owner')?1:-1;} render();});
 document.getElementById('refresh').onclick=load;
 load();
+loadHeyReach();
 </script>
 </body>
 </html>

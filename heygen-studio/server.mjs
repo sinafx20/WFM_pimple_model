@@ -18,6 +18,7 @@ const KEY = envGet('HEYGEN_API_KEY');
 const HUB = () => envGet('HUBSPOT_TOKEN');
 const LOGODEV = () => envGet('LOGODEV_TOKEN');
 const INSTANTLY = () => envGet('INSTANTLY_API_KEY');
+const HEYREACH = () => envGet('HEYREACH_API_KEY'); // add to .env to activate LinkedIn dispatch
 if (!KEY) { console.error('No HEYGEN_API_KEY (env or .env).'); process.exit(1); }
 
 // Clean names for natural pronunciation + no legal suffixes (applied everywhere: script, thumbnail, blob, email, LinkedIn).
@@ -31,7 +32,9 @@ const hg = (p, opts = {}) => fetch(`https://api.heygen.com${p}`, {
 });
 
 const json = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
-const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', c => d += c); req.on('end', () => r(d ? JSON.parse(d) : {})); });
+// Malformed JSON must not throw inside the 'end' callback — that escapes the
+// route try/catch and kills the whole process.
+const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', c => d += c); req.on('end', () => { try { r(d ? JSON.parse(d) : {}); } catch { r({}); } }); });
 
 // --- co-branded thumbnail compositor ---
 const FACE = { sina: path.join(__dirname, 'face-sina.png'), denzel: path.join(__dirname, 'face-denzel.png') };
@@ -335,6 +338,59 @@ const server = http.createServer(async (req, res) => {
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
       return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
+    }
+
+    // --- HeyReach (LinkedIn dispatch). Activates when HEYREACH_API_KEY lands in .env
+    //     (.env is re-read per call, no restart needed). Public API: X-API-KEY header. ---
+    const hr = (p, body, method = 'POST') => fetch(`https://api.heyreach.io/api/public${p}`, {
+      method, headers: { 'X-API-KEY': HEYREACH(), accept: 'application/json', 'content-type': 'application/json' },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+
+    if (u.pathname === '/api/heyreach/status') {
+      if (!HEYREACH()) return json(res, 200, { configured: false });
+      const r = await hr('/auth/CheckApiKey', undefined, 'GET');
+      return json(res, 200, { configured: true, valid: r.status < 300, http: r.status });
+    }
+
+    if (u.pathname === '/api/heyreach/campaigns') {
+      if (!HEYREACH()) return json(res, 200, { campaigns: [], error: 'no HEYREACH_API_KEY in .env' });
+      const r = await hr('/campaign/GetAll', { offset: 0, limit: 100 });
+      const b = await r.json().catch(() => null);
+      if (r.status >= 300) return json(res, 200, { campaigns: [], error: `HeyReach ${r.status}: ${JSON.stringify(b).slice(0, 200)}` });
+      const campaigns = (b?.items || b?.campaigns || b || []).map(c => ({ id: c.id, name: c.name, status: c.status || '' }));
+      return json(res, 200, { campaigns });
+    }
+
+    // Push one contact into a HeyReach campaign, carrying the SAME personalization
+    // set as email (blob link, co-branded thumb, booking) as custom fields usable
+    // in connection notes / DM templates.
+    if (u.pathname === '/api/heyreach/push' && req.method === 'POST') {
+      const c = await readBody(req); // {contactId, campaignId}
+      if (!HEYREACH()) return json(res, 200, { ok: false, error: 'no HEYREACH_API_KEY in .env' });
+      if (!c.campaignId) return json(res, 200, { ok: false, error: 'pick a HeyReach campaign first' });
+      const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=firstname,lastname,company,email,linkedin_url,volcano_icp_vertical,volcano_personalization,volcano_thumb_url,volcano_brand_color`, { headers: { authorization: `Bearer ${HUB()}` } });
+      const p = (await g.json())?.properties || {};
+      if (!p.linkedin_url) return json(res, 200, { ok: false, error: 'contact has no linkedin_url' });
+      const blob = p.volcano_personalization || '';
+      const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
+      const industry = IMAP.find(x => (p.volcano_icp_vertical || '').toLowerCase().includes(x)) || '';
+      const bookingMatch = blob.match(/booking=([^&]+)/);
+      const lead = {
+        profileUrl: p.linkedin_url,
+        firstName: cleanFirst(p.firstname), lastName: p.lastname || '',
+        companyName: cleanCompany(p.company), emailAddress: (p.email || '').toLowerCase(),
+        customUserFields: [
+          { name: 'intro_link', value: blob ? `https://lp.workflowmax.com/app?tool=intro&${blob}` : '' },
+          { name: 'health_check_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp1&${blob}` : '' },
+          { name: 'thumb', value: p.volcano_thumb_url || '' },
+          { name: 'booking', value: bookingMatch ? decodeURIComponent(bookingMatch[1]) : '' },
+          { name: 'industry', value: industry },
+        ].filter(f => f.value),
+      };
+      const r = await hr('/campaign/AddLeadsToCampaignV2', { campaignId: +c.campaignId || c.campaignId, accountLeadPairs: [{ lead }] });
+      const b = await r.json().catch(() => null);
+      return json(res, 200, { ok: r.status < 300, http: r.status, response: b, error: r.status >= 300 ? JSON.stringify(b).slice(0, 300) : null });
     }
 
     json(res, 404, { error: 'not found' });
