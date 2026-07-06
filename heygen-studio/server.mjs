@@ -276,11 +276,14 @@ const server = http.createServer(async (req, res) => {
         `email=${encodeURIComponent(c.email || '')}`,
         `video=${encodeURIComponent(c.video || '')}`,
         `presenter=${encodeURIComponent(pKey)}`,
-        `booking=${encodeURIComponent(pMeta.booking)}`,
       ];
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
       if (thumb) parts.push(`thumb=${encodeURIComponent(thumb)}`);
       if (demoThumb) parts.push(`demo_thumb=${encodeURIComponent(demoThumb)}`);
+      // booking last: astro DEV 500s when a URL's final characters are an image
+      // extension (vite-plugin-assets misreads it as an image request), so keep
+      // the .png thumb params away from the end of campaign links.
+      parts.push(`booking=${encodeURIComponent(pMeta.booking)}`);
       const blob = parts.join('&');
       const ensure = async (name, label) => {
         const g = await fetch(`https://api.hubapi.com/crm/v3/properties/contacts/${name}`, { headers: { authorization: `Bearer ${T}` } });
