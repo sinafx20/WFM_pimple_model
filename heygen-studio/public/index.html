@@ -6,8 +6,19 @@
 <style>
   :root{--green:#0A2F28;--money:#63DB94;--line:#e4e8e6;--muted:#6b7a75;--ok:#0D8D5C;}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--green);background:#f4f6f5}
-  header{background:var(--green);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--green);background:#f4f6f5;display:flex;flex-direction:column;height:100vh}
+  header{background:var(--green);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;flex:none}
+  /* AE workflow modules: the runbook, left to right */
+  .modules{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 20px;background:#eaf1ee;border-bottom:1px solid var(--line);flex:none}
+  .module{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:8px;min-width:0}
+  .mhead{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px}
+  .mnum{background:var(--money);color:var(--green);width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none}
+  .mbtns{display:flex;gap:8px;flex-wrap:wrap}
+  .module button{font-size:12px;padding:7px 10px}
+  .module select{font-size:12px;padding:6px 9px}
+  .mnote{font-size:11px;color:var(--muted);line-height:1.4}
+  #batchprog{flex:none;padding:6px 22px;background:#f4f6f5}
+  @media(max-width:1100px){.modules{grid-template-columns:repeat(2,1fr)}}
   header b span{color:var(--money)}
   header .sub{color:#9fc4b7;font-size:12px}
   header .grow{flex:1}
@@ -22,7 +33,7 @@
   .modalbtns{display:flex;gap:10px;align-items:center;margin-top:8px}.modalbtns .grow{flex:1}
   .ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer}
   .listpick{position:relative}
-  #listsearch{width:240px;padding:7px 11px;border:0;border-radius:8px;font:inherit;font-size:13px;color:var(--green)}
+  #listsearch{width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;color:var(--green)}
   #listresults{position:absolute;top:38px;right:0;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;max-height:280px;overflow:auto;z-index:30;display:none;box-shadow:0 6px 20px rgba(0,0,0,.15)}
   #listresults div{padding:8px 11px;font-size:12px;cursor:pointer;color:var(--green);border-bottom:1px solid #f0f3f2}
   #listresults div:hover{background:#f0f7f4}
@@ -30,7 +41,7 @@
   button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;padding:8px 12px}
   button.primary{background:var(--money);border:0;color:var(--green);font-weight:700}
   button:disabled{opacity:.5;cursor:default}
-  .layout{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 49px)}
+  .layout{display:grid;grid-template-columns:380px 1fr;flex:1;min-height:0}
   .panel{overflow:auto;padding:14px}
   .panel.left{border-right:1px solid var(--line);background:#fff}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -63,17 +74,40 @@
 </head>
 <body>
 <header>
-  <b>Workflow<span>MAX</span></b> <span class="sub">Studio</span>
-  <a id="cockpitLink" class="navlink" href="/dashboard?list=3698">Cockpit &#8599;</a>
-  <button id="editScripts" class="navbtn">&#9998; Scripts</button>
+  <b>Workflow<span>MAX</span></b> <span class="sub">Volcano GTM Studio</span>
   <div class="grow"></div>
-  <div class="listpick">
-    <input id="listsearch" type="text" placeholder="Search HubSpot lists…" autocomplete="off" value="Volcano Model MVP_all targets">
-    <div id="listresults"></div>
-  </div>
-  <button id="pull" class="primary">Pull</button>
-  <span id="pullinfo" class="sub"></span>
+  <span class="sub">generate &rarr; dispatch &rarr; track, one pass per list</span>
 </header>
+
+<!-- The AE runbook as working modules, left to right -->
+<div class="modules">
+  <div class="module">
+    <div class="mhead"><span class="mnum">1</span> Enriched list</div>
+    <div class="listpick">
+      <input id="listsearch" type="text" placeholder="Search HubSpot lists…" autocomplete="off" value="Volcano Model MVP_all targets">
+      <div id="listresults"></div>
+    </div>
+    <div class="mbtns"><button id="pull" class="primary">Pull contacts</button><span id="pullinfo" class="mnote" style="align-self:center"></span></div>
+    <div class="mnote">Clay-enriched HubSpot list: names, vertical, domain, LinkedIn URL.</div>
+  </div>
+  <div class="module">
+    <div class="mhead"><span class="mnum">2</span> HeyGen studio</div>
+    <div class="mbtns"><button id="genSel" class="primary" disabled>Generate selected (0)</button><button id="writeSel" disabled>Write back (0)</button><button id="editScripts" class="ghost" title="Edit the master services/project scripts">&#9998; Scripts</button></div>
+    <div class="mnote">Preview 1&ndash;2 per presenter, approve, then generate in bulk. Write-back stores video + links + co-branded thumbnails on the contact.</div>
+  </div>
+  <div class="module">
+    <div class="mhead"><span class="mnum">3</span> Dispatch</div>
+    <div style="display:flex;align-items:center;gap:6px"><span class="mnote" style="width:58px;flex:none">Email</span><select id="instCamp"><option value="">Auto: Pimple &ndash; {vertical}</option></select></div>
+    <div style="display:flex;align-items:center;gap:6px"><span class="mnote" style="width:58px;flex:none">LinkedIn</span><select id="hrCamp"><option value="">HeyReach: checking…</option></select></div>
+    <div class="mbtns"><button id="pushSel" disabled>Push to Instantly (0)</button><button id="pushLiSel" disabled>Push to HeyReach (0)</button></div>
+  </div>
+  <div class="module">
+    <div class="mhead"><span class="mnum">4</span> Track &amp; score</div>
+    <div class="mbtns"><a id="cockpitLink" class="ghost" style="text-decoration:none;display:inline-block" href="/dashboard?list=3698">Open Cockpit &#8599;</a></div>
+    <div class="mnote">Opens, clicks, replies and LinkedIn engagement roll up per contact. Sync writes volcano_engagement_score back to HubSpot.</div>
+  </div>
+</div>
+<div id="batchprog" class="muted">Pull a list to begin. Preview one contact first, then tick contacts and work the modules left to right.</div>
 
 <div class="layout">
   <div class="panel left">
@@ -81,10 +115,6 @@
       <h2>Casting (owner &rarr; presenter)</h2>
       <div id="castingRows"></div>
       <div class="muted" style="margin-top:6px">Saved on this machine. Each contact defaults to its owner's presenter; you can override per contact.</div>
-    </div>
-    <div class="card" id="batchbar" style="display:none">
-      <div class="row2"><button id="genSel" class="primary">Generate selected (0)</button><button id="writeSel" disabled>Write back selected (0)</button><button id="pushSel" disabled>Push to Instantly (0)</button></div>
-      <div id="batchprog" class="muted" style="margin-top:8px">Preview one first. Then tick contacts (or the header box), Generate, and you'll be prompted to write back.</div>
     </div>
     <table id="tbl"><thead><tr><th><input type="checkbox" id="selall" title="Select all"></th><th>Contact</th><th>Vertical</th><th>Owner</th><th>Status</th></tr></thead><tbody id="rows">
       <tr><td colspan="5" class="muted" style="padding:14px">Click "Pull contacts" to load the Volcano list.</td></tr>
@@ -149,7 +179,7 @@ $('#pull').onclick = async () => {
   $('#pullinfo').textContent = `${d.count} contacts`;
   $('#pull').disabled=false;
   renderCasting(); renderRows();
-  $('#batchbar').style.display='block'; updateCounts(); bindBatch();
+  updateCounts(); bindBatch();
   $('#selall').onchange=e=>{ document.querySelectorAll('input.cbx').forEach(cb=>{ cb.checked=e.target.checked; const c=CONTACTS.find(x=>x.id===cb.dataset.id); if(c)c._sel=e.target.checked; }); updateCounts(); };
   if(!AVATARS.length){ fetch('/api/avatars').then(r=>r.json()).then(a=>AVATARS=[...(a.avatars||[]),...(a.photos||[])]); fetch('/api/voices').then(r=>r.json()).then(v=>VOICES=v.voices||[]); }
 };
@@ -188,6 +218,8 @@ function renderCasting(){
   document.querySelectorAll('#castingRows select').forEach(s=>s.onchange=e=>{ casting[e.target.dataset.owner]=e.target.value; localStorage.setItem('casting',JSON.stringify(casting)); if(SELECTED) openContact(SELECTED); });
 }
 function statusBadge(c){ const s=c._status;
+  if(c._pushed&&c._liPushed) return '<span style="color:#2563eb;font-weight:700">email + LI ✓</span>';
+  if(c._liPushed) return '<span style="color:#0A66C2;font-weight:700">in HeyReach ✓</span>';
   if(c._pushed) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
   if(s==='submitting'||s==='rendering') return '<span class="muted">generating…</span>';
   if(s==='rendered') return '<span style="color:#b4540e;font-weight:600">ready</span>';
@@ -197,7 +229,7 @@ function statusBadge(c){ const s=c._status;
   return '<span class="dot '+(c.hasVideo?'y':'n')+'"></span>';
 }
 function updateSt(c){ const el=document.getElementById('st-'+c.id); if(el) el.innerHTML=statusBadge(c); }
-function updateCounts(){ const n=CONTACTS.filter(c=>c._sel).length, ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length, push=CONTACTS.filter(c=>c._sel&&(c._status==='done'||c.hasVideo)&&!c._pushed).length; const g=$('#genSel'),w=$('#writeSel'),p=$('#pushSel'); if(g)g.textContent='Generate selected ('+n+')'; if(w){ w.textContent='Write back selected ('+ready+')'; w.disabled=ready===0; } if(p){ p.textContent='Push to Instantly ('+push+')'; p.disabled=push===0; } }
+function updateCounts(){ const n=CONTACTS.filter(c=>c._sel).length, ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length, push=CONTACTS.filter(c=>c._sel&&(c._status==='done'||c.hasVideo)&&!c._pushed).length, liPush=CONTACTS.filter(c=>c._sel&&c.linkedin&&(c._status==='done'||c.hasVideo)&&!c._liPushed).length; const g=$('#genSel'),w=$('#writeSel'),p=$('#pushSel'),pl=$('#pushLiSel'); if(g){ g.textContent='Generate selected ('+n+')'; g.disabled=n===0; } if(w){ w.textContent='Write back ('+ready+')'; w.disabled=ready===0; } if(p){ p.textContent='Push to Instantly ('+push+')'; p.disabled=push===0; } if(pl){ pl.textContent='Push to HeyReach ('+liPush+')'; pl.disabled=liPush===0||!($('#hrCamp')&&$('#hrCamp').value); } }
 function renderRows(){
   $('#rows').innerHTML = CONTACTS.map(c=>{
     const {model}=classify(c.vertical);
@@ -319,16 +351,53 @@ function bindBatch(){
   $('#pushSel').onclick=async()=>{
     const sel=CONTACTS.filter(c=>c._sel && (c._status==='done'||c.hasVideo) && !c._pushed);
     if(!sel.length) return alert('No written-back contacts to push. Write back first.');
-    if(!confirm('Push '+sel.length+' leads to their Pimple - {vertical} campaigns in Instantly?')) return;
+    const instSel=$('#instCamp');
+    const dest=instSel&&instSel.value?('the Instantly campaign "'+instSel.selectedOptions[0].textContent+'"'):'their Pimple - {vertical} campaigns in Instantly';
+    if(!confirm('Push '+sel.length+' leads to '+dest+'?')) return;
     $('#pushSel').disabled=true; let done=0,fail=0;
     await pool(sel,3,async c=>{ await pushOne(c); if(c._pushed)done++; else fail++; $('#batchprog').textContent='Pushed '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
     updateCounts(); alert('Push complete: '+done+' pushed'+(fail?', '+fail+' failed':'')+'.');
   };
+  $('#pushLiSel').onclick=async()=>{
+    const camp=$('#hrCamp').value;
+    if(!camp) return alert('Pick a HeyReach campaign first.');
+    const sel=CONTACTS.filter(c=>c._sel && c.linkedin && (c._status==='done'||c.hasVideo) && !c._liPushed);
+    if(!sel.length) return alert('No written-back contacts with a LinkedIn URL to push.');
+    if(!confirm('Push '+sel.length+' leads into the HeyReach campaign "'+$('#hrCamp').selectedOptions[0].textContent+'"?')) return;
+    $('#pushLiSel').disabled=true; let done=0,fail=0;
+    await pool(sel,3,async c=>{ await pushLiOne(c,camp); if(c._liPushed)done++; else fail++; $('#batchprog').textContent='LinkedIn: pushed '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
+    updateCounts(); alert('HeyReach push complete: '+done+' pushed'+(fail?', '+fail+' failed':'')+'.');
+  };
+  loadHrCampaigns();
 }
+async function loadHrCampaigns(){
+  const sel=$('#hrCamp'); if(!sel) return;
+  const d=await fetch('/api/heyreach/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
+  if(!d.campaigns||!d.campaigns.length){ sel.innerHTML='<option value="">HeyReach: '+(d.error?String(d.error).slice(0,50):'no campaigns')+'</option>'; return; }
+  const saved=localStorage.getItem('hrCamp')||'';
+  sel.innerHTML='<option value="">HeyReach: pick campaign…</option>'+d.campaigns.map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name} (${c.status||'?'})</option>`).join('');
+  sel.onchange=()=>{ localStorage.setItem('hrCamp',sel.value); updateCounts(); };
+  updateCounts();
+}
+async function loadInstCampaigns(){
+  const sel=$('#instCamp'); if(!sel) return;
+  const d=await fetch('/api/instantly/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
+  if(!d.campaigns||!d.campaigns.length) return; // keep the auto option only
+  const saved=localStorage.getItem('instCamp')||'';
+  sel.innerHTML='<option value="">Auto: Pimple &ndash; {vertical}</option>'+d.campaigns.map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name}</option>`).join('');
+  sel.onchange=()=>{ localStorage.setItem('instCamp',sel.value); };
+}
+loadInstCampaigns();
+async function pushLiOne(c,campaignId){
+  const r=await fetch('/api/heyreach/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  if(r.ok){ c._liPushed=true; } else { c._status='err'; c._err=('LI: '+(r.error||'push failed')).slice(0,140); }
+  updateSt(c);
+}
+loadHrCampaigns(); // module 3 shows campaigns before the first pull
 async function pushOne(c){
   if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
   const pr=PRESETS[casting[c.owner]||'sina'];
-  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
+  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId:($('#instCamp')&&$('#instCamp').value)||undefined,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
   if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
   updateSt(c);
 }

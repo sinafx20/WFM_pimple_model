@@ -120,11 +120,11 @@ const server = http.createServer(async (req, res) => {
       // 1) contacts
       let after, ids = [];
       do { const r = await hs(`/crm/v3/lists/${LIST}/memberships?limit=100${after ? `&after=${after}` : ''}`); const b = await r.json(); ids.push(...(b.results || []).map(x => x.recordId)); after = b.paging?.next?.after; } while (after);
-      const props = ['firstname', 'company', 'email', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_thumb_url', 'volcano_lead_score', 'linkedin_url'];
+      const props = ['firstname', 'company', 'email', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_thumb_url', 'volcano_lead_score', 'hs_linkedin_url'];
       const contacts = [];
       for (let i = 0; i < ids.length; i += 100) {
         const r = await hs('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
-        (await r.json()).results?.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.linkedin_url }); });
+        (await r.json()).results?.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.hs_linkedin_url, linkedinUrl: p.hs_linkedin_url || '' }); });
       }
       // 2) Instantly engagement across Pimple campaigns
       const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json()).items || []).filter(c => /pimple/i.test(c.name));
@@ -138,13 +138,41 @@ const server = http.createServer(async (req, res) => {
           starting = b.next_starting_after; guard++;
         } while (starting && guard < 20);
       }
+      // 2b) HeyReach LinkedIn engagement (best effort; lead-status fields read defensively)
+      const li = {};
+      const HK = HEYREACH();
+      if (HK) {
+        try {
+          const hrq = (p, body) => fetch(`https://api.heyreach.io/api/public${p}`, { method: 'POST', headers: { 'X-API-KEY': HK, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+          const cs = (await (await hrq('/campaign/GetAll', { offset: 0, limit: 100 })).json())?.items || [];
+          for (const camp of cs) {
+            let offset = 0, guard = 0;
+            while (guard++ < 20) {
+              const b = await (await hrq('/campaign/GetLeadsFromCampaign', { campaignId: camp.id, offset, limit: 100 })).json();
+              const items = b?.items || [];
+              items.forEach(it => {
+                const prof = it.linkedInUserProfile || {};
+                const status = String(it.status || it.leadStatus || it.state || '');
+                const rec = { inCampaign: true, status, accepted: /accept|connected/i.test(status), replied: /repl/i.test(status) };
+                const em = (prof.emailAddress || it.emailAddress || '').toLowerCase();
+                if (em) li[em] = rec;
+                if (prof.profileUrl) li[prof.profileUrl.replace(/\/+$/, '').toLowerCase()] = rec;
+              });
+              if (items.length < 100) break;
+              offset += 100;
+            }
+          }
+        } catch (e) { /* LinkedIn engagement is additive; ignore failures */ }
+      }
       // 3) join + rank
       const rows = contacts.map(c => {
         const e = eng[c.email] || { opens: 0, clicks: 0, replies: 0, campaign: '' };
         const hubEng = e.opens * 2 + e.clicks * 10 + e.replies * 30;
-        return { ...c, opens: e.opens, clicks: e.clicks, replies: e.replies, emailLive: !!eng[c.email], hubEng, total: hubEng + c.hsScore };
+        const l = li[c.email] || li[(c.linkedinUrl || '').replace(/\/+$/, '').toLowerCase()] || null;
+        const liEng = l ? (l.accepted ? 8 : 0) + (l.replied ? 30 : 0) : 0;
+        return { ...c, opens: e.opens, clicks: e.clicks, replies: e.replies, emailLive: !!eng[c.email], hubEng, liIn: !!l, liStatus: l ? l.status : '', liEng, total: hubEng + liEng + c.hsScore };
       }).sort((a, b) => b.total - a.total);
-      return json(res, 200, { count: rows.length, emailLive: rows.filter(r => r.emailLive).length, rows });
+      return json(res, 200, { count: rows.length, emailLive: rows.filter(r => r.emailLive).length, liLive: rows.filter(r => r.liIn).length, rows });
     }
 
     if (u.pathname === '/api/avatars') {
@@ -191,14 +219,14 @@ const server = http.createServer(async (req, res) => {
       const LIST = u.searchParams.get('list') || '3698';
       let after, ids = [];
       do { const r = await hsb(`/crm/v3/lists/${LIST}/memberships?limit=100${after ? `&after=${after}` : ''}`); const b = await r.json(); ids.push(...(b.results || []).map(x => x.recordId)); after = b.paging?.next?.after; } while (after);
-      const props = ['firstname', 'company', 'email', 'website', 'domain', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url'];
+      const props = ['firstname', 'company', 'email', 'website', 'domain', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'hs_linkedin_url'];
       const contacts = [];
       for (let i = 0; i < ids.length; i += 100) {
         const r = await hsb('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
         (await r.json()).results?.forEach(c => {
           const p = c.properties;
           const domain = (p.domain || p.website || (p.email || '').split('@')[1] || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url });
+          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url, linkedin: !!p.hs_linkedin_url });
         });
       }
       return json(res, 200, { list: LIST, count: contacts.length, contacts });
@@ -332,8 +360,11 @@ const server = http.createServer(async (req, res) => {
       const camps = (await cr.json())?.items || [];
       const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
       const word = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
-      const camp = camps.find(x => /pimple/i.test(x.name) && word && x.name.toLowerCase().includes(word));
-      if (!camp) return json(res, 200, { ok: false, error: `no Pimple campaign for vertical "${c.vertical || '?'}"` });
+      // explicit campaign override from the dispatch module wins; otherwise vertical -> "Pimple - {vertical}"
+      const camp = c.campaignId
+        ? camps.find(x => String(x.id) === String(c.campaignId))
+        : camps.find(x => /pimple/i.test(x.name) && word && x.name.toLowerCase().includes(word));
+      if (!camp) return json(res, 200, { ok: false, error: c.campaignId ? `campaign ${c.campaignId} not found` : `no Pimple campaign for vertical "${c.vertical || '?'}"` });
       const body = { campaign: camp.id, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
@@ -369,15 +400,15 @@ const server = http.createServer(async (req, res) => {
       const c = await readBody(req); // {contactId, campaignId}
       if (!HEYREACH()) return json(res, 200, { ok: false, error: 'no HEYREACH_API_KEY in .env' });
       if (!c.campaignId) return json(res, 200, { ok: false, error: 'pick a HeyReach campaign first' });
-      const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=firstname,lastname,company,email,linkedin_url,volcano_icp_vertical,volcano_personalization,volcano_thumb_url,volcano_brand_color`, { headers: { authorization: `Bearer ${HUB()}` } });
+      const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=firstname,lastname,company,email,hs_linkedin_url,volcano_icp_vertical,volcano_personalization,volcano_thumb_url,volcano_brand_color`, { headers: { authorization: `Bearer ${HUB()}` } });
       const p = (await g.json())?.properties || {};
-      if (!p.linkedin_url) return json(res, 200, { ok: false, error: 'contact has no linkedin_url' });
+      if (!p.hs_linkedin_url) return json(res, 200, { ok: false, error: 'contact has no LinkedIn URL (hs_linkedin_url)' });
       const blob = p.volcano_personalization || '';
       const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
       const industry = IMAP.find(x => (p.volcano_icp_vertical || '').toLowerCase().includes(x)) || '';
       const bookingMatch = blob.match(/booking=([^&]+)/);
       const lead = {
-        profileUrl: p.linkedin_url,
+        profileUrl: p.hs_linkedin_url,
         firstName: cleanFirst(p.firstname), lastName: p.lastname || '',
         companyName: cleanCompany(p.company), emailAddress: (p.email || '').toLowerCase(),
         customUserFields: [
@@ -391,6 +422,30 @@ const server = http.createServer(async (req, res) => {
       const r = await hr('/campaign/AddLeadsToCampaignV2', { campaignId: +c.campaignId || c.campaignId, accountLeadPairs: [{ lead }] });
       const b = await r.json().catch(() => null);
       return json(res, 200, { ok: r.status < 300, http: r.status, response: b, error: r.status >= 300 ? JSON.stringify(b).slice(0, 300) : null });
+    }
+
+    // --- Cockpit -> HubSpot: write the engagement score. Absolute value per contact
+    //     (recomputed each sync, so re-running never double-counts). Kept in its own
+    //     property so the forms-driven volcano_lead_score stays HubSpot-owned;
+    //     routing workflows can branch on the sum of the two. ---
+    if (u.pathname === '/api/scores/sync' && req.method === 'POST') {
+      const { scores } = await readBody(req); // [{contactId, value}]
+      if (!Array.isArray(scores) || !scores.length) return json(res, 200, { ok: false, error: 'no scores' });
+      const T = HUB();
+      const g = await fetch('https://api.hubapi.com/crm/v3/properties/contacts/volcano_engagement_score', { headers: { authorization: `Bearer ${T}` } });
+      if (g.status !== 200) {
+        for (const grp of ['wfm_content_tools', 'contactinformation']) {
+          const cr = await fetch('https://api.hubapi.com/crm/v3/properties/contacts', { method: 'POST', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'volcano_engagement_score', label: 'Volcano engagement score', type: 'number', fieldType: 'number', groupName: grp }) });
+          if (cr.status < 400) break;
+        }
+      }
+      let updated = 0, failed = 0, firstError = null;
+      for (let i = 0; i < scores.length; i += 100) {
+        const inputs = scores.slice(i, i + 100).map(s => ({ id: String(s.contactId), properties: { volcano_engagement_score: String(+s.value || 0) } }));
+        const r = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/batch/update', { method: 'POST', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ inputs }) });
+        if (r.status < 300) updated += inputs.length; else { failed += inputs.length; if (!firstError) firstError = JSON.stringify(await r.json().catch(() => null)).slice(0, 200); }
+      }
+      return json(res, 200, { ok: failed === 0, updated, failed, error: firstError });
     }
 
     json(res, 404, { error: 'not found' });

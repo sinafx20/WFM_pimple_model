@@ -41,6 +41,7 @@
   <span class="stat"><b id="s-email">–</b> in email</span>
   <span class="stat"><b id="s-hot">–</b> hot+</span>
   <select id="hr-camp" title="HeyReach campaign for LinkedIn pushes"><option value="">LinkedIn: checking…</option></select>
+  <button id="sync" title="Write each contact's engagement (email + LinkedIn) to the volcano_engagement_score property in HubSpot">Sync scores &rarr; HS</button>
   <button id="refresh">Refresh</button>
 </header>
 <div class="wrap">
@@ -49,8 +50,9 @@
     <th>#</th><th data-k="company">Contact</th><th data-k="vertical">Vertical</th><th data-k="owner">Owner</th>
     <th class="num">Assets</th><th class="num">Email</th><th class="num">LI</th>
     <th class="num" data-k="opens">Opens</th><th class="num" data-k="clicks">Clicks</th><th class="num" data-k="replies">Replies</th>
+    <th class="num" data-k="liEng">LI eng</th>
     <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th><th class="num">LI push</th>
-  </tr></thead><tbody id="rows"><tr><td colspan="15" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
+  </tr></thead><tbody id="rows"><tr><td colspan="16" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
 </div>
 <script>
 let ROWS=[], sortK='total', sortDir=-1;
@@ -80,12 +82,13 @@ function render(){
       <td class="num"><span class="dot ${r.emailLive?'y':'n'}"></span></td>
       <td class="num"><span class="dot ${r.linkedin?'y':'n'}"></span></td>
       <td class="num">${r.opens||0}</td><td class="num">${r.clicks||0}</td><td class="num">${r.replies||0}</td>
+      <td class="num" title="${(r.liStatus||'').replace(/"/g,'&quot;')}">${r.liEng||0}</td>
       <td class="num">${r.hubEng||0}</td><td class="num">${r.hsScore||0}</td>
       <td class="num score">${r.total||0}</td>
       <td><span class="band ${bc}">${bn}</span></td>
-      <td class="num" id="li-${r.id}">${r.linkedin?`<button class="libtn" onclick="pushLI('${r.id}')" ${HR_READY?'':'disabled'}>&rarr; LI</button>`:'<span class="muted">–</span>'}</td>
+      <td class="num" id="li-${r.id}">${r.liIn?'<span class="li-ok">in seq</span>':r.linkedin?`<button class="libtn" onclick="pushLI('${r.id}')" ${HR_READY?'':'disabled'}>&rarr; LI</button>`:'<span class="muted">–</span>'}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="15" class="muted" style="padding:16px">No contacts.</td></tr>';
+  }).join('') || '<tr><td colspan="16" class="muted" style="padding:16px">No contacts.</td></tr>';
 }
 let HR_READY=false;
 async function loadHeyReach(){
@@ -107,6 +110,15 @@ async function pushLI(id){
 }
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k; if(sortK===k)sortDir*=-1; else{sortK=k;sortDir=(k==='company'||k==='vertical'||k==='owner')?1:-1;} render();});
 document.getElementById('refresh').onclick=load;
+document.getElementById('sync').onclick=async()=>{
+  if(!ROWS.length) return alert('Load the contacts first.');
+  const scores=ROWS.map(r=>({contactId:r.id,value:(r.hubEng||0)+(r.liEng||0)}));
+  if(!confirm('Write engagement score (email + LinkedIn) to HubSpot property volcano_engagement_score for '+scores.length+' contacts?\n\nThe forms-driven volcano_lead_score stays untouched; routing can branch on the sum of the two.')) return;
+  const b=document.getElementById('sync'); b.disabled=true; b.textContent='Syncing…';
+  const r=await fetch('/api/scores/sync',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({scores})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  b.disabled=false; b.innerHTML='Sync scores &rarr; HS';
+  alert(r.ok?('Synced '+r.updated+' contacts to HubSpot.'):('Sync issue: '+(r.error||JSON.stringify(r)).slice(0,200)));
+};
 load();
 loadHeyReach();
 </script>
