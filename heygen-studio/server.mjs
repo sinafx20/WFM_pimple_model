@@ -501,9 +501,26 @@ const server = http.createServer(async (req, res) => {
           { name: 'industry', value: industry },
         ].filter(f => f.value),
       };
-      const r = await hr('/campaign/AddLeadsToCampaignV2', { campaignId: +c.campaignId || c.campaignId, accountLeadPairs: [{ lead }] });
+      const cid = +c.campaignId || c.campaignId;
+      // Route by campaign status. AddLeadsToCampaignV2 only works on a RUNNING
+      // campaign; a DRAFT one can't take it, and starting a campaign with an
+      // empty list makes HeyReach mark it FINISHED. So for not-yet-running
+      // campaigns we seed the lead into the campaign's LIST (works in any
+      // state); starting the campaign then enrols the list members.
+      const camp = await (await hr(`/campaign/GetById?campaignId=${cid}`, undefined, 'GET')).json().catch(() => null);
+      const status = camp?.status || '';
+      if (status === 'FINISHED') return json(res, 200, { ok: false, error: 'campaign is FINISHED (was started with an empty list) — create a fresh campaign, seed leads, then start' });
+      if (status === 'IN_PROGRESS' || status === 'ACTIVE') {
+        const r = await hr('/campaign/AddLeadsToCampaignV2', { campaignId: cid, accountLeadPairs: [{ lead }] });
+        const b = await r.json().catch(() => null);
+        return json(res, 200, { ok: r.status < 300, http: r.status, mode: 'campaign', response: b, error: r.status >= 300 ? JSON.stringify(b).slice(0, 300) : null });
+      }
+      // DRAFT / SCHEDULED / PAUSED -> seed the campaign's list
+      const listId = camp?.linkedInUserListId;
+      if (!listId) return json(res, 200, { ok: false, error: `campaign ${cid} has no list to seed (status ${status || '?'})` });
+      const r = await hr('/list/AddLeadsToListV2', { listId, leads: [lead] });
       const b = await r.json().catch(() => null);
-      return json(res, 200, { ok: r.status < 300, http: r.status, response: b, error: r.status >= 300 ? JSON.stringify(b).slice(0, 300) : null });
+      return json(res, 200, { ok: r.status < 300, http: r.status, mode: 'list', seeded: true, note: `seeded into list ${listId}; Start the campaign in HeyReach to enrol`, response: b, error: r.status >= 300 ? JSON.stringify(b).slice(0, 300) : null });
     }
 
     // --- Cockpit -> HubSpot: write the engagement score. Absolute value per contact
