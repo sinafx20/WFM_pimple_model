@@ -226,9 +226,51 @@ const server = http.createServer(async (req, res) => {
         (await r.json()).results?.forEach(c => {
           const p = c.properties;
           const domain = (p.domain || p.website || (p.email || '').split('@')[1] || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), lastName: p.lastname || '', jobtitle: p.jobtitle || '', company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url, videoUrl: p.volcano_heygen_video_url || '', blob: p.volcano_personalization || '', linkedin: !!p.hs_linkedin_url });
+          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), lastName: p.lastname || '', jobtitle: p.jobtitle || '', company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url, videoUrl: p.volcano_heygen_video_url || '', blob: p.volcano_personalization || '', linkedin: !!p.hs_linkedin_url, linkedinUrl: p.hs_linkedin_url || '' });
         });
       }
+      // Join sequence membership so the pipeline board lands every card in its
+      // true stage on every pull (not just for pushes made this session).
+      try {
+        const K = INSTANTLY();
+        if (K) {
+          const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json())?.items || []).filter(x => /pimple/i.test(x.name));
+          const inInst = {};
+          for (const camp of camps) {
+            let starting, guard = 0;
+            do {
+              const b = await (await fetch('https://api.instantly.ai/api/v2/leads/list', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify({ campaign: camp.id, limit: 100, ...(starting ? { starting_after: starting } : {}) }) })).json();
+              (b.items || []).forEach(l => { if (l.email) inInst[l.email.toLowerCase()] = camp.id; });
+              starting = b.next_starting_after; guard++;
+            } while (starting && guard < 20);
+          }
+          contacts.forEach(c => { const id = inInst[(c.email || '').toLowerCase()]; if (id) { c.inInstantly = true; c.instCampId = id; } });
+        }
+      } catch (e) { /* membership join is additive */ }
+      try {
+        const HK = HEYREACH();
+        if (HK) {
+          const hrq = (p, body) => fetch(`https://api.heyreach.io/api/public${p}`, { method: 'POST', headers: { 'X-API-KEY': HK, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+          const cs = (await (await hrq('/campaign/GetAll', { offset: 0, limit: 100 })).json())?.items || [];
+          const inLi = {};
+          for (const camp of cs) {
+            let offset = 0, guard = 0;
+            while (guard++ < 20) {
+              const b = await (await hrq('/campaign/GetLeadsFromCampaign', { campaignId: camp.id, offset, limit: 100 })).json();
+              const items = b?.items || [];
+              items.forEach(it => {
+                const prof = it.linkedInUserProfile || {};
+                const em = (prof.emailAddress || it.emailAddress || '').toLowerCase();
+                if (em) inLi[em] = camp.id;
+                if (prof.profileUrl) inLi[prof.profileUrl.replace(/\/+$/, '').toLowerCase()] = camp.id;
+              });
+              if (items.length < 100) break;
+              offset += 100;
+            }
+          }
+          contacts.forEach(c => { const id = inLi[(c.email || '').toLowerCase()] || inLi[(c.linkedinUrl || '').replace(/\/+$/, '').toLowerCase()]; if (id) { c.inHeyReach = true; c.liCampId = id; } });
+        }
+      } catch (e) { /* membership join is additive */ }
       return json(res, 200, { list: LIST, count: contacts.length, contacts });
     }
 
@@ -369,6 +411,41 @@ const server = http.createServer(async (req, res) => {
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
       return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, campaignId: camp.id, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
+    }
+
+    // --- Instantly: refresh an EXISTING lead's merge vars (after a blob/thumbnail rebuild).
+    //     Finds the lead by email across Pimple campaigns and PATCHes custom_variables. ---
+    if (u.pathname === '/api/instantly/update' && req.method === 'POST') {
+      const c = await readBody(req); // same shape as /api/instantly/push
+      c.firstName = cleanFirst(c.firstName); c.company = cleanCompany(c.company);
+      if (!c.email) return json(res, 200, { ok: false, error: 'no email' });
+      let blob = c.blob, video = c.video, thumb = c.thumb, brand = c.brand_color, demoThumb = c.demo_thumb;
+      if (!blob || !thumb || !brand || !demoThumb) {
+        const g = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}?properties=volcano_personalization,volcano_heygen_video_url,volcano_thumb_url,volcano_brand_color,volcano_demo_thumb_url`, { headers: { authorization: `Bearer ${HUB()}` } });
+        const gp = (await g.json())?.properties || {};
+        blob = blob || gp.volcano_personalization; video = video || gp.volcano_heygen_video_url;
+        thumb = thumb || gp.volcano_thumb_url; brand = brand || gp.volcano_brand_color;
+        demoThumb = demoThumb || gp.volcano_demo_thumb_url;
+      }
+      const logo = c.logo || (LOGODEV() && c.domain ? logoImgUrl(c.domain) : '');
+      const K = INSTANTLY();
+      const email = c.email.toLowerCase();
+      const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json())?.items || []).filter(x => /pimple/i.test(x.name));
+      let lead = null, leadCamp = null;
+      for (const camp of camps) {
+        let starting, guard = 0;
+        do {
+          const b = await (await fetch('https://api.instantly.ai/api/v2/leads/list', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify({ campaign: camp.id, limit: 100, ...(starting ? { starting_after: starting } : {}) }) })).json();
+          lead = (b.items || []).find(l => (l.email || '').toLowerCase() === email) || null;
+          starting = b.next_starting_after; guard++;
+        } while (!lead && starting && guard < 10);
+        if (lead) { leadCamp = camp; break; }
+      }
+      if (!lead) return json(res, 200, { ok: false, notFound: true });
+      const custom_variables = { volcano_blob: blob || '', video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' };
+      const r = await fetch(`https://api.instantly.ai/api/v2/leads/${lead.id}`, { method: 'PATCH', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify({ custom_variables }) });
+      const rb = await r.json().catch(() => null);
+      return json(res, 200, { ok: r.status < 300, campaign: leadCamp?.name, campaignId: leadCamp?.id, leadId: lead.id, error: r.status >= 300 ? JSON.stringify(rb).slice(0, 200) : null });
     }
 
     // --- HeyReach (LinkedIn dispatch). Activates when HEYREACH_API_KEY lands in .env

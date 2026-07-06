@@ -217,10 +217,12 @@ const STAGES=[
   {key:'pushedLi',  title:'Pushed: HeyReach'},
   {key:'done',      title:'Completed'},
 ];
+const inInst=c=>!!(c._pushed||c.inInstantly);
+const inLi=c=>!!(c._liPushed||c.inHeyReach);
 function stage(c){
-  if(c._pushed&&c._liPushed) return 'done';
-  if(c._liPushed) return 'pushedLi';
-  if(c._pushed) return 'pushedInst';
+  if(inInst(c)&&inLi(c)) return 'done';
+  if(inLi(c)) return 'pushedLi';
+  if(inInst(c)) return 'pushedInst';
   if(c._status==='done'||c.hasVideo) return 'ready';
   if(c._video||['submitting','rendering','hosting','rendered'].includes(c._status)) return 'review';
   return 'todo';
@@ -230,9 +232,9 @@ function stLine(c){ const s=c._status;
   if(s==='hosting') return '<span class="muted">writing back…</span>';
   if(s==='rendered') return '<span style="color:#b4540e;font-weight:600">video ready — review / write back</span>';
   if(s==='err') return '<span style="color:#b42318" title="'+(''+(c._err||'')).replace(/"/g,"&#39;")+'">error: '+(''+(c._err||'')).slice(0,40)+'</span>';
-  if(c._pushed&&c._liPushed) return '<span style="color:#087443;font-weight:700">email + LinkedIn ✓ — see cockpit</span>';
-  if(c._liPushed) return '<span style="color:#0A66C2;font-weight:700">in HeyReach ✓</span>';
-  if(c._pushed) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
+  if(inInst(c)&&inLi(c)) return '<span style="color:#087443;font-weight:700">email + LinkedIn ✓ — see cockpit</span>';
+  if(inLi(c)) return '<span style="color:#0A66C2;font-weight:700">in HeyReach ✓</span>';
+  if(inInst(c)) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
   if(c._status==='done'||c.hasVideo) return '<span style="color:#087443;font-weight:600">assets on contact ✓</span>';
   return '';
 }
@@ -356,8 +358,9 @@ $('#drawerClose').onclick=()=>{ $('#drawer').style.display='none'; SELECTED=null
 const TOOLS=[['intro','Intro video'],['tp1','Health Check'],['tp2','Profit Leak'],['tp3','Benchmark'],['tp4','Demo'],['tp5','Firms Like Yours'],['tp6','Resource Hub']];
 function leadLinksHtml(c){
   const parts=[];
-  if(c._pushed&&c._instCampId) parts.push('<a class="lp" target="_blank" href="https://app.instantly.ai/app/campaign/'+c._instCampId+'/leads">Lead in Instantly &#8599;</a>');
-  if(c._liPushed&&c._liCampId) parts.push('<a class="lp" target="_blank" href="https://app.heyreach.io/campaigns/'+c._liCampId+'">Lead in HeyReach &#8599;</a>');
+  const iId=c._instCampId||c.instCampId, lId=c._liCampId||c.liCampId;
+  if(inInst(c)&&iId) parts.push('<a class="lp" target="_blank" href="https://app.instantly.ai/app/campaign/'+iId+'/leads">Lead in Instantly &#8599;</a>');
+  if(inLi(c)&&lId) parts.push('<a class="lp" target="_blank" href="https://app.heyreach.io/campaigns/'+lId+'">Lead in HeyReach &#8599;</a>');
   return parts.length?('<label>In sequences</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+parts.join('')+'</div>'):'';
 }
 function assetsHtml(c){
@@ -368,6 +371,7 @@ function assetsHtml(c){
     ${vid?`<video controls preload="metadata" src="${vid}"></video>`:''}
     ${blob?('<label>Personalised landing pages</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+TOOLS.map(t=>`<a class="lp" target="_blank" href="${PREVIEW_BASE}?tool=${t[0]}&${blob}">${t[1]} &#8599;</a>`).join('')+'</div>'):'<div class="muted" style="margin-top:6px">No personalization blob yet — write back to build the links.</div>'}
     <div id="leadLinks">${leadLinksHtml(c)}</div>
+    ${vid?`<div style="margin-top:10px"><button id="rebuild" class="ghost" style="font-size:12px">&#8635; Rebuild links &amp; thumbnails</button>${/thumb=/.test(blob||'')&&/booking=/.test(blob||'')?'':'<span class="muted" style="margin-left:8px">links predate the latest blob (video cover / booking routing) — rebuild to refresh</span>'}</div>`:''}
   </div>`;
 }
 function openContact(c){
@@ -377,7 +381,7 @@ function openContact(c){
   const presetKey=casting[c.owner]||'sina';
   const preset=PRESETS[presetKey];
   $('#editor').innerHTML = assetsHtml(c) + `
-    <div class="card">
+    <div class="card" id="genCard">
       <div class="muted">${c.jobtitle?c.jobtitle+' · ':''}${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b> · <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></div>
       <label>Script (editable)</label>
       <textarea id="script">${script(c, preset.name).replace(/</g,'&lt;')}</textarea>
@@ -388,6 +392,24 @@ function openContact(c){
       <button id="gen" class="primary" style="margin-top:14px">Generate preview</button>
       <div id="st" class="status"></div>
     </div>`;
+  // rebuild links & thumbnails from the existing hosted video (no HeyGen credits)
+  const rb=document.getElementById('rebuild');
+  if(rb) rb.onclick=async()=>{
+    rb.disabled=true; rb.textContent='Rebuilding…';
+    const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:c._hosted||c.videoUrl,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:casting[c.owner]||'sina'})}).then(r=>r.json()).catch(()=>({ok:false}));
+    if(!w.ok){ rb.disabled=false; rb.textContent='Rebuild failed — retry'; return; }
+    c._blob=w.blob; c.blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; c._status='done'; c.hasVideo=true;
+    let note='Links & thumbnails rebuilt for '+(c.firstName||'contact')+'.';
+    // if the lead is already in an Instantly sequence, refresh its merge vars too
+    rb.textContent='Updating Instantly lead…';
+    const pr=PRESETS[casting[c.owner]||'sina'];
+    const upd=await fetch('/api/instantly/update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:w.blob,video:c._hosted||c.videoUrl,thumb:w.thumb,demo_thumb:w.demo_thumb,brand_color:w.brand_color,logo:w.logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json()).catch(()=>({ok:false}));
+    if(upd.ok){ c.inInstantly=true; c.instCampId=upd.campaignId||c.instCampId; note+=' Instantly lead updated in "'+(upd.campaign||'campaign')+'".'; }
+    else if(upd.notFound){ note+=' Not in Instantly yet.'; }
+    else { note+=' Instantly update failed: '+(upd.error||'?'); }
+    openContact(c); render(); updateCounts();
+    $('#batchprog').textContent=note;
+  };
   // voice select
   const vsel=$('#voice'), vf=$('#vf');
   const fillV=q=>{ const list=VOICES.filter(v=>(`${v.name} ${v.language} ${v.gender}`).toLowerCase().includes(q.toLowerCase())); vsel.innerHTML=list.slice(0,400).map(v=>`<option value="${v.id}" ${v.id===preset.voice?'selected':''}>${v.name} — ${v.language} ${v.gender}</option>`).join(''); };
@@ -474,8 +496,8 @@ function openPushModal(){
   const sel=CONTACTS.filter(c=>c._sel && ['ready','pushedInst','pushedLi'].includes(stage(c)));
   if(!sel.length) return;
   $('#pushN').textContent=sel.length;
-  const instEligible=sel.filter(c=>!c._pushed).length;
-  const liEligible=sel.filter(c=>c.linkedin&&!c._liPushed).length;
+  const instEligible=sel.filter(c=>!inInst(c)).length;
+  const liEligible=sel.filter(c=>c.linkedin&&!inLi(c)).length;
   $('#instInfo').textContent=instEligible+' of '+sel.length+' eligible (not yet in Instantly)';
   $('#hrInfo').textContent=liEligible+' of '+sel.length+' eligible (LinkedIn URL present, not yet in HeyReach)';
   $('#pushModal').style.display='flex';
@@ -489,11 +511,11 @@ $('#pushGo').onclick=async()=>{
   $('#pushModal').style.display='none';
   let iDone=0,iFail=0,lDone=0,lFail=0;
   if(inst){
-    const targets=sel.filter(c=>!c._pushed);
+    const targets=sel.filter(c=>!inInst(c));
     await pool(targets,3,async c=>{ await pushOne(c,inst==='auto'?undefined:inst); if(c._pushed)iDone++; else iFail++; $('#batchprog').textContent='Instantly: '+iDone+'/'+targets.length+(iFail?(' · '+iFail+' failed'):''); });
   }
   if(li){
-    const targets=sel.filter(c=>c.linkedin&&!c._liPushed);
+    const targets=sel.filter(c=>c.linkedin&&!inLi(c));
     await pool(targets,3,async c=>{ await pushLiOne(c,li); if(c._liPushed)lDone++; else lFail++; $('#batchprog').textContent='HeyReach: '+lDone+'/'+targets.length+(lFail?(' · '+lFail+' failed'):''); });
   }
   render(); updateCounts();
