@@ -219,14 +219,14 @@ const server = http.createServer(async (req, res) => {
       const LIST = u.searchParams.get('list') || '3698';
       let after, ids = [];
       do { const r = await hsb(`/crm/v3/lists/${LIST}/memberships?limit=100${after ? `&after=${after}` : ''}`); const b = await r.json(); ids.push(...(b.results || []).map(x => x.recordId)); after = b.paging?.next?.after; } while (after);
-      const props = ['firstname', 'company', 'email', 'website', 'domain', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'hs_linkedin_url'];
+      const props = ['firstname', 'lastname', 'jobtitle', 'company', 'email', 'website', 'domain', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_personalization', 'hs_linkedin_url'];
       const contacts = [];
       for (let i = 0; i < ids.length; i += 100) {
         const r = await hsb('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
         (await r.json()).results?.forEach(c => {
           const p = c.properties;
           const domain = (p.domain || p.website || (p.email || '').split('@')[1] || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url, linkedin: !!p.hs_linkedin_url });
+          contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), lastName: p.lastname || '', jobtitle: p.jobtitle || '', company: cleanCompany(p.company), email: p.email || '', domain, vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasVideo: !!p.volcano_heygen_video_url, videoUrl: p.volcano_heygen_video_url || '', blob: p.volcano_personalization || '', linkedin: !!p.hs_linkedin_url });
         });
       }
       return json(res, 200, { list: LIST, count: contacts.length, contacts });
@@ -368,7 +368,7 @@ const server = http.createServer(async (req, res) => {
       const body = { campaign: camp.id, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
-      return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
+      return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, campaignId: camp.id, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
     }
 
     // --- HeyReach (LinkedIn dispatch). Activates when HEYREACH_API_KEY lands in .env

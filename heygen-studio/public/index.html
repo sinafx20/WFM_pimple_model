@@ -79,6 +79,8 @@
   .av img{width:100%;height:60px;object-fit:cover;display:block;background:#e3e7e5}
   .av.sel{border-color:var(--money)}
   .av .nm{font-size:9px;padding:2px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lp{display:inline-block;background:#f0f7f4;border:1px solid #cfe7db;border-radius:100px;padding:4px 10px;font-size:11px;font-weight:600;color:#087443;text-decoration:none}
+  .lp:hover{background:#e3f5ec}
 </style>
 </head>
 <body>
@@ -239,7 +241,7 @@ const visible = c => {
   const o=$('#ownerFilter').value; // presenter key (owner ids collapse into their cast presenter)
   if(o==='none' && casting[c.owner]) return false;
   if(o && o!=='none' && casting[c.owner]!==o) return false;
-  if(q && !((c.firstName||'')+' '+(c.company||'')+' '+(c.email||'')).toLowerCase().includes(q)) return false;
+  if(q && !((c.firstName||'')+' '+(c.lastName||'')+' '+(c.jobtitle||'')+' '+(c.company||'')+' '+(c.email||'')).toLowerCase().includes(q)) return false;
   return true;
 };
 function render(){
@@ -255,8 +257,8 @@ function render(){
         return `<div class="kcard ${c._sel?'sel':''}" data-id="${c.id}">
           <input type="checkbox" class="cbx" data-id="${c.id}" ${c._sel?'checked':''}>
           <div style="min-width:0">
-            <div class="nm">${c.firstName||'(no name)'}</div>
-            <div class="co">${c.company||''}</div>
+            <div class="nm">${((c.firstName||'')+' '+(c.lastName||'')).trim()||'(no name)'}</div>
+            <div class="co">${c.jobtitle?c.jobtitle+' · ':''}${c.company||''}</div>
             <div><span class="pill ${model==='project'?'prj':'svc'}">${c.vertical||'?'}</span>${c.linkedin?' <span title="has LinkedIn URL" style="color:#0A66C2;font-size:9px;font-weight:800">in</span>':''}</div>
             <div class="st" id="st-${c.id}">${stLine(c)}</div>
           </div>
@@ -351,15 +353,32 @@ function renderCasting(){
 // --- editor drawer ---
 let SELECTED=null;
 $('#drawerClose').onclick=()=>{ $('#drawer').style.display='none'; SELECTED=null; };
+const TOOLS=[['intro','Intro video'],['tp1','Health Check'],['tp2','Profit Leak'],['tp3','Benchmark'],['tp4','Demo'],['tp5','Firms Like Yours'],['tp6','Resource Hub']];
+function leadLinksHtml(c){
+  const parts=[];
+  if(c._pushed&&c._instCampId) parts.push('<a class="lp" target="_blank" href="https://app.instantly.ai/app/campaign/'+c._instCampId+'/leads">Lead in Instantly &#8599;</a>');
+  if(c._liPushed&&c._liCampId) parts.push('<a class="lp" target="_blank" href="https://app.heyreach.io/campaigns/'+c._liCampId+'">Lead in HeyReach &#8599;</a>');
+  return parts.length?('<label>In sequences</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+parts.join('')+'</div>'):'';
+}
+function assetsHtml(c){
+  const vid=c._hosted||c.videoUrl, blob=c._blob||c.blob;
+  if(!vid&&!blob) return '';
+  return `<div class="card">
+    <h2>Generated assets</h2>
+    ${vid?`<video controls preload="metadata" src="${vid}"></video>`:''}
+    ${blob?('<label>Personalised landing pages</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+TOOLS.map(t=>`<a class="lp" target="_blank" href="${PREVIEW_BASE}?tool=${t[0]}&${blob}">${t[1]} &#8599;</a>`).join('')+'</div>'):'<div class="muted" style="margin-top:6px">No personalization blob yet — write back to build the links.</div>'}
+    <div id="leadLinks">${leadLinksHtml(c)}</div>
+  </div>`;
+}
 function openContact(c){
   SELECTED=c;
   $('#drawer').style.display='flex';
-  $('#drawerTitle').textContent=(c.firstName||'?')+' @ '+(c.company||'?');
+  $('#drawerTitle').textContent=((c.firstName||'')+' '+(c.lastName||'')).trim()+' @ '+(c.company||'?');
   const presetKey=casting[c.owner]||'sina';
   const preset=PRESETS[presetKey];
-  $('#editor').innerHTML = `
+  $('#editor').innerHTML = assetsHtml(c) + `
     <div class="card">
-      <div class="muted">${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b> · <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></div>
+      <div class="muted">${c.jobtitle?c.jobtitle+' · ':''}${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b> · <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></div>
       <label>Script (editable)</label>
       <textarea id="script">${script(c, preset.name).replace(/</g,'&lt;')}</textarea>
       <div class="row2">
@@ -499,14 +518,15 @@ async function pushOne(c,campaignId){
   if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
   const pr=PRESETS[casting[c.owner]||'sina'];
   const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
-  if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
-  updateSt(c);
+  if(r.ok){ c._pushed=true; c._instCampId=r.campaignId||''; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
+  updateSt(c); refreshLeadLinks(c);
 }
 async function pushLiOne(c,campaignId){
   const r=await fetch('/api/heyreach/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
-  if(r.ok){ c._liPushed=true; } else { c._status='err'; c._err=('LI: '+(r.error||'push failed')).slice(0,140); }
-  updateSt(c);
+  if(r.ok){ c._liPushed=true; c._liCampId=campaignId; } else { c._status='err'; c._err=('LI: '+(r.error||'push failed')).slice(0,140); }
+  updateSt(c); refreshLeadLinks(c);
 }
+function refreshLeadLinks(c){ if(SELECTED&&SELECTED.id===c.id){ const el=document.getElementById('leadLinks'); if(el) el.innerHTML=leadLinksHtml(c); } }
 render();
 </script>
 </body>
