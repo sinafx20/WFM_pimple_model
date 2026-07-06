@@ -8,6 +8,9 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--green);background:#f4f6f5;display:flex;flex-direction:column;height:100vh}
   header{background:var(--green);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;flex:none}
+  header b span{color:var(--money)}
+  header .sub{color:#9fc4b7;font-size:12px}
+  header .grow{flex:1}
   /* AE workflow modules: the runbook, left to right */
   .modules{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 20px;background:#eaf1ee;border-bottom:1px solid var(--line);flex:none}
   .module{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -15,17 +18,10 @@
   .mnum{background:var(--money);color:var(--green);width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none}
   .mbtns{display:flex;gap:8px;flex-wrap:wrap}
   .module button{font-size:12px;padding:7px 10px}
-  .module select{font-size:12px;padding:6px 9px}
+  .module select,.module input[type=text]{font-size:12px;padding:6px 9px}
   .mnote{font-size:11px;color:var(--muted);line-height:1.4}
-  #batchprog{flex:none;padding:6px 22px;background:#f4f6f5}
+  #batchprog{flex:none;padding:6px 22px;background:#f4f6f5;font-size:12px;color:var(--muted)}
   @media(max-width:1100px){.modules{grid-template-columns:repeat(2,1fr)}}
-  header b span{color:var(--money)}
-  header .sub{color:#9fc4b7;font-size:12px}
-  header .grow{flex:1}
-  .navlink{color:#cfeede;font-size:12px;text-decoration:none;border:1px solid rgba(255,255,255,.22);padding:5px 11px;border-radius:7px}
-  .navlink:hover{background:rgba(255,255,255,.08)}
-  .navbtn{color:#cfeede;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,.22);padding:5px 11px;border-radius:7px;cursor:pointer}
-  .navbtn:hover{background:rgba(255,255,255,.08)}
   .modal{position:fixed;inset:0;background:rgba(10,47,40,.55);z-index:100;align-items:center;justify-content:center;padding:24px}
   .modalbox{background:#fff;border-radius:14px;padding:20px;max-width:840px;width:100%;max-height:90vh;overflow:auto}
   .modalbox h2{font-size:15px;margin:0 0 4px}
@@ -41,17 +37,31 @@
   button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;padding:8px 12px}
   button.primary{background:var(--money);border:0;color:var(--green);font-weight:700}
   button:disabled{opacity:.5;cursor:default}
-  .layout{display:grid;grid-template-columns:380px 1fr;flex:1;min-height:0}
-  .panel{overflow:auto;padding:14px}
-  .panel.left{border-right:1px solid var(--line);background:#fff}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:#fff}
-  tr.row{cursor:pointer} tr.row:hover{background:#f0f7f4} tr.row.sel{background:#e3f5ec}
-  .pill{font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px}
+  /* ---- Kanban pipeline ---- */
+  .boardbar{display:flex;gap:10px;align-items:center;padding:10px 20px 0;flex:none}
+  .boardbar input[type=text]{width:240px;padding:7px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px}
+  .boardbar select{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;background:#fff}
+  #board{flex:1;min-height:0;display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:10px 20px 16px;overflow:auto}
+  .col{background:#eceff1cc;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:170px;min-height:0}
+  .colhead{padding:9px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+  .colhead .cnt{background:#fff;border:1px solid var(--line);border-radius:100px;padding:0 7px;font-size:11px}
+  .colhead input{margin:0}
+  .colcards{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:7px}
+  .kcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 9px;cursor:pointer;font-size:12px;display:flex;gap:7px;align-items:flex-start}
+  .kcard:hover{border-color:var(--money);box-shadow:0 2px 8px rgba(10,47,40,.08)}
+  .kcard.sel{background:#e9f8f0;border-color:var(--money)}
+  .kcard input{margin:2px 0 0}
+  .kcard .nm{font-weight:700;line-height:1.25}
+  .kcard .co{color:var(--muted);font-size:11px}
+  .kcard .st{font-size:10px;margin-top:3px}
+  .kcard .who{margin-left:auto;flex:none;background:#0A2F2812;border-radius:100px;font-size:9px;font-weight:800;padding:2px 6px;color:var(--green)}
+  .pill{font-size:9px;font-weight:700;padding:0 5px;border-radius:100px}
   .pill.svc{background:#0D8D5C18;color:#087443}.pill.prj{background:#b4540e18;color:#b4540e}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%}
-  .dot.y{background:var(--ok)}.dot.n{background:#ccd3d0}
+  /* ---- editor drawer ---- */
+  #drawer{position:fixed;top:0;right:0;bottom:0;width:600px;max-width:92vw;background:#fff;box-shadow:-12px 0 40px rgba(10,47,40,.22);z-index:80;display:none;flex-direction:column}
+  #drawerHead{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex:none}
+  #drawerHead .x{margin-left:auto;border:0;background:transparent;font-size:20px;cursor:pointer;color:var(--muted)}
+  #editor{overflow:auto;padding:14px;flex:1}
   h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
   label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin:10px 0 4px}
   textarea,select,input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--green)}
@@ -62,7 +72,6 @@
   .status{margin-top:12px;padding:10px;border-radius:8px;background:#f0f3f2;font-size:13px;display:none}
   .status.show{display:block}
   video{width:100%;border-radius:10px;margin-top:10px;background:#000}
-  .phase2{border:1px dashed #c9a23d;background:#fdf7e7;border-radius:10px;padding:12px;font-size:12px;color:#7a5b12}
   .casting{font-size:12px}.casting .own{display:flex;align-items:center;gap:8px;margin:6px 0}
   .casting select{width:auto;padding:5px 8px;flex:1}
   .avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px;margin-top:4px}
@@ -88,42 +97,39 @@
       <div id="listresults"></div>
     </div>
     <div class="mbtns"><button id="pull" class="primary">Pull contacts</button><span id="pullinfo" class="mnote" style="align-self:center"></span></div>
-    <div class="mnote">Clay-enriched HubSpot list: names, vertical, domain, LinkedIn URL.</div>
   </div>
   <div class="module">
     <div class="mhead"><span class="mnum">2</span> HeyGen studio</div>
-    <div class="mbtns"><button id="genSel" class="primary" disabled>Generate selected (0)</button><button id="writeSel" disabled>Write back (0)</button><button id="editScripts" class="ghost" title="Edit the master services/project scripts">&#9998; Scripts</button></div>
-    <div class="mnote">Preview 1&ndash;2 per presenter, approve, then generate in bulk. Write-back stores video + links + co-branded thumbnails on the contact.</div>
+    <div class="mbtns"><button id="genSel" class="primary" disabled>Generate (0)</button><button id="writeSel" disabled>Write back (0)</button></div>
+    <div class="mbtns"><button id="editScripts" class="ghost" title="Edit the master services/project scripts">&#9998; Scripts</button><button id="editCasting" class="ghost" title="Map contact owners to presenters">&#127917; Casting</button></div>
   </div>
   <div class="module">
     <div class="mhead"><span class="mnum">3</span> Dispatch</div>
-    <div style="display:flex;align-items:center;gap:6px"><span class="mnote" style="width:58px;flex:none">Email</span><select id="instCamp"><option value="">Auto: Pimple &ndash; {vertical}</option></select></div>
-    <div style="display:flex;align-items:center;gap:6px"><span class="mnote" style="width:58px;flex:none">LinkedIn</span><select id="hrCamp"><option value="">HeyReach: checking…</option></select></div>
-    <div class="mbtns"><button id="pushSel" disabled>Push to Instantly (0)</button><button id="pushLiSel" disabled>Push to HeyReach (0)</button></div>
+    <div class="mbtns"><button id="pushSel" class="primary" disabled>Push selected&hellip; (0)</button></div>
+    <div class="mnote">Pick email and/or LinkedIn sequence at push time. Instantly, HeyReach, or both.</div>
   </div>
   <div class="module">
     <div class="mhead"><span class="mnum">4</span> Track &amp; score</div>
     <div class="mbtns"><a id="cockpitLink" class="ghost" style="text-decoration:none;display:inline-block" href="/dashboard?list=3698">Open Cockpit &#8599;</a></div>
-    <div class="mnote">Opens, clicks, replies and LinkedIn engagement roll up per contact. Sync writes volcano_engagement_score back to HubSpot.</div>
+    <div class="mnote">Engagement rolls up per contact; Sync writes volcano_engagement_score to HubSpot.</div>
   </div>
 </div>
-<div id="batchprog" class="muted">Pull a list to begin. Preview one contact first, then tick contacts and work the modules left to right.</div>
+<div id="batchprog">Pull a list to begin. Click a card to preview and approve one video, then generate in bulk and work the board left to right.</div>
 
-<div class="layout">
-  <div class="panel left">
-    <div class="card casting" id="castingCard" style="display:none">
-      <h2>Casting (owner &rarr; presenter)</h2>
-      <div id="castingRows"></div>
-      <div class="muted" style="margin-top:6px">Saved on this machine. Each contact defaults to its owner's presenter; you can override per contact.</div>
-    </div>
-    <table id="tbl"><thead><tr><th><input type="checkbox" id="selall" title="Select all"></th><th>Contact</th><th>Vertical</th><th>Owner</th><th>Status</th></tr></thead><tbody id="rows">
-      <tr><td colspan="5" class="muted" style="padding:14px">Click "Pull contacts" to load the Volcano list.</td></tr>
-    </tbody></table>
-  </div>
+<!-- Pipeline filters -->
+<div class="boardbar">
+  <input id="q" type="text" placeholder="Search name / company…">
+  <select id="ownerFilter"><option value="">All owners</option></select>
+  <span class="muted" id="filterinfo"></span>
+</div>
 
-  <div class="panel" id="editor">
-    <div class="muted" style="padding:20px">Select a contact to draft their video.</div>
-  </div>
+<!-- Kanban pipeline -->
+<div id="board"></div>
+
+<!-- Editor drawer -->
+<div id="drawer">
+  <div id="drawerHead"><b id="drawerTitle">Contact</b><button class="x" id="drawerClose" title="Close">&times;</button></div>
+  <div id="editor"></div>
 </div>
 
 <div id="scriptModal" class="modal" style="display:none">
@@ -139,6 +145,33 @@
       <div class="grow"></div>
       <button id="tplCancel" class="ghost">Cancel</button>
       <button id="tplSave" class="primary" style="padding:9px 16px">Save &mdash; applies to all</button>
+    </div>
+  </div>
+</div>
+
+<div id="castModal" class="modal" style="display:none">
+  <div class="modalbox" style="max-width:480px">
+    <h2>Casting (owner &rarr; presenter)</h2>
+    <div id="castingRows" class="casting"></div>
+    <div class="muted" style="margin-top:8px">Saved on this machine. Presenter drives the avatar, voice, booking link and demo video.</div>
+    <div class="modalbtns"><div class="grow"></div><button id="castClose" class="primary" style="padding:9px 16px">Done</button></div>
+  </div>
+</div>
+
+<div id="pushModal" class="modal" style="display:none">
+  <div class="modalbox" style="max-width:520px">
+    <h2>Push <span id="pushN">0</span> selected contacts</h2>
+    <div class="muted" style="margin-bottom:10px">Choose one channel or both. Already-pushed contacts are skipped per channel; LinkedIn needs a LinkedIn URL on the contact.</div>
+    <label>Email &mdash; Instantly sequence</label>
+    <select id="instCamp"><option value="">Don't push to email</option><option value="auto">Auto: Pimple &ndash; {vertical}</option></select>
+    <div class="muted" id="instInfo" style="margin-top:3px"></div>
+    <label>LinkedIn &mdash; HeyReach sequence</label>
+    <select id="hrCamp"><option value="">Don't push to LinkedIn</option></select>
+    <div class="muted" id="hrInfo" style="margin-top:3px"></div>
+    <div class="modalbtns">
+      <button id="pushCancel" class="ghost">Cancel</button>
+      <div class="grow"></div>
+      <button id="pushGo" class="primary" style="padding:9px 16px">Push</button>
     </div>
   </div>
 </div>
@@ -172,15 +205,99 @@ let CONTACTS=[], AVATARS=[], VOICES=[], casting=JSON.parse(localStorage.getItem(
 const PREVIEW_BASE='https://lp.workflowmax.com/app'; // live pages; use http://localhost:4321/app while testing the dev server
 let currentList={id:'3698',name:'Volcano Model MVP_all targets'};
 
+// ---- pipeline stages ----
+// todo -> review (generated, awaiting write-back) -> ready -> pushedInst / pushedLi -> done (both)
+const STAGES=[
+  {key:'todo',      title:'Pulled'},
+  {key:'review',    title:'Generated · review'},
+  {key:'ready',     title:'Ready to push'},
+  {key:'pushedInst',title:'Pushed: Instantly'},
+  {key:'pushedLi',  title:'Pushed: HeyReach'},
+  {key:'done',      title:'Completed'},
+];
+function stage(c){
+  if(c._pushed&&c._liPushed) return 'done';
+  if(c._liPushed) return 'pushedLi';
+  if(c._pushed) return 'pushedInst';
+  if(c._status==='done'||c.hasVideo) return 'ready';
+  if(c._video||['submitting','rendering','hosting','rendered'].includes(c._status)) return 'review';
+  return 'todo';
+}
+function stLine(c){ const s=c._status;
+  if(s==='submitting'||s==='rendering') return '<span class="muted">generating…</span>';
+  if(s==='hosting') return '<span class="muted">writing back…</span>';
+  if(s==='rendered') return '<span style="color:#b4540e;font-weight:600">video ready — review / write back</span>';
+  if(s==='err') return '<span style="color:#b42318" title="'+(''+(c._err||'')).replace(/"/g,"&#39;")+'">error: '+(''+(c._err||'')).slice(0,40)+'</span>';
+  if(c._pushed&&c._liPushed) return '<span style="color:#087443;font-weight:700">email + LinkedIn ✓ — see cockpit</span>';
+  if(c._liPushed) return '<span style="color:#0A66C2;font-weight:700">in HeyReach ✓</span>';
+  if(c._pushed) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
+  if(c._status==='done'||c.hasVideo) return '<span style="color:#087443;font-weight:600">assets on contact ✓</span>';
+  return '';
+}
+const visible = c => {
+  const q=($('#q').value||'').toLowerCase().trim();
+  const o=$('#ownerFilter').value;
+  if(o && c.owner!==o) return false;
+  if(q && !((c.firstName||'')+' '+(c.company||'')+' '+(c.email||'')).toLowerCase().includes(q)) return false;
+  return true;
+};
+function render(){
+  const board=$('#board');
+  board.innerHTML=STAGES.map(s=>{
+    const cards=CONTACTS.filter(c=>stage(c)===s.key&&visible(c));
+    const allSel=cards.length&&cards.every(c=>c._sel);
+    return `<div class="col" data-stage="${s.key}">
+      <div class="colhead"><input type="checkbox" class="colsel" data-stage="${s.key}" ${allSel?'checked':''} title="Select all in column">${s.title} <span class="cnt">${cards.length}</span></div>
+      <div class="colcards">${cards.map(c=>{
+        const {model}=classify(c.vertical);
+        const who=(casting[c.owner]?PRESETS[casting[c.owner]].name:'')||('#'+(c.owner||'?').slice(-3));
+        return `<div class="kcard ${c._sel?'sel':''}" data-id="${c.id}">
+          <input type="checkbox" class="cbx" data-id="${c.id}" ${c._sel?'checked':''}>
+          <div style="min-width:0">
+            <div class="nm">${c.firstName||'(no name)'}</div>
+            <div class="co">${c.company||''}</div>
+            <div><span class="pill ${model==='project'?'prj':'svc'}">${c.vertical||'?'}</span>${c.linkedin?' <span title="has LinkedIn URL" style="color:#0A66C2;font-size:9px;font-weight:800">in</span>':''}</div>
+            <div class="st" id="st-${c.id}">${stLine(c)}</div>
+          </div>
+          <span class="who" title="presenter (from owner casting)">${who}</span>
+        </div>`;
+      }).join('')||'<div class="muted" style="padding:8px">—</div>'}</div>
+    </div>`;
+  }).join('');
+  board.querySelectorAll('.kcard').forEach(el=>el.onclick=e=>{ if(e.target.classList.contains('cbx'))return; openContact(CONTACTS.find(c=>c.id===el.dataset.id)); });
+  board.querySelectorAll('input.cbx').forEach(cb=>cb.onchange=e=>{ const c=CONTACTS.find(x=>x.id===e.target.dataset.id); if(c)c._sel=e.target.checked; e.target.closest('.kcard').classList.toggle('sel',e.target.checked); updateCounts(); });
+  board.querySelectorAll('input.colsel').forEach(cb=>cb.onchange=e=>{ CONTACTS.filter(c=>stage(c)===e.target.dataset.stage&&visible(c)).forEach(c=>c._sel=e.target.checked); render(); updateCounts(); });
+  const vis=CONTACTS.filter(visible).length;
+  $('#filterinfo').textContent=CONTACTS.length?`${vis}/${CONTACTS.length} shown`:'';
+}
+function updateSt(c){ const el=document.getElementById('st-'+c.id); if(el){ el.innerHTML=stLine(c); } }
+// a stage change needs a re-render so the card moves column
+function moveCard(c){ render(); updateCounts(); }
+
+function updateCounts(){
+  const sel=CONTACTS.filter(c=>c._sel);
+  const gen=sel.filter(c=>stage(c)==='todo').length;
+  const write=sel.filter(c=>stage(c)==='review'&&c._status==='rendered').length;
+  const push=sel.filter(c=>['ready','pushedInst','pushedLi'].includes(stage(c))).length;
+  const g=$('#genSel'),w=$('#writeSel'),p=$('#pushSel');
+  if(g){ g.textContent='Generate ('+gen+')'; g.disabled=gen===0; }
+  if(w){ w.textContent='Write back ('+write+')'; w.disabled=write===0; }
+  if(p){ p.textContent='Push selected… ('+push+')'; p.disabled=push===0; }
+}
+
+$('#q').oninput=()=>render();
+$('#ownerFilter').onchange=()=>render();
+
 $('#pull').onclick = async () => {
   $('#pull').disabled=true; $('#pullinfo').textContent='loading…';
   const d = await fetch('/api/contacts?list='+encodeURIComponent(currentList.id)).then(r=>r.json());
   CONTACTS = d.contacts||[];
   $('#pullinfo').textContent = `${d.count} contacts`;
   $('#pull').disabled=false;
-  renderCasting(); renderRows();
-  updateCounts(); bindBatch();
-  $('#selall').onchange=e=>{ document.querySelectorAll('input.cbx').forEach(cb=>{ cb.checked=e.target.checked; const c=CONTACTS.find(x=>x.id===cb.dataset.id); if(c)c._sel=e.target.checked; }); updateCounts(); };
+  // owner filter options (owner = presenter via casting)
+  const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
+  $('#ownerFilter').innerHTML='<option value="">All owners</option>'+owners.map(o=>`<option value="${o}">${casting[o]?PRESETS[casting[o]].name+' ('+o+')':('owner '+o)}</option>`).join('');
+  renderCasting(); render(); updateCounts();
   if(!AVATARS.length){ fetch('/api/avatars').then(r=>r.json()).then(a=>AVATARS=[...(a.avatars||[]),...(a.photos||[])]); fetch('/api/voices').then(r=>r.json()).then(v=>VOICES=v.voices||[]); }
 };
 
@@ -202,57 +319,36 @@ $('#pull').onclick = async () => {
 $('#editScripts').onclick=()=>{ const t=templates(); $('#tplServices').value=t.services; $('#tplProject').value=t.project; $('#scriptModal').style.display='flex'; };
 $('#tplCancel').onclick=()=>{ $('#scriptModal').style.display='none'; };
 $('#tplReset').onclick=()=>{ $('#tplServices').value=DEFAULT_TEMPLATES.services; $('#tplProject').value=DEFAULT_TEMPLATES.project; };
-$('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringify({services:$('#tplServices').value.trim(), project:$('#tplProject').value.trim()})); $('#scriptModal').style.display='none'; if(SELECTED) openContact(SELECTED); alert('Saved. New scripts will be used for every generate from now on.'); };
+$('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringify({services:$('#tplServices').value.trim(), project:$('#tplProject').value.trim()})); $('#scriptModal').style.display='none'; if(SELECTED) openContact(SELECTED); };
 
+// --- casting modal ---
+$('#editCasting').onclick=()=>{ renderCasting(); $('#castModal').style.display='flex'; };
+$('#castClose').onclick=()=>{ $('#castModal').style.display='none'; render(); };
 function renderCasting(){
   const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
-  $('#castingCard').style.display='block';
-  $('#castingRows').innerHTML = owners.map(o=>{
+  $('#castingRows').innerHTML = (owners.length?owners:Object.keys(casting)).map(o=>{
     const n=CONTACTS.filter(c=>c.owner===o).length;
     const cur=casting[o]||'';
     return `<div class="own"><span class="muted">owner ${o} (${n})</span>
       <select data-owner="${o}"><option value="">— pick presenter —</option>
         <option value="sina" ${cur==='sina'?'selected':''}>Sina</option>
         <option value="denzel" ${cur==='denzel'?'selected':''}>Denzel</option></select></div>`;
-  }).join('');
+  }).join('')||'<div class="muted">Pull a list first.</div>';
   document.querySelectorAll('#castingRows select').forEach(s=>s.onchange=e=>{ casting[e.target.dataset.owner]=e.target.value; localStorage.setItem('casting',JSON.stringify(casting)); if(SELECTED) openContact(SELECTED); });
 }
-function statusBadge(c){ const s=c._status;
-  if(c._pushed&&c._liPushed) return '<span style="color:#2563eb;font-weight:700">email + LI ✓</span>';
-  if(c._liPushed) return '<span style="color:#0A66C2;font-weight:700">in HeyReach ✓</span>';
-  if(c._pushed) return '<span style="color:#2563eb;font-weight:700">in Instantly ✓</span>';
-  if(s==='submitting'||s==='rendering') return '<span class="muted">generating…</span>';
-  if(s==='rendered') return '<span style="color:#b4540e;font-weight:600">ready</span>';
-  if(s==='hosting') return '<span class="muted">hosting…</span>';
-  if(s==='done') return '<span style="color:#087443;font-weight:700">written ✓</span>';
-  if(s==='err') return '<span style="color:#b42318" title="'+(''+(c._err||'')).replace(/"/g,"&#39;")+'">error</span>';
-  return '<span class="dot '+(c.hasVideo?'y':'n')+'"></span>';
-}
-function updateSt(c){ const el=document.getElementById('st-'+c.id); if(el) el.innerHTML=statusBadge(c); }
-function updateCounts(){ const n=CONTACTS.filter(c=>c._sel).length, ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length, push=CONTACTS.filter(c=>c._sel&&(c._status==='done'||c.hasVideo)&&!c._pushed).length, liPush=CONTACTS.filter(c=>c._sel&&c.linkedin&&(c._status==='done'||c.hasVideo)&&!c._liPushed).length; const g=$('#genSel'),w=$('#writeSel'),p=$('#pushSel'),pl=$('#pushLiSel'); if(g){ g.textContent='Generate selected ('+n+')'; g.disabled=n===0; } if(w){ w.textContent='Write back ('+ready+')'; w.disabled=ready===0; } if(p){ p.textContent='Push to Instantly ('+push+')'; p.disabled=push===0; } if(pl){ pl.textContent='Push to HeyReach ('+liPush+')'; pl.disabled=liPush===0||!($('#hrCamp')&&$('#hrCamp').value); } }
-function renderRows(){
-  $('#rows').innerHTML = CONTACTS.map(c=>{
-    const {model}=classify(c.vertical);
-    return `<tr class="row" id="row-${c.id}">
-      <td><input type="checkbox" class="cbx" data-id="${c.id}" ${c._sel?'checked':''}></td>
-      <td class="ct"><b>${c.firstName||'(no name)'}</b><br><span class="muted">${c.company||''}</span></td>
-      <td><span class="pill ${model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></td>
-      <td class="muted">${(casting[c.owner]?PRESETS[casting[c.owner]].name:c.owner)||'-'}</td>
-      <td id="st-${c.id}">${statusBadge(c)}</td></tr>`;
-  }).join('');
-  document.querySelectorAll('tr.row').forEach(r=>r.onclick=e=>{ if(e.target.classList.contains('cbx'))return; document.querySelectorAll('tr.row').forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); openContact(CONTACTS.find(c=>c.id===r.id.slice(4))); });
-  document.querySelectorAll('input.cbx').forEach(cb=>cb.onchange=e=>{ const c=CONTACTS.find(x=>x.id===e.target.dataset.id); if(c)c._sel=e.target.checked; updateCounts(); });
-}
 
+// --- editor drawer ---
 let SELECTED=null;
+$('#drawerClose').onclick=()=>{ $('#drawer').style.display='none'; SELECTED=null; };
 function openContact(c){
   SELECTED=c;
+  $('#drawer').style.display='flex';
+  $('#drawerTitle').textContent=(c.firstName||'?')+' @ '+(c.company||'?');
   const presetKey=casting[c.owner]||'sina';
   const preset=PRESETS[presetKey];
   $('#editor').innerHTML = `
     <div class="card">
-      <h2>${c.firstName} @ ${c.company} <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></h2>
-      <div class="muted">${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b></div>
+      <div class="muted">${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b> · <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></div>
       <label>Script (editable)</label>
       <textarea id="script">${script(c, preset.name).replace(/</g,'&lt;')}</textarea>
       <div class="row2">
@@ -261,11 +357,10 @@ function openContact(c){
       </div>
       <button id="gen" class="primary" style="margin-top:14px">Generate preview</button>
       <div id="st" class="status"></div>
-    </div>
-    <div class="phase2"><b>Write-back is live.</b> Generate a preview, then "Host &amp; write back" stores the durable video URL + personalization blob on this contact. Firm logo from <code>${c.domain||'domain'}</code> activates once a <b>pk_</b> logo.dev token is in <code>.env</code>.</div>`;
+    </div>`;
   // voice select
   const vsel=$('#voice'), vf=$('#vf');
-  const fillV=q=>{ const list=VOICES.filter(v=>(`${v.name} ${v.language} ${v.gender}`).toLowerCase().includes(q.toLowerCase())); vsel.innerHTML=list.slice(0,400).map(v=>`<option value="${v.id}" ${v.id===preset.voice?'selected':''}>${v.name} — ${v.language} ${v.gender}</option>`).join(''); if(![...vsel.options].some(o=>o.selected)&&list.length) {} };
+  const fillV=q=>{ const list=VOICES.filter(v=>(`${v.name} ${v.language} ${v.gender}`).toLowerCase().includes(q.toLowerCase())); vsel.innerHTML=list.slice(0,400).map(v=>`<option value="${v.id}" ${v.id===preset.voice?'selected':''}>${v.name} — ${v.language} ${v.gender}</option>`).join(''); };
   fillV(''); vf.oninput=e=>fillV(e.target.value);
   // avatar grid
   let avSel=preset.avatar;
@@ -281,6 +376,7 @@ function openContact(c){
   };
   function poll(id){ fetch('/api/status?video_id='+id).then(r=>r.json()).then(s=>{
     if(s.status==='completed'){ $('#gen').disabled=false;
+      c._video=s.video_url; c._status='rendered'; moveCard(c);
       setSt('<b>Preview ready.</b><video controls src="'+s.video_url+'"></video>'+
         '<button id="wb" class="primary" style="margin-top:10px">Host on HubSpot CDN &amp; write back</button>'+
         '<div class="muted" style="margin-top:4px">Re-hosts the MP4 durably (HeyGen links expire), builds the personalization blob, and writes it to this contact.</div>');
@@ -291,13 +387,11 @@ function openContact(c){
         setSt('Writing back to HubSpot…');
         const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id, video:h.url, firstName:c.firstName, company:c.company, vertical:c.vertical, email:c.email, domain:c.domain, presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
         if(!w.ok){ return setSt('Write-back failed: <code>'+JSON.stringify(w.error)+'</code>',true); }
-        c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; renderRows();
+        c.hasVideo=true; c._status='done'; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; moveCard(c);
         setSt('<b>Written back to HubSpot.</b><video controls src="'+h.url+'"></video>'+
-          '<div style="margin-top:8px"><a target="_blank" href="'+PREVIEW_BASE+'?tool=intro&'+w.blob+'">Preview landing page ↗</a> &nbsp; <button id="pushOne" class="primary" style="padding:6px 12px">Push to Instantly</button></div>'+
-          '<div class="muted" style="margin-top:6px">Hosted: <code>'+h.url+'</code></div>'+
-          '<div class="muted">Blob: <code>'+w.blob+'</code></div>'+
-          (w.logo?'<div class="muted">Logo: <code>'+w.logo+'</code></div>':'<div class="muted">No firm logo yet — add a pk_ LOGODEV_TOKEN to .env.</div>'));
-        const pb=document.getElementById('pushOne'); if(pb) pb.onclick=async()=>{ pb.disabled=true; pb.textContent='Pushing…'; await pushOne(c); pb.textContent=c._pushed?'Pushed ✓':'Push failed'; };
+          '<div style="margin-top:8px"><a target="_blank" href="'+PREVIEW_BASE+'?tool=intro&'+w.blob+'">Preview landing page ↗</a> &nbsp; <button id="pushOneBtn" class="primary" style="padding:6px 12px">Push…</button></div>'+
+          '<div class="muted" style="margin-top:6px">Hosted: <code>'+h.url+'</code></div>');
+        const pb=document.getElementById('pushOneBtn'); if(pb) pb.onclick=()=>{ CONTACTS.forEach(x=>x._sel=false); c._sel=true; updateCounts(); openPushModal(); };
       };
       return; }
     if(s.status==='failed'){ $('#gen').disabled=false; return setSt('Failed: <code>'+JSON.stringify(s.error)+'</code>',true); }
@@ -306,12 +400,12 @@ function openContact(c){
   function setSt(h,e){ const el=$('#st'); el.className='status show'; el.style.background=e?'#fdeceb':'#f0f3f2'; el.innerHTML=h; }
 }
 
-// ---- batch generate + write-back ----
+// ---- batch generate + write-back (no chained popups: cards move stages, batchprog narrates) ----
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function pool(items,n,fn){ let i=0; await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const idx=i++; await fn(items[idx],idx);} })); }
 async function generateOne(c){
   const preset=PRESETS[casting[c.owner]||'sina'];
-  c._status='submitting'; updateSt(c);
+  c._status='submitting'; moveCard(c);
   const r=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({avatar_id:preset.avatar,voice_id:preset.voice,script:script(c,preset.name),width:1280,height:720,background:'#FFFFFF'})}).then(r=>r.json());
   if(!r.video_id){ c._status='err'; c._err=JSON.stringify(r.error||r.raw); updateSt(c); return; }
   c._status='rendering'; updateSt(c);
@@ -327,80 +421,82 @@ async function writeOne(c){
   if(w.ok){ c._status='done'; c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; } else { c._status='err'; c._err='writeback failed'; }
   updateSt(c);
 }
-function bindBatch(){
-  $('#genSel').onclick=async()=>{
-    const sel=CONTACTS.filter(c=>c._sel && !c._video);
-    if(!sel.length) return alert('Tick some contacts first (already-generated ones are skipped).');
-    if(!confirm(sel.length+' videos will be generated on HeyGen (uses credits, ~1 min each, 3 at a time). Keep this tab open. Continue?')) return;
-    $('#genSel').disabled=true; let done=0,fail=0;
-    await pool(sel,3,async c=>{ await generateOne(c); if(c._video)done++; else fail++; $('#batchprog').textContent='Generated '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
-    $('#genSel').disabled=false; updateCounts();
-    const ready=CONTACTS.filter(c=>c._sel&&c._video&&c._status!=='done').length;
-    if(ready && confirm('Generation done ('+done+' ok'+(fail?', '+fail+' failed':'')+'). Write '+ready+' videos + URLs back to HubSpot now?')) $('#writeSel').click();
-  };
-  $('#writeSel').onclick=async()=>{
-    const sel=CONTACTS.filter(c=>c._sel && c._video && c._status!=='done');
-    if(!sel.length) return alert('Nothing ready to write back.');
-    $('#writeSel').disabled=true; let done=0,fail=0;
-    await pool(sel,3,async c=>{ await writeOne(c); if(c._status==='done')done++; else fail++; $('#batchprog').textContent='Written '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); });
-    updateCounts();
-    const canPush=CONTACTS.filter(c=>c._sel&&c._status==='done'&&!c._pushed).length;
-    if(canPush && confirm('Write-back complete ('+done+' ok'+(fail?', '+fail+' failed':'')+'). Push '+canPush+' leads to their Pimple campaigns in Instantly now?')) $('#pushSel').click();
-    else alert('Write-back complete: '+done+' done'+(fail?', '+fail+' failed':'')+'.');
-  };
-  $('#pushSel').onclick=async()=>{
-    const sel=CONTACTS.filter(c=>c._sel && (c._status==='done'||c.hasVideo) && !c._pushed);
-    if(!sel.length) return alert('No written-back contacts to push. Write back first.');
-    const instSel=$('#instCamp');
-    const dest=instSel&&instSel.value?('the Instantly campaign "'+instSel.selectedOptions[0].textContent+'"'):'their Pimple - {vertical} campaigns in Instantly';
-    if(!confirm('Push '+sel.length+' leads to '+dest+'?')) return;
-    $('#pushSel').disabled=true; let done=0,fail=0;
-    await pool(sel,3,async c=>{ await pushOne(c); if(c._pushed)done++; else fail++; $('#batchprog').textContent='Pushed '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
-    updateCounts(); alert('Push complete: '+done+' pushed'+(fail?', '+fail+' failed':'')+'.');
-  };
-  $('#pushLiSel').onclick=async()=>{
-    const camp=$('#hrCamp').value;
-    if(!camp) return alert('Pick a HeyReach campaign first.');
-    const sel=CONTACTS.filter(c=>c._sel && c.linkedin && (c._status==='done'||c.hasVideo) && !c._liPushed);
-    if(!sel.length) return alert('No written-back contacts with a LinkedIn URL to push.');
-    if(!confirm('Push '+sel.length+' leads into the HeyReach campaign "'+$('#hrCamp').selectedOptions[0].textContent+'"?')) return;
-    $('#pushLiSel').disabled=true; let done=0,fail=0;
-    await pool(sel,3,async c=>{ await pushLiOne(c,camp); if(c._liPushed)done++; else fail++; $('#batchprog').textContent='LinkedIn: pushed '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); updateCounts(); });
-    updateCounts(); alert('HeyReach push complete: '+done+' pushed'+(fail?', '+fail+' failed':'')+'.');
-  };
-  loadHrCampaigns();
+$('#genSel').onclick=async()=>{
+  const sel=CONTACTS.filter(c=>c._sel && stage(c)==='todo');
+  if(!sel.length) return;
+  if(!confirm(sel.length+' videos will be generated on HeyGen (uses credits, ~1 min each, 3 at a time). Keep this tab open. Continue?')) return;
+  $('#genSel').disabled=true; let done=0,fail=0;
+  await pool(sel,3,async c=>{ await generateOne(c); if(c._video)done++; else fail++; $('#batchprog').textContent='Generating: '+done+'/'+sel.length+' done'+(fail?(' · '+fail+' failed'):''); });
+  render(); updateCounts();
+  $('#batchprog').textContent='Generation finished: '+done+' videos ready for review'+(fail?(' · '+fail+' failed'):'')+'. Review a couple, then select the column and write back.';
+};
+$('#writeSel').onclick=async()=>{
+  const sel=CONTACTS.filter(c=>c._sel && stage(c)==='review' && c._status==='rendered');
+  if(!sel.length) return;
+  $('#writeSel').disabled=true; let done=0,fail=0;
+  await pool(sel,3,async c=>{ await writeOne(c); if(c._status==='done')done++; else fail++; $('#batchprog').textContent='Writing back: '+done+'/'+sel.length+(fail?(' · '+fail+' failed'):''); });
+  render(); updateCounts();
+  $('#batchprog').textContent='Write-back finished: '+done+' contacts carry video + links + thumbnails'+(fail?(' · '+fail+' failed'):'')+'. They are ready to push.';
+};
+
+// ---- push modal: pick email and/or LinkedIn sequence, either or both ----
+function openPushModal(){
+  const sel=CONTACTS.filter(c=>c._sel && ['ready','pushedInst','pushedLi'].includes(stage(c)));
+  if(!sel.length) return;
+  $('#pushN').textContent=sel.length;
+  const instEligible=sel.filter(c=>!c._pushed).length;
+  const liEligible=sel.filter(c=>c.linkedin&&!c._liPushed).length;
+  $('#instInfo').textContent=instEligible+' of '+sel.length+' eligible (not yet in Instantly)';
+  $('#hrInfo').textContent=liEligible+' of '+sel.length+' eligible (LinkedIn URL present, not yet in HeyReach)';
+  $('#pushModal').style.display='flex';
 }
+$('#pushSel').onclick=openPushModal;
+$('#pushCancel').onclick=()=>{ $('#pushModal').style.display='none'; };
+$('#pushGo').onclick=async()=>{
+  const inst=$('#instCamp').value, li=$('#hrCamp').value;
+  if(!inst&&!li) return alert('Pick at least one channel.');
+  const sel=CONTACTS.filter(c=>c._sel && ['ready','pushedInst','pushedLi'].includes(stage(c)));
+  $('#pushModal').style.display='none';
+  let iDone=0,iFail=0,lDone=0,lFail=0;
+  if(inst){
+    const targets=sel.filter(c=>!c._pushed);
+    await pool(targets,3,async c=>{ await pushOne(c,inst==='auto'?undefined:inst); if(c._pushed)iDone++; else iFail++; $('#batchprog').textContent='Instantly: '+iDone+'/'+targets.length+(iFail?(' · '+iFail+' failed'):''); });
+  }
+  if(li){
+    const targets=sel.filter(c=>c.linkedin&&!c._liPushed);
+    await pool(targets,3,async c=>{ await pushLiOne(c,li); if(c._liPushed)lDone++; else lFail++; $('#batchprog').textContent='HeyReach: '+lDone+'/'+targets.length+(lFail?(' · '+lFail+' failed'):''); });
+  }
+  render(); updateCounts();
+  $('#batchprog').textContent='Push finished'+(inst?(' · Instantly '+iDone+(iFail?'/'+iFail+' failed':'')):'')+(li?(' · HeyReach '+lDone+(lFail?'/'+lFail+' failed':'')):'')+'. Completed contacts are live in the Cockpit.';
+};
 async function loadHrCampaigns(){
   const sel=$('#hrCamp'); if(!sel) return;
   const d=await fetch('/api/heyreach/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
-  if(!d.campaigns||!d.campaigns.length){ sel.innerHTML='<option value="">HeyReach: '+(d.error?String(d.error).slice(0,50):'no campaigns')+'</option>'; return; }
   const saved=localStorage.getItem('hrCamp')||'';
-  sel.innerHTML='<option value="">HeyReach: pick campaign…</option>'+d.campaigns.map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name} (${c.status||'?'})</option>`).join('');
-  sel.onchange=()=>{ localStorage.setItem('hrCamp',sel.value); updateCounts(); };
-  updateCounts();
+  sel.innerHTML='<option value="">Don\'t push to LinkedIn</option>'+(d.campaigns||[]).map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name} (${c.status||'?'})</option>`).join('');
+  sel.onchange=()=>localStorage.setItem('hrCamp',sel.value);
 }
 async function loadInstCampaigns(){
   const sel=$('#instCamp'); if(!sel) return;
   const d=await fetch('/api/instantly/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
-  if(!d.campaigns||!d.campaigns.length) return; // keep the auto option only
-  const saved=localStorage.getItem('instCamp')||'';
-  sel.innerHTML='<option value="">Auto: Pimple &ndash; {vertical}</option>'+d.campaigns.map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name}</option>`).join('');
-  sel.onchange=()=>{ localStorage.setItem('instCamp',sel.value); };
+  const saved=localStorage.getItem('instCamp')||'auto';
+  sel.innerHTML='<option value="">Don\'t push to email</option><option value="auto" '+(saved==='auto'?'selected':'')+'>Auto: Pimple &ndash; {vertical}</option>'+(d.campaigns||[]).map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name}</option>`).join('');
+  sel.onchange=()=>localStorage.setItem('instCamp',sel.value);
 }
-loadInstCampaigns();
+loadInstCampaigns(); loadHrCampaigns();
+async function pushOne(c,campaignId){
+  if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
+  const pr=PRESETS[casting[c.owner]||'sina'];
+  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
+  if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
+  updateSt(c);
+}
 async function pushLiOne(c,campaignId){
   const r=await fetch('/api/heyreach/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
   if(r.ok){ c._liPushed=true; } else { c._status='err'; c._err=('LI: '+(r.error||'push failed')).slice(0,140); }
   updateSt(c);
 }
-loadHrCampaigns(); // module 3 shows campaigns before the first pull
-async function pushOne(c){
-  if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
-  const pr=PRESETS[casting[c.owner]||'sina'];
-  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId:($('#instCamp')&&$('#instCamp').value)||undefined,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
-  if(r.ok){ c._pushed=true; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
-  updateSt(c);
-}
+render();
 </script>
 </body>
 </html>

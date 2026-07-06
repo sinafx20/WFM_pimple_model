@@ -3,7 +3,7 @@
 // Copy source: email-templates/linkedin-sequence.md. Tree semantics: conditionalNode =
 // branch when true (CONNECTION_REQUEST: accepted; CHECK_IS_OPEN_PROFILE: open profile),
 // unconditionalNode = otherwise. Every child of an action node needs >= 3h delay.
-// {FIRST_NAME}/{COMPANY_NAME} are HeyReach built-ins; {intro_link}/{health_check_link}/
+// {FIRST_NAME}/{company} are HeyReach built-ins; {intro_link}/{health_check_link}/
 // {booking} are the custom fields the cockpit pushes with each lead — verify the custom
 // variable brace syntax with one test lead before starting the campaign.
 import fs from 'node:fs';
@@ -23,7 +23,7 @@ const sequence = {
   externalReference: 'volcano-cr',
   payload: {
     messages: [
-      'Hi {FIRST_NAME}, I work with firms like {COMPANY_NAME} on where quoted time quietly turns into unbilled work. A couple of the numbers surprise most directors, so thought it was worth connecting.',
+      'Hi {FIRST_NAME}, I work with firms like {company} on where quoted time quietly turns into unbilled work. A couple of the numbers surprise most directors, so thought it was worth connecting.',
     ],
     fallbackMessage: 'Hi there, I work with professional services firms on where quoted time quietly turns into unbilled work. Thought it was worth connecting.',
     toBeWithdrawnAfterDays: 12,
@@ -35,7 +35,7 @@ const sequence = {
     externalReference: 'volcano-dm1-video',
     payload: {
       messages: [
-        'Thanks for connecting, {FIRST_NAME}. I put together a short video for {COMPANY_NAME} on where firms in your space usually leak margin. My AI twin presents it so I will keep it honest: it is 2 minutes and worth it. {intro_link}',
+        'Thanks for connecting, {FIRST_NAME}. I put together a short video for {company} on where firms in your space usually leak margin. My AI twin presents it so I will keep it honest: it is 2 minutes and worth it. {intro_link}',
       ],
       fallbackMessage: 'Thanks for connecting. I put together a short 2-minute video on where firms in your space usually leak margin, happy to share it if useful.',
     },
@@ -45,7 +45,7 @@ const sequence = {
       externalReference: 'volcano-dm2-healthcheck',
       payload: {
         messages: [
-          "Most directors I speak with cannot name last month's real utilisation. Not the target, the actual number. This gives {COMPANY_NAME} an instant read in about 2 minutes: {health_check_link}. Even if WorkflowMAX is never the right fit, you keep your number.",
+          "Most directors I speak with cannot name last month's real utilisation. Not the target, the actual number. This gives {company} an instant read in about 2 minutes: {health_check_link}. Even if WorkflowMAX is never the right fit, you keep your number.",
         ],
         fallbackMessage: "Most directors I speak with cannot name last month's real utilisation. Not the target, the actual number. Happy to send over a 2-minute check that gives you yours.",
       },
@@ -78,7 +78,7 @@ const sequence = {
         messages: [
           {
             subject: 'the number most firms cannot name',
-            message: 'Hi {FIRST_NAME}, no worries on the connection, inbox zero is a myth on here anyway. One thing worth having regardless: most firms cannot name how much quoted time turned into unbilled work last month, and it is usually five figures. This gives {COMPANY_NAME} the number in about 2 minutes, no sign-up: {health_check_link}\n\nIf email is easier, happy to send the benchmark there instead. Either way, keep your number.\n\nSina',
+            message: 'Hi {FIRST_NAME}, no worries on the connection, inbox zero is a myth on here anyway. One thing worth having regardless: most firms cannot name how much quoted time turned into unbilled work last month, and it is usually five figures. This gives {company} the number in about 2 minutes, no sign-up: {health_check_link}\n\nIf email is easier, happy to send the benchmark there instead. Either way, keep your number.\n\nSina',
           },
         ],
         fallbackMessage: {
