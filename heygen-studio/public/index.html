@@ -236,8 +236,9 @@ function stLine(c){ const s=c._status;
 }
 const visible = c => {
   const q=($('#q').value||'').toLowerCase().trim();
-  const o=$('#ownerFilter').value;
-  if(o && c.owner!==o) return false;
+  const o=$('#ownerFilter').value; // presenter key (owner ids collapse into their cast presenter)
+  if(o==='none' && casting[c.owner]) return false;
+  if(o && o!=='none' && casting[c.owner]!==o) return false;
   if(q && !((c.firstName||'')+' '+(c.company||'')+' '+(c.email||'')).toLowerCase().includes(q)) return false;
   return true;
 };
@@ -287,6 +288,18 @@ function updateCounts(){
 
 $('#q').oninput=()=>render();
 $('#ownerFilter').onchange=()=>render();
+// One option per presenter (several owner ids can cast to the same person),
+// plus Unassigned only when some contacts' owners have no casting yet.
+function fillOwnerFilter(){
+  const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
+  const presenters=[...new Set(owners.map(o=>casting[o]).filter(Boolean))];
+  const uncast=CONTACTS.some(c=>!casting[c.owner]);
+  const cur=$('#ownerFilter').value;
+  $('#ownerFilter').innerHTML='<option value="">All owners</option>'
+    +presenters.map(p=>`<option value="${p}">${PRESETS[p]?PRESETS[p].name:p}</option>`).join('')
+    +(uncast?'<option value="none">Unassigned</option>':'');
+  if([...$('#ownerFilter').options].some(o=>o.value===cur)) $('#ownerFilter').value=cur;
+}
 
 $('#pull').onclick = async () => {
   $('#pull').disabled=true; $('#pullinfo').textContent='loading…';
@@ -294,9 +307,7 @@ $('#pull').onclick = async () => {
   CONTACTS = d.contacts||[];
   $('#pullinfo').textContent = `${d.count} contacts`;
   $('#pull').disabled=false;
-  // owner filter options (owner = presenter via casting)
-  const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
-  $('#ownerFilter').innerHTML='<option value="">All owners</option>'+owners.map(o=>`<option value="${o}">${casting[o]?PRESETS[casting[o]].name+' ('+o+')':('owner '+o)}</option>`).join('');
+  fillOwnerFilter();
   renderCasting(); render(); updateCounts();
   if(!AVATARS.length){ fetch('/api/avatars').then(r=>r.json()).then(a=>AVATARS=[...(a.avatars||[]),...(a.photos||[])]); fetch('/api/voices').then(r=>r.json()).then(v=>VOICES=v.voices||[]); }
 };
@@ -323,7 +334,7 @@ $('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringi
 
 // --- casting modal ---
 $('#editCasting').onclick=()=>{ renderCasting(); $('#castModal').style.display='flex'; };
-$('#castClose').onclick=()=>{ $('#castModal').style.display='none'; render(); };
+$('#castClose').onclick=()=>{ $('#castModal').style.display='none'; fillOwnerFilter(); render(); };
 function renderCasting(){
   const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
   $('#castingRows').innerHTML = (owners.length?owners:Object.keys(casting)).map(o=>{
