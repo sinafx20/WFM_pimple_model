@@ -333,12 +333,17 @@ const server = http.createServer(async (req, res) => {
         try {
           const logoBuf = Buffer.from(await (await fetch(logoImgUrl(c.domain))).arrayBuffer());
           const rgb = await vibrant(logoBuf); brand = rgbHex(rgb);
+          // The filename is stable per contact (overwrite:true), so a rebuild
+          // reuses the same URL — browsers, the HubSpot CDN and LinkedIn's OG
+          // cache would keep serving the old image. Append a version so every
+          // rebuild is a fresh URL that nothing can serve stale.
+          const v = Date.now();
           const img = await composeThumb(pKey, logoBuf, rgb);
-          thumb = await uploadPublic(img, `thumb-${c.contactId}.png`);
+          thumb = (await uploadPublic(img, `thumb-${c.contactId}.png`)) + `?v=${v}`;
           try { // demo-email thumbnail: hand-picked product-demo frame | firm logo
             const frame = await demoFrameBuf(pKey, pMeta);
             const dimg = await composeThumb(pKey, logoBuf, rgb, frame);
-            demoThumb = await uploadPublic(dimg, `demo-thumb-${c.contactId}.png`);
+            demoThumb = (await uploadPublic(dimg, `demo-thumb-${c.contactId}.png`)) + `?v=${v}`;
           } catch (e) { /* leave demo thumb blank on failure */ }
         } catch (e) { /* leave thumb blank on failure */ }
       }
