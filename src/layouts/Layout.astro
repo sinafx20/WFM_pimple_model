@@ -2,6 +2,27 @@
 import "../index.css";
 import "../styles/shell.css";
 const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+
+// Per-contact Open Graph tags so a shared link (LinkedIn DM, Slack, etc.) unfurls
+// into a rich card. On the intro touchpoint the card is the co-branded thumbnail
+// (play button already burned in) plus the video, so a HeyReach DM shows a
+// play-thumbnail preview instead of a raw URL blob. Server output means
+// LinkedIn's crawler receives these rendered.
+const sp = Astro.url.searchParams;
+const tool = sp.get("tool") || "";
+const firstname = (sp.get("firstname") || sp.get("first_name") || "").trim();
+const company = (sp.get("company") || sp.get("company_name") || "").trim();
+const thumb = (sp.get("thumb") || "").trim();
+const videoUrl = (sp.get("video") || "").trim();
+const canonical = Astro.url.href;
+const ogTitle = tool === "intro"
+  ? (firstname ? `A personal video for ${firstname}${company ? ` at ${company}` : ""}` : "A personal message from WorkflowMAX")
+  : "WorkflowMAX";
+const ogDesc = tool === "intro"
+  ? "A 2-minute video, and your own number. Where your firm's margin quietly leaks, and the single biggest gap to close."
+  : "See where your firm's time and margin quietly leak, with an instant benchmark for firms like yours.";
+const ogImage = /^https:\/\//.test(thumb) ? thumb : `${base}/WFM-Logo.svg`;
+const isVideoCard = tool === "intro" && /^https:\/\//.test(thumb);
 ---
 
 <!doctype html>
@@ -17,7 +38,20 @@ const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <title>WorkflowMAX</title>
+    <title>{ogTitle}</title>
+    <meta name="description" content={ogDesc} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDesc} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content={isVideoCard ? "video.other" : "website"} />
+    {isVideoCard && videoUrl && <meta property="og:video" content={videoUrl} />}
+    {isVideoCard && videoUrl && <meta property="og:video:secure_url" content={videoUrl} />}
+    {isVideoCard && videoUrl && <meta property="og:video:type" content="video/mp4" />}
+    <meta name="twitter:card" content={isVideoCard ? "player" : "summary_large_image"} />
+    <meta name="twitter:title" content={ogTitle} />
+    <meta name="twitter:image" content={ogImage} />
     <!-- HubSpot tracking (portal 24214994). Lives here because the tool pages
          are served by this Astro app, not by Webflow's page renderer, so the
          site-wide Webflow custom code does not reach them. Sets the hubspotutk
