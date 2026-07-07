@@ -489,18 +489,28 @@ const server = http.createServer(async (req, res) => {
       const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
       const industry = IMAP.find(x => (p.volcano_icp_vertical || '').toLowerCase().includes(x)) || '';
       const bookingMatch = blob.match(/booking=([^&]+)/);
+      // LinkedIn DMs show the raw URL as text (LinkedIn rarely auto-unfurls
+      // automated messages), so the giant blob link looks terrible. Shorten each
+      // landing-page link so the message reads cleanly; the short link still
+      // resolves to the co-branded page (and gives any unfurl its best shot).
+      const shorten = async (url) => {
+        try { const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url)); if (r.ok) { const t = (await r.text()).trim(); if (/^https?:\/\//.test(t)) return t; } } catch {}
+        return url; // fall back to the full URL if the shortener is unavailable
+      };
+      const mk = (tool) => (blob ? `https://lp.workflowmax.com/app?tool=${tool}&${blob}` : '');
+      const links = blob ? await Promise.all(['intro', 'tp1', 'tp2', 'tp3', 'tp4', 'tp6'].map(t => shorten(mk(t)))) : ['', '', '', '', '', ''];
       const lead = {
         profileUrl: p.hs_linkedin_url,
         firstName: cleanFirst(p.firstname), lastName: p.lastname || '',
         companyName: cleanCompany(p.company), emailAddress: (p.email || '').toLowerCase(),
         customUserFields: [
-          // one link per touchpoint tool, so LinkedIn DMs can share the full set
-          { name: 'intro_link', value: blob ? `https://lp.workflowmax.com/app?tool=intro&${blob}` : '' },
-          { name: 'health_check_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp1&${blob}` : '' },
-          { name: 'calculator_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp2&${blob}` : '' },
-          { name: 'benchmark_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp3&${blob}` : '' },
-          { name: 'demo_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp4&${blob}` : '' },
-          { name: 'resource_hub_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp6&${blob}` : '' },
+          // one (shortened) link per touchpoint tool, so LinkedIn DMs stay clean
+          { name: 'intro_link', value: links[0] },
+          { name: 'health_check_link', value: links[1] },
+          { name: 'calculator_link', value: links[2] },
+          { name: 'benchmark_link', value: links[3] },
+          { name: 'demo_link', value: links[4] },
+          { name: 'resource_hub_link', value: links[5] },
           { name: 'thumb', value: p.volcano_thumb_url || '' },
           { name: 'booking', value: bookingMatch ? decodeURIComponent(bookingMatch[1]) : '' },
           { name: 'industry', value: industry },
