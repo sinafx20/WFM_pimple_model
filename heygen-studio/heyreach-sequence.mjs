@@ -124,17 +124,24 @@ const compactDMs = () =>
     'Last one, {FIRST_NAME}. Everything from this week in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
     'Last one. Everything from this week in one place. Any feedback on the whole set would mean a lot.',
   END))))));
+// Personalized InMail; the fallback must be token-free (it fires when the
+// custom variables are missing, so it cannot reference {intro_link} etc.).
+const compactInmail = {
+  subject: 'a 2-minute video for {company}',
+  message: 'Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I recorded a 2-minute video on where firms like {company} usually leak margin, and I have sent it to your inbox too. Here it is if easier: {intro_link}\n\nThere is a short series of tools behind it (a health check, profit-leak calculator, benchmark and a quick demo). I would genuinely value your feedback on the whole set this week.\n\nSina',
+};
+const compactInmailFallback = {
+  subject: 'a 2-minute video from WorkflowMAX',
+  message: 'Hi, we are not connected yet so I will keep this short. I recorded a 2-minute video on where professional services firms usually leak margin, and I have sent it to your inbox too. There is a short series of tools behind it (a health check, profit-leak calculator, benchmark and a quick demo). I would genuinely value your feedback this week.\n\nSina',
+};
 const compactSequence = {
   nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
-  conditionalNode: compactDMs(), // already connected -> DMs directly
+  conditionalNode: compactDMs(), // already connected -> the 6-DM arc directly
+  // NOT connected -> InMail straight away (warm test audience; Sales Nav seat).
+  // The email series covers the rest of the content for them.
   unconditionalNode: {
-    nodeType: 'CONNECTION_REQUEST', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-cr',
-    payload: {
-      messages: ['Hi {FIRST_NAME}, sending you a few bits from WorkflowMAX this week and would love your feedback, thought it was worth connecting first.'],
-      fallbackMessage: 'Hi, sending a few bits from WorkflowMAX this week and would love your feedback, thought it was worth connecting first.',
-      toBeWithdrawnAfterDays: 7,
-    },
-    conditionalNode: compactDMs(),
+    nodeType: 'INMAIL', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-inmail',
+    payload: { messages: [compactInmail], fallbackMessage: compactInmailFallback },
     unconditionalNode: END,
   },
 };
