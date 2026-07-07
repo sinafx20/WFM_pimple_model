@@ -494,8 +494,12 @@ const server = http.createServer(async (req, res) => {
         firstName: cleanFirst(p.firstname), lastName: p.lastname || '',
         companyName: cleanCompany(p.company), emailAddress: (p.email || '').toLowerCase(),
         customUserFields: [
+          // one link per touchpoint tool, so LinkedIn DMs can share the full set
           { name: 'intro_link', value: blob ? `https://lp.workflowmax.com/app?tool=intro&${blob}` : '' },
           { name: 'health_check_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp1&${blob}` : '' },
+          { name: 'calculator_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp2&${blob}` : '' },
+          { name: 'benchmark_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp3&${blob}` : '' },
+          { name: 'demo_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp4&${blob}` : '' },
           { name: 'resource_hub_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp6&${blob}` : '' },
           { name: 'thumb', value: p.volcano_thumb_url || '' },
           { name: 'booking', value: bookingMatch ? decodeURIComponent(bookingMatch[1]) : '' },

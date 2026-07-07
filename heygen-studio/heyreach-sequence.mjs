@@ -98,28 +98,32 @@ const testSequence = {
 // COMPACT: the 5-day test overlay — 3 DMs that NUDGE TO THE EMAIL series and
 // share the built resources. Connection-aware; warm audience is mostly already
 // connected so they get the DMs directly.
-const compactDMs = () => ({
-  nodeType: 'MESSAGE', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-dm1',
-  payload: {
-    messages: ['{FIRST_NAME}, just sent you an email with a short personal video on where firms like {company} usually leak margin. Would genuinely value your honest take on it: {intro_link}'],
-    fallbackMessage: 'Just sent you an email with a short personal video on where firms usually leak margin. Would value your honest take.',
-  },
-  unconditionalNode: {
-    nodeType: 'MESSAGE', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-dm2',
-    payload: {
-      messages: ['Following up on the email series, {FIRST_NAME}. There is a 2-minute health check that shows where {company} sits: {health_check_link}. Curious what you make of it.'],
-      fallbackMessage: 'Following up on the email series. There is a 2-minute health check worth a look. Curious what you make of it.',
-    },
-    unconditionalNode: {
-      nodeType: 'MESSAGE', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-dm3',
-      payload: {
-        messages: ['Last one, {FIRST_NAME}. I put every tool and resource from the series in one place here: {resource_hub_link}. Any feedback on the whole thing would mean a lot.'],
-        fallbackMessage: 'Last one. I put every tool and resource in one place. Any feedback on the whole thing would mean a lot.',
-      },
-      unconditionalNode: END,
-    },
-  },
+// 6 short DMs across ~5 days, one per touchpoint tool, each nudging to the email
+// series. Chained newest-last via a small builder so the tree stays readable.
+const DM = (ref, delay, unit, msg, fb, next) => ({
+  nodeType: 'MESSAGE', actionDelay: delay, actionDelayUnit: unit, externalReference: ref,
+  payload: { messages: [msg], fallbackMessage: fb }, unconditionalNode: next,
 });
+const compactDMs = () =>
+  DM('compact-dm1-intro', 3, 'HOUR',
+    '{FIRST_NAME}, just sent you an email with a short personal video on where firms like {company} usually leak margin. Would genuinely value your honest take: {intro_link}',
+    'Just sent you an email with a short personal video on where firms usually leak margin. Would value your honest take.',
+  DM('compact-dm2-healthcheck', 1, 'DAY',
+    'Following up on the email series, {FIRST_NAME}. The 2-minute Workflow Health Check shows where {company} sits today: {health_check_link}',
+    'Following up on the email series. The 2-minute Workflow Health Check is worth a look.',
+  DM('compact-dm3-calculator', 1, 'DAY',
+    'This one is worth two minutes, {FIRST_NAME}: the profit-leak calculator puts a real number on the time that never gets billed at {company}: {calculator_link}',
+    'The profit-leak calculator puts a real number on the time that never gets billed. Worth two minutes.',
+  DM('compact-dm4-benchmark', 1, 'DAY',
+    'Curious how {company} compares to similar firms, {FIRST_NAME}? The benchmark gives you an instant read: {benchmark_link}',
+    'Curious how your firm compares to similar ones? The benchmark gives an instant read.',
+  DM('compact-dm5-demo', 1, 'DAY',
+    'If you would rather see the fix than read about it, {FIRST_NAME}, here is the 6-minute walkthrough: {demo_link}',
+    'If you would rather see the fix than read about it, here is the 6-minute walkthrough.',
+  DM('compact-dm6-hub', 3, 'HOUR',
+    'Last one, {FIRST_NAME}. Everything from this week in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
+    'Last one. Everything from this week in one place. Any feedback on the whole set would mean a lot.',
+  END))))));
 const compactSequence = {
   nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
   conditionalNode: compactDMs(), // already connected -> DMs directly
