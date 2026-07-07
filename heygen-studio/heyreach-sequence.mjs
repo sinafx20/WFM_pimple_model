@@ -124,16 +124,31 @@ const compactDMs = () =>
     'Last one, {FIRST_NAME}. Everything from this week in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
     'Last one. Everything from this week in one place. Any feedback on the whole set would mean a lot.',
   END))))));
-// Personalized InMail; the fallback must be token-free (it fires when the
-// custom variables are missing, so it cannot reference {intro_link} etc.).
-const compactInmail = {
-  subject: 'a 2-minute video for {company}',
-  message: 'Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I recorded a 2-minute video on where firms like {company} usually leak margin, and I have sent it to your inbox too. Here it is if easier: {intro_link}\n\nThere is a short series of tools behind it (a health check, profit-leak calculator, benchmark and a quick demo). I would genuinely value your feedback on the whole set this week.\n\nSina',
-};
-const compactInmailFallback = {
-  subject: 'a 2-minute video from WorkflowMAX',
-  message: 'Hi, we are not connected yet so I will keep this short. I recorded a 2-minute video on where professional services firms usually leak margin, and I have sent it to your inbox too. There is a short series of tools behind it (a health check, profit-leak calculator, benchmark and a quick demo). I would genuinely value your feedback this week.\n\nSina',
-};
+// InMail nudge chain for non-connected who don't accept. Sales Nav lets us send
+// follow-up InMails without a reply (1 credit each; 50/month per seat). 3 InMails
+// mirror the DM arc condensed. Each message + its token-free fallback are objects.
+const INMAIL = (ref, delay, unit, subject, message, fbSubject, fbMessage, next) => ({
+  nodeType: 'INMAIL', actionDelay: delay, actionDelayUnit: unit, externalReference: ref,
+  payload: { messages: [{ subject, message }], fallbackMessage: { subject: fbSubject, message: fbMessage } },
+  unconditionalNode: next,
+});
+const compactInmailChain = () =>
+  INMAIL('compact-inmail1-video', 2, 'DAY',
+    'a 2-minute video for {company}',
+    'Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I recorded a 2-minute video on where firms like {company} usually leak margin, and I have sent it to your inbox too. Here it is if easier: {intro_link}\n\nThere is a short series of tools behind it. Would genuinely value your feedback this week.\n\nSina',
+    'a 2-minute video from WorkflowMAX',
+    'Hi, we are not connected yet so I will keep this short. I recorded a 2-minute video on where professional services firms usually leak margin, and sent it to your inbox too. Would genuinely value your feedback this week.\n\nSina',
+  INMAIL('compact-inmail2-tools', 2, 'DAY',
+    'the number most {company} cannot name',
+    'Following up, {FIRST_NAME}. Two quick tools from the series: a 2-minute health check on where {company} sits ({health_check_link}) and a profit-leak calculator that puts a number on unbilled time ({calculator_link}). Curious what you make of them.',
+    'the number most firms cannot name',
+    'Following up. Two quick tools worth a look: a 2-minute health check and a profit-leak calculator that puts a number on unbilled time. Curious what you make of them.',
+  INMAIL('compact-inmail3-hub', 2, 'DAY',
+    'everything in one place for {company}',
+    'Last one, {FIRST_NAME}. Everything from this week (video, tools, benchmark, demo) in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
+    'everything in one place',
+    'Last one. Everything from this week (video, tools, benchmark, demo) in one place. Any feedback on the whole set would mean a lot.',
+  END)));
 const compactSequence = {
   nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
   conditionalNode: compactDMs(), // already connected -> the 6-DM arc directly
@@ -149,11 +164,7 @@ const compactSequence = {
       toBeWithdrawnAfterDays: 7,
     },
     conditionalNode: compactDMs(), // accepted -> full 6-DM arc
-    unconditionalNode: { // not accepted after 2 days -> single InMail
-      nodeType: 'INMAIL', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-inmail',
-      payload: { messages: [compactInmail], fallbackMessage: compactInmailFallback },
-      unconditionalNode: END,
-    },
+    unconditionalNode: compactInmailChain(), // not accepted -> 3-InMail nudge chain
   },
 };
 
