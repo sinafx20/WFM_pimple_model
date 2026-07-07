@@ -137,12 +137,23 @@ const compactInmailFallback = {
 const compactSequence = {
   nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
   conditionalNode: compactDMs(), // already connected -> the 6-DM arc directly
-  // NOT connected -> InMail straight away (warm test audience; Sales Nav seat).
-  // The email series covers the rest of the content for them.
+  // NOT connected -> send a connection request. If accepted, they get the full
+  // DM arc; if not accepted within 2 days, one InMail (Sales Nav) then stop.
+  // Connection status is decided at each branching node, so a very late accept
+  // (after the InMail) won't backfill the DMs — that is expected.
   unconditionalNode: {
-    nodeType: 'INMAIL', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-inmail',
-    payload: { messages: [compactInmail], fallbackMessage: compactInmailFallback },
-    unconditionalNode: END,
+    nodeType: 'CONNECTION_REQUEST', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-cr',
+    payload: {
+      messages: ['Hi {FIRST_NAME}, sending you a few bits from WorkflowMAX this week and would genuinely value your feedback, thought it was worth connecting first.'],
+      fallbackMessage: 'Hi, sending a few bits from WorkflowMAX this week and would genuinely value your feedback, thought it was worth connecting first.',
+      toBeWithdrawnAfterDays: 7,
+    },
+    conditionalNode: compactDMs(), // accepted -> full 6-DM arc
+    unconditionalNode: { // not accepted after 2 days -> single InMail
+      nodeType: 'INMAIL', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-inmail',
+      payload: { messages: [compactInmail], fallbackMessage: compactInmailFallback },
+      unconditionalNode: END,
+    },
   },
 };
 
