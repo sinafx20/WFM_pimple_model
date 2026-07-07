@@ -496,6 +496,7 @@ const server = http.createServer(async (req, res) => {
         customUserFields: [
           { name: 'intro_link', value: blob ? `https://lp.workflowmax.com/app?tool=intro&${blob}` : '' },
           { name: 'health_check_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp1&${blob}` : '' },
+          { name: 'resource_hub_link', value: blob ? `https://lp.workflowmax.com/app?tool=tp6&${blob}` : '' },
           { name: 'thumb', value: p.volcano_thumb_url || '' },
           { name: 'booking', value: bookingMatch ? decodeURIComponent(bookingMatch[1]) : '' },
           { name: 'industry', value: industry },

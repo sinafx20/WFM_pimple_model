@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const K = fs.readFileSync(path.join(__dirname, '.env'), 'utf8').match(/^HEYREACH_API_KEY=(.+)$/m)?.[1]?.trim();
 if (!K) { console.error('no HEYREACH_API_KEY in .env'); process.exit(1); }
-const mode = process.argv[3] === 'test' ? 'test' : 'full';
+const mode = ['test', 'compact'].includes(process.argv[3]) ? process.argv[3] : 'full';
 const campaignId = +(process.argv[2] || (mode === 'test' ? 495416 : 495367));
 
 const END = { nodeType: 'END', actionDelay: 3, actionDelayUnit: 'HOUR' };
@@ -95,7 +95,47 @@ const testSequence = {
   unconditionalNode: END,
 };
 
-const sequence = mode === 'test' ? testSequence : fullSequence;
+// COMPACT: the 5-day test overlay — 3 DMs that NUDGE TO THE EMAIL series and
+// share the built resources. Connection-aware; warm audience is mostly already
+// connected so they get the DMs directly.
+const compactDMs = () => ({
+  nodeType: 'MESSAGE', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-dm1',
+  payload: {
+    messages: ['{FIRST_NAME}, just sent you an email with a short personal video on where firms like {company} usually leak margin. Would genuinely value your honest take on it: {intro_link}'],
+    fallbackMessage: 'Just sent you an email with a short personal video on where firms usually leak margin. Would value your honest take.',
+  },
+  unconditionalNode: {
+    nodeType: 'MESSAGE', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-dm2',
+    payload: {
+      messages: ['Following up on the email series, {FIRST_NAME}. There is a 2-minute health check that shows where {company} sits: {health_check_link}. Curious what you make of it.'],
+      fallbackMessage: 'Following up on the email series. There is a 2-minute health check worth a look. Curious what you make of it.',
+    },
+    unconditionalNode: {
+      nodeType: 'MESSAGE', actionDelay: 2, actionDelayUnit: 'DAY', externalReference: 'compact-dm3',
+      payload: {
+        messages: ['Last one, {FIRST_NAME}. I put every tool and resource from the series in one place here: {resource_hub_link}. Any feedback on the whole thing would mean a lot.'],
+        fallbackMessage: 'Last one. I put every tool and resource in one place. Any feedback on the whole thing would mean a lot.',
+      },
+      unconditionalNode: END,
+    },
+  },
+});
+const compactSequence = {
+  nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
+  conditionalNode: compactDMs(), // already connected -> DMs directly
+  unconditionalNode: {
+    nodeType: 'CONNECTION_REQUEST', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-cr',
+    payload: {
+      messages: ['Hi {FIRST_NAME}, sending you a few bits from WorkflowMAX this week and would love your feedback, thought it was worth connecting first.'],
+      fallbackMessage: 'Hi, sending a few bits from WorkflowMAX this week and would love your feedback, thought it was worth connecting first.',
+      toBeWithdrawnAfterDays: 7,
+    },
+    conditionalNode: compactDMs(),
+    unconditionalNode: END,
+  },
+};
+
+const sequence = mode === 'test' ? testSequence : mode === 'compact' ? compactSequence : fullSequence;
 
 const r = await fetch('https://api.heyreach.io/api/public/campaign/UpdateSequence', {
   method: 'POST', headers: { 'X-API-KEY': K, 'content-type': 'application/json' },
