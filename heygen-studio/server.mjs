@@ -19,7 +19,16 @@ const HUB = () => envGet('HUBSPOT_TOKEN');
 const LOGODEV = () => envGet('LOGODEV_TOKEN');
 const INSTANTLY = () => envGet('INSTANTLY_API_KEY');
 const HEYREACH = () => envGet('HEYREACH_API_KEY'); // add to .env to activate LinkedIn dispatch
-if (!KEY) { console.error('No HEYGEN_API_KEY (env or .env).'); process.exit(1); }
+// First run on a new machine: .env is gitignored, so guide the user to create it.
+if (!fs.existsSync(path.join(__dirname, '.env'))) {
+  console.error('\n  No heygen-studio/.env found (it is gitignored, so it did not clone).');
+  console.error('  Create it and paste your keys:');
+  console.error('    cp heygen-studio/.env.example heygen-studio/.env');
+  console.error('  Keys: HEYGEN_API_KEY, HUBSPOT_TOKEN, LOGODEV_TOKEN, INSTANTLY_API_KEY, HEYREACH_API_KEY');
+  console.error('  (Rotate any key that was shared in chat.)\n');
+  process.exit(1);
+}
+if (!KEY) { console.error('.env found but HEYGEN_API_KEY is empty — fill in the keys in heygen-studio/.env'); process.exit(1); }
 
 // Clean names for natural pronunciation + no legal suffixes (applied everywhere: script, thumbnail, blob, email, LinkedIn).
 const LEGAL = /[\s,]+(?:pty\.?\s*ltd\.?|pte\.?\s*ltd\.?|p\/l|proprietary\s+limited|limited|ltd\.?|l\.?l\.?c\.?|incorporated|inc\.?|corporation|corp\.?|gmbh|plc|pty\.?|s\.?a\.?|s\.?r\.?l\.?|b\.?v\.?)\.?\s*$/i;
