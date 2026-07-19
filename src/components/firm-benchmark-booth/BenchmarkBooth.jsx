@@ -1,6 +1,12 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+// BookkeepCon booth variant of the Firm Benchmark. Forked from
+// src/components/firm-benchmark/Benchmark.jsx, not imported from it, so the
+// live GTM campaign's component is never touched. Only difference: the
+// "results" screen is hidden behind a name + email gate, since booth visitors
+// arrive via a QR code with no existing HubSpot contact. Submissions are
+// tagged wfm_lead_source = "BookkeepCon 2026".
+import { useState, useMemo, useRef } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
-import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import { submitResults } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
@@ -10,7 +16,7 @@ import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/b
 /* ─── WFM Logo ─── */
 const Logo = () => (
   <svg width="120" height="36" viewBox="0 0 134 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clipPath="url(#lfb)">
+    <g clipPath="url(#lfbb)">
       <path d="M13.845 14.0233L12.563 19.2264C12.4393 19.7471 12.3414 20.2456 12.2601 20.7053C12.164 20.2326 12.0421 19.7194 11.8925 19.1858L10.4867 14.0233H7.15617L5.82432 19.1968C5.69132 19.7323 5.58233 20.2474 5.49367 20.7256C5.40315 20.2567 5.29047 19.7489 5.15377 19.2171L3.79791 14.0233H0L3.31024 25.9638H7.33905L8.52497 21.2703C8.62472 20.866 8.70969 20.4745 8.78174 20.1089C8.85747 20.4727 8.94614 20.8604 9.05328 21.2574L10.3648 25.962H14.4139L17.569 14.0214H13.845V14.0233Z" fill="#0A2F28"/>
       <path d="M23.1717 13.7592C19.6121 13.7592 17.4878 16.0727 17.4878 19.9464C17.4878 23.8201 19.6657 26.2537 23.1717 26.2537C26.6778 26.2537 28.8557 23.8368 28.8557 19.9464C28.8557 16.0561 26.7313 13.7592 23.1717 13.7592ZM25.2148 19.9704C25.2148 22.8249 24.123 23.1924 23.1717 23.1924C22.2204 23.1924 21.1527 22.8249 21.1527 19.9704C21.1527 17.1159 22.2315 16.8925 23.1717 16.8925C24.112 16.8925 25.2148 17.2415 25.2148 19.9704Z" fill="#0A2F28"/>
       <path d="M33.3814 15.7533L33.1893 14.0251H29.929V25.9657H33.6179V20.2844C33.6179 18.3346 34.922 17.6403 36.143 17.6403C36.542 17.6403 36.845 17.6773 37.1923 17.7714L37.6633 17.897L38.0365 13.8072L37.6079 13.7851C35.6277 13.6817 34.2108 14.3427 33.3814 15.7533Z" fill="#0A2F28"/>
@@ -23,7 +29,7 @@ const Logo = () => (
       <path d="M117.567 14.0085H110.992L108.018 25.9712H112.738L112.984 24.5975H115.958L116.279 25.9712H120.777L117.57 14.0085H117.567ZM113.597 21.1319L114.199 17.6182H114.347L115.145 21.1319H113.597Z" fill="#0A2F28"/>
       <path d="M131.257 19.9779L133.604 15.962C133.47 15.2992 133.298 14.6345 133.1 14.0085H129.781L128.222 16.8704L126.722 14.0085H121.339L124.841 19.989L121.278 25.9712H126.622L127.9 23.4029L129.265 25.9712H133.1C133.309 25.3195 133.481 24.6566 133.615 23.9679L131.257 19.976V19.9779Z" fill="#0A2F28"/>
     </g>
-    <defs><clipPath id="lfb"><rect width="134" height="40" fill="white"/></clipPath></defs>
+    <defs><clipPath id="lfbb"><rect width="134" height="40" fill="white"/></clipPath></defs>
   </svg>
 );
 
@@ -38,6 +44,7 @@ const fmt = (v) => {
 
 /* ─── VERTICALS ─── */
 const VERTICALS = [
+  { id: "accounting", label: "Accounting & Bookkeeping", subtitle: "Firms delivering bookkeeping, compliance, and advisory services for SMB clients", icon: "🧮", model: "services", defaults: { rev: 2500000, staff: 15, jobs: 60 } },
   { id: "architecture", label: "Architecture & Design", subtitle: "Practices delivering design, documentation, and contract administration", icon: "📐", model: "services", defaults: { rev: 7000000, staff: 35, jobs: 60 } },
   { id: "engineering", label: "Engineering Consultancy", subtitle: "Firms providing advisory, design, and technical engineering services", icon: "⚙️", model: "services", defaults: { rev: 10000000, staff: 45, jobs: 60 } },
   { id: "consulting", label: "Management & Business Consulting", subtitle: "Strategy, advisory, and professional services firms", icon: "💼", model: "services", defaults: { rev: 6500000, staff: 30, jobs: 60 } },
@@ -46,10 +53,6 @@ const VERTICALS = [
   { id: "creative", label: "Creative & Marketing", subtitle: "Agencies, studios, and creative services businesses", icon: "🎨", model: "services", defaults: { rev: 4000000, staff: 20, jobs: 60 } },
 ];
 
-/* Pre-fill the industry from the personalised campaign link, e.g.
-   ?industry=architecture or ?vertical=engineering. Falls back to a
-   sensible default so the confirm step is always shown. Leo's enriched
-   links will always carry this param in production. */
 const detectVertical = () => {
   if (typeof window === "undefined") return VERTICALS[0];
   const raw = (new URLSearchParams(window.location.search).get("industry") ||
@@ -63,12 +66,6 @@ const detectVertical = () => {
   );
 };
 
-/* Where the results-page CTAs send prospects. The vertical solution pages live
-   on the marketing site and should be pixeled (Meta / Google / LinkedIn) so we
-   can retarget everyone who reaches results, whether or not they click. These
-   are the soft, low-friction landing for the majority; booking is the
-   high-intent path for the ready few. NOTE: no dedicated Civil page exists yet,
-   so civil falls back to building-and-construction — change if a better fit. */
 const SOLUTION_URLS = {
   architecture: "https://workflowmax.com/architects",
   engineering: "https://workflowmax.com/engineers",
@@ -77,8 +74,6 @@ const SOLUTION_URLS = {
   civil: "https://workflowmax.com/building-and-construction",
   creative: "https://workflowmax.com/creative-agencies",
 };
-/* Booking routes by vertical: Sina owns architecture, construction, consulting;
-   Denzel owns civil, engineering, creative. */
 const BOOKING_URLS = {
   architecture: "https://meetings.hubspot.com/szarei",
   construction: "https://meetings.hubspot.com/szarei",
@@ -87,9 +82,6 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
-/* The campaign blob carries ?booking= and ?presenter= so the page books with —
-   and shows the product walkthrough recorded by — the presenter who actually
-   sent the email (Sina or Denzel); the vertical map / Sina video is the fallback. */
 const bookingUrl = (id) => {
   if (typeof window !== "undefined") {
     const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
@@ -97,15 +89,13 @@ const bookingUrl = (id) => {
   }
   return BOOKING_URLS[id];
 };
-const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" }; // product walkthrough per presenter
+const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" };
 const walkthroughUrl = () => {
   const p = typeof window !== "undefined"
     ? (new URLSearchParams(window.location.search).get("presenter") || "").toLowerCase() : "";
   return `https://www.youtube.com/watch?v=${DEMO_VIDEOS[p] || DEMO_VIDEOS.sina}`;
 };
 
-/* Open a CTA destination in a new tab so the prospect keeps their results.
-   No-op for unconfigured links so a placeholder never navigates to nowhere. */
 const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -119,6 +109,34 @@ const PLACEMENT_OPTIONS = [
 
 /* ─── METRICS BY VERTICAL ─── */
 const METRICS = {
+  accounting: {
+    hook: "AI is already handling the compliance-only work bookkeeping firms built their business on. The firms protecting their margins are the ones who can see, and bill for, everything their team actually does.",
+    items: [
+      { key: "util", label: "Billable utilisation", question: "What percentage of your team's available hours actually generate revenue?", avg: "58%", top: "74%", avgNum: 58, topNum: 74, unit: "%", lower: false,
+        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.58); return staff * 1760 * ((74 - 58) / 100) * rate; },
+        gapSimple: "Moving from average to top performer would recover this in additional billable revenue each year",
+        topDo: "Live capacity planning with forward-looking allocation based on actual client workload, not guesswork",
+        source: "SPI Research 2025" },
+      { key: "unbilled", label: "Unbilled client query rate", question: "How much of the time spent on quick client calls and questions never makes it onto an invoice?", avg: "14%", top: "5%", avgNum: 14, topNum: 5, unit: "%", lower: true,
+        gapCalc: (rev) => rev * 0.07,
+        gapSimple: "The difference between average and top-performer unbilled-query rates, applied to your revenue",
+        topDo: "Simple time capture for ad hoc client questions, tied to the client file, not a separate sticky note",
+        source: "SPI Research 2025" },
+      { key: "invoice", label: "Days to invoice", question: "How long between finishing the month's work and sending the bill?", avg: "10 days", top: "3 days", avgNum: 10, topNum: 3, unit: "days", lower: true,
+        gapCalc: (rev) => (rev / 12 / 22) * 7 * 0.09,
+        gapSimple: "The working capital cost of invoicing 7 days slower than top performers, based on your revenue",
+        topDo: "Automated monthly billing triggered by close-off, not by someone remembering to run it",
+        source: "SPI Research 2025" },
+      { key: "scope", label: "Engagement scope recovery rate", question: "When a client asks for work outside the original engagement letter, how much of that extra work actually gets billed?", avg: "30%", top: "70%", avgNum: 30, topNum: 70, unit: "%", lower: false,
+        gapCalc: (rev) => rev * 0.55 * 0.12 * 0.40,
+        gapSimple: "Revenue absorbed through unrecovered scope changes each year, based on your revenue",
+        topDo: "Structured change-in-scope logging linked to the engagement letter, with a quick client approval step",
+        source: "SPI Research 2025" },
+    ],
+    connection: "These metrics form a chain. Low utilisation means more pressure on every billable hour. Unbilled client queries eat what's left. Slow invoicing delays collecting what remains. Poor scope recovery means you're absorbing the extra work for free. Improving any one lifts the rest.",
+    trend: "68% of mid-sized professional services firms plan to consolidate to a single operational platform by 2027. For bookkeeping and accounting firms facing margin pressure from automation, the firms that move early capture the efficiency gains before competitors do.",
+    trendSource: "Gartner IT Spending Forecast 2025",
+  },
   architecture: {
     hook: "The biggest profitability risk for architecture practices in 2026 isn't losing projects. It's delivering them without knowing what they actually cost.",
     items: [
@@ -291,7 +309,6 @@ const METRICS = {
 
 /* ─── METRIC BAR ─── */
 function MetricBar({ avg, top, lower, unit }) {
-  // Show a clean bar with avg and top markers and actual values
   const maxVal = lower ? Math.max(avg, top) * 1.4 : Math.max(avg, top) * 1.25;
   const avgPct = (avg / maxVal) * 100;
   const topPct = (top / maxVal) * 100;
@@ -300,15 +317,12 @@ function MetricBar({ avg, top, lower, unit }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ position: "relative", height: 12, background: "#E5E7EB", borderRadius: 6, overflow: "visible" }}>
-        {/* Avg marker */}
         <div style={{ position: "absolute", left: `${avgPct}%`, top: -2, transform: "translateX(-50%)", zIndex: 2 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: lower ? "#EC5F60" : "#D89F0A", border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }} />
         </div>
-        {/* Top marker */}
         <div style={{ position: "absolute", left: `${topPct}%`, top: -2, transform: "translateX(-50%)", zIndex: 2 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#087443", border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }} />
         </div>
-        {/* Fill between or to show range */}
         <div style={{ position: "absolute", left: `${Math.min(avgPct, topPct)}%`, width: `${Math.abs(topPct - avgPct)}%`, height: "100%", background: "#63DB9440", borderRadius: 6 }} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
@@ -326,7 +340,7 @@ function MetricBar({ avg, top, lower, unit }) {
 }
 
 /* ─── MAIN ─── */
-export default function FirmBenchmark() {
+export default function FirmBenchmarkBooth() {
   const [screen, setScreen] = useState("intro");
   const [verticalId, setVerticalId] = useState(() => detectVertical().id);
   const [revenue, setRevenue] = useState(() => nearestBand(REVENUE_BANDS, detectVertical().defaults.rev).value);
@@ -337,10 +351,11 @@ export default function FirmBenchmark() {
   const [anim, setAnim] = useState(false);
   const [dir, setDir] = useState("fwd");
   const [shareState, setShareState] = useState("idle"); // idle | copied
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState("idle"); // idle | sending | sent | error
+  const [gateState, setGateState] = useState("idle"); // idle | sending | error
+  const [identity, setIdentity] = useState(null); // null until name+email captured — gates results
   const topRef = useRef(null);
-  const completionSent = useRef(false); // fire the silent completion only once
 
   const v = VERTICALS.find((x) => x.id === verticalId);
   const data = verticalId ? METRICS[verticalId] : null;
@@ -349,8 +364,6 @@ export default function FirmBenchmark() {
   const go = (cb) => { setAnim(true); setTimeout(() => { cb(); setTimeout(() => setAnim(false), 40); }, 220); };
   const scrollTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  /* Seed the firm inputs from a vertical's typical-firm defaults and clear
-     any self-placements, so each industry starts from a sensible baseline. */
   const seedFirm = (vert) => {
     setRevenue(vert.defaults.rev);
     setStaff(vert.defaults.staff);
@@ -360,9 +373,6 @@ export default function FirmBenchmark() {
 
   const setPlacement = (key, val) => setPlacements((p) => ({ ...p, [key]: val }));
 
-  // Calculate gap costs. Each metric's gap only counts once the user has
-  // placed themselves; until then it is shown as "pending" so the running
-  // total only reflects what they've actually answered.
   const gapResults = useMemo(() => {
     if (!data) return [];
     return data.items.map((m) => {
@@ -374,7 +384,6 @@ export default function FirmBenchmark() {
     });
   }, [data, revenue, staff, jobs, placements]);
 
-  // Running total during the walk-through: only metrics already placed.
   const runningGap = gapResults.filter((r) => r.placed).reduce((s, r) => s + r.gapCost, 0);
   const totalGap = gapResults.reduce((s, r) => s + r.gapCost, 0);
   const halfGap = totalGap * 0.5;
@@ -383,7 +392,6 @@ export default function FirmBenchmark() {
   const placementLabel = (id) => PLACEMENT_OPTIONS.find((o) => o.id === id)?.label || "Around average";
   const progress = screen === "metric" && data ? ((metricStep + 1) / data.items.length) * 100 : screen === "results" ? 100 : 0;
 
-  /* Plain-text summary of the result, used for share + emailed results. */
   const buildSummary = () => {
     return [
       "WorkflowMAX Firm Benchmark results",
@@ -415,8 +423,8 @@ export default function FirmBenchmark() {
     }
   };
 
-  /* The results record sent to HubSpot (field mapping). The endpoint + portal/
-     form config live in src/lib/hubspot.js. */
+  /* The results record sent to HubSpot, same mapping as the live campaign
+     version plus firstname + a source tag distinguishing booth leads. */
   const hubspotFields = () => ({
     wfm_completed_benchmark: "true",
     wfm_firm_size: isProject ? `${jobs} jobs/yr` : `${staff} staff`,
@@ -424,32 +432,23 @@ export default function FirmBenchmark() {
     wfm_benchmark_gap: Math.round(totalGap),
     wfm_biggest_issue: biggest?.label,
     wfm_results_summary: buildSummary(),
+    firstname: name.trim(),
+    wfm_lead_source: "BookkeepCon 2026",
   });
 
-  /* Pre-HubSpot fallback: open the user's mail client with the summary. */
-  const mailtoFallback = () => {
-    if (typeof window === "undefined") return;
-    const subject = encodeURIComponent("Your Firm Benchmark results");
-    const body = encodeURIComponent(buildSummary());
-    window.location.href = `mailto:${email.trim()}?subject=${subject}&body=${body}`;
-  };
-
-  // TODO: submitResults() only captures the lead in HubSpot — it does not send an
-  // email. Actually emailing the results needs one of: a HubSpot workflow triggered
-  // off this form submission (send a marketing/transactional email with the PDF or
-  // a results token), a serverless function, or a transactional email service
-  // (e.g. SendGrid). Until that's wired up, don't claim an email was sent.
-  const sendResults = async (e) => {
+  /* Gate submit: validate name + email, submit to HubSpot, then unlock
+     results. Mirrors the live version's HubSpot-not-configured fallback
+     (treated as success so the flow keeps working pre-integration). */
+  const unlockResults = async (e) => {
     e?.preventDefault();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!valid) { setEmailState("error"); return; }
-    setEmailState("sending");
-    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Firm Benchmark" });
-    if (skipped) mailtoFallback(); // HubSpot not wired yet — keep the flow working
-    setEmailState(ok || skipped ? "sent" : "error");
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!name.trim() || !validEmail) { setGateState("error"); return; }
+    setGateState("sending");
+    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Firm Benchmark — BookkeepCon booth" });
+    if (ok || skipped) { setIdentity({ name: name.trim(), email: email.trim() }); setGateState("idle"); }
+    else setGateState("error");
   };
 
-  /* Build and download the branded PDF of the results, in the browser. */
   const handleDownloadPdf = () => downloadResultsPdf({
     tool: "Firm Benchmark",
     industry: v?.label,
@@ -462,24 +461,16 @@ export default function FirmBenchmark() {
     ],
   });
 
-  /* Frictionless completion: if identity rides in on the enriched campaign link
-     (?email=…), record the completion the moment they reach results — no form
-     needed. Everyone else is captured via the email block below. */
-  useEffect(() => {
-    if (screen !== "results" || completionSent.current) return;
-    const urlEmail = getEmailFromUrl();
-    if (urlEmail) {
-      completionSent.current = true;
-      submitResults({ email: urlEmail, fields: hubspotFields(), pageName: "Firm Benchmark" });
-    }
-  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const ctaBtn = (primary) => ({
     padding: "14px 28px", background: primary ? "#63DB94" : "transparent",
     color: primary ? "#0A2F28" : "#63DB94", border: primary ? "none" : "1px solid #63DB9450",
     borderRadius: 100, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
     transition: "all 0.2s", display: "block", width: "100%",
   });
+  const gateInput = {
+    width: "100%", padding: "13px 14px", borderRadius: 10, border: "1px solid #E5E7EB",
+    fontSize: 15, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box",
+  };
 
   return (
     <div ref={topRef} className="fb-root" style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh" }}>
@@ -507,7 +498,8 @@ export default function FirmBenchmark() {
         )}
       </div>
 
-      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) */}
+      {/* Personalised firm badge (mobile only; won't render for booth
+          visitors since there's no ?company= on a QR link) */}
       {getFirm().company && (
         <div className="wfm-hide-desktop" style={{ textAlign: "center", padding: "12px 20px 0", background: "#fff" }}>
           <FirmBadge align="center" />
@@ -733,8 +725,38 @@ export default function FirmBenchmark() {
           );
         })()}
 
-        {/* ═══ RESULTS ═══ */}
-        {screen === "results" && data && (
+        {/* ═══ RESULTS (gated) ═══ */}
+        {screen === "results" && data && !identity && (
+          <div style={{ padding: "28px 24px 48px" }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: "#0A2F28", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 20 }}>🔒</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0A2F28", lineHeight: 1.2, margin: "0 0 10px", letterSpacing: "-0.02em" }}>
+              Nearly there, let's get your results
+            </h2>
+            <p style={{ fontSize: 14, color: "#384250", lineHeight: 1.6, margin: "0 0 26px" }}>
+              Enter your name and email to see your total gap to top performers and where it's coming from.
+            </p>
+            <form onSubmit={unlockResults} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input type="text" value={name} placeholder="Your name"
+                onChange={(e) => { setName(e.target.value); if (gateState === "error") setGateState("idle"); }}
+                style={{ ...gateInput, borderColor: gateState === "error" && !name.trim() ? "#EC5F60" : "#E5E7EB" }} />
+              <input type="email" value={email} placeholder="you@yourfirm.com.au"
+                onChange={(e) => { setEmail(e.target.value); if (gateState === "error") setGateState("idle"); }}
+                style={{ ...gateInput, borderColor: gateState === "error" ? "#EC5F60" : "#E5E7EB" }} />
+              <button type="submit" disabled={gateState === "sending"} style={{ ...ctaBtn(true), opacity: gateState === "sending" ? 0.7 : 1, cursor: gateState === "sending" ? "default" : "pointer" }}
+                onMouseEnter={(e) => { if (gateState !== "sending") e.target.style.background = "#45c97e"; }} onMouseLeave={(e) => { if (gateState !== "sending") e.target.style.background = "#63DB94"; }}>
+                {gateState === "sending" ? "Unlocking…" : "Show my results"}
+              </button>
+              {gateState === "error" && (
+                <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter your name and a valid email address.</span>
+              )}
+              <span style={{ fontSize: 11.5, color: "#6C737F", textAlign: "center", lineHeight: 1.4 }}>
+                We'll only use this to send your results and follow up about WorkflowMAX.
+              </span>
+            </form>
+          </div>
+        )}
+
+        {screen === "results" && data && identity && (
           <div style={{ padding: "0 0 48px" }}>
 
             {/* Banner */}
@@ -811,54 +833,22 @@ export default function FirmBenchmark() {
                 </p>
               </div>
 
-              {/* Share + email results */}
+              {/* Share + download (email already captured via the gate) */}
               <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#713b12", margin: "0 0 4px", textAlign: "center" }}>Worth comparing notes?</p>
                 <p style={{ fontSize: 13, color: "#85490e", margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" }}>
-                  Send this to your CFO or ops lead, or email yourself the full benchmark to revisit later.
+                  Send this to your CFO or ops lead, or download the full benchmark to revisit later.
                 </p>
 
-                {/* Share */}
                 <button onClick={handleShare}
                   style={{ width: "100%", padding: "12px", background: shareState === "copied" ? "#0D8D5C" : "#0A2F28", color: "#fff", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}>
                   {shareState === "copied" ? "✓ Link copied" : "Share these results"}
                 </button>
 
-                {/* Download PDF */}
                 <button onClick={handleDownloadPdf}
                   style={{ width: "100%", padding: "12px", marginTop: 8, background: "#fff", color: "#713b12", border: "1px solid #ECD997", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                   ⬇ Download results as PDF
                 </button>
-
-                {/* Divider */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-                  <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                  <span style={{ fontSize: 12, color: "#85490e", fontWeight: 600 }}>or email them to me</span>
-                  <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                </div>
-
-                {/* Email results */}
-                {emailState === "sent" ? (
-                  <div style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#087443" }}>
-                    ✓ Got it — we'll send your copy shortly. In the meantime, the PDF download above has it all.
-                  </div>
-                ) : (
-                  <form onSubmit={sendResults} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <input type="email" value={email} placeholder="you@yourfirm.com.au"
-                      onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${emailState === "error" ? "#EC5F60" : "#ECD997"}`, fontSize: 14, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box" }} />
-                    <button type="submit" disabled={emailState === "sending"}
-                      style={{ width: "100%", padding: "12px", background: "#63DB94", color: "#0A2F28", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: emailState === "sending" ? "default" : "pointer", fontFamily: "inherit", opacity: emailState === "sending" ? 0.7 : 1 }}>
-                      {emailState === "sending" ? "Sending…" : "Email me my results"}
-                    </button>
-                    {emailState === "error" && (
-                      <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter a valid email address.</span>
-                    )}
-                    <span style={{ fontSize: 11.5, color: "#85490e", textAlign: "center", lineHeight: 1.4 }}>
-                      We'll only use this to send your results and follow up about WorkflowMAX.
-                    </span>
-                  </form>
-                )}
               </div>
 
               {/* CTAs — soft, tailored destination first; booking demoted below */}
@@ -891,7 +881,7 @@ export default function FirmBenchmark() {
               </div>
 
               {/* Restart */}
-              <button onClick={() => { const d = detectVertical(); setVerticalId(d.id); seedFirm(d); setMetricStep(0); setShareState("idle"); setEmail(""); setEmailState("idle"); completionSent.current = false; setDir("back"); go(() => setScreen("intro")); }}
+              <button onClick={() => { const d = detectVertical(); setVerticalId(d.id); seedFirm(d); setMetricStep(0); setShareState("idle"); setName(""); setEmail(""); setGateState("idle"); setIdentity(null); setDir("back"); go(() => setScreen("intro")); }}
                 style={{ width: "100%", padding: "12px", background: "none", border: "1px solid #E5E7EB", borderRadius: 100, fontSize: 14, fontWeight: 500, color: "#6C737F", cursor: "pointer", fontFamily: "inherit", marginTop: 16 }}>
                 See benchmarks for a different industry
               </button>

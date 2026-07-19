@@ -48,7 +48,12 @@ export const getEmailFromUrl = () => {
    - email:  required (the Contact key)
    - fields: flat object of property name → value (empty values are dropped)
    Returns { ok, skipped }. `skipped: true` means HubSpot isn't configured yet,
-   so the caller should use its mailto fallback. */
+   so the caller should use its mailto fallback.
+   NOTE: this only creates/updates the HubSpot contact — it does not send the
+   prospect anything. Actually emailing their results needs a HubSpot workflow
+   triggered off this form submission, a serverless function, or a transactional
+   email service (e.g. SendGrid). Callers must not tell the user an email was
+   sent based on { ok: true } alone. */
 export async function submitResults({ email, fields = {}, pageName }) {
   if (!isHubSpotConfigured()) return { ok: false, skipped: true };
   if (!email) return { ok: false, skipped: false };

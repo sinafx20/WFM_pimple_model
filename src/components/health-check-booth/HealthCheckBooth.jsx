@@ -1,6 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+// BookkeepCon booth variant of the Workflow Health Check. Forked from
+// src/components/health-check/HealthCheck.jsx, not imported from it, so the
+// live GTM campaign's component is never touched. The only functional
+// difference: the "results" screen is hidden behind a name + email gate,
+// since booth visitors arrive via a QR code with no existing HubSpot contact
+// (the real campaign already knows who someone is from the personalised
+// link, so it never needs this). Submissions are tagged wfm_lead_source =
+// "BookkeepCon 2026" so they're distinguishable from real campaign completions.
+import { useState, useRef } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
-import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import { submitResults } from "../../lib/hubspot";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
 import { getFirm } from "../../lib/personalize.js";
@@ -9,6 +17,7 @@ import { getFirm } from "../../lib/personalize.js";
    VERTICALS
    ───────────────────────────────────── */
 const VERTICALS = [
+  { id: "accounting", label: "Accounting & Bookkeeping", subtitle: "Firms delivering bookkeeping, compliance, and advisory services for SMB clients", icon: "🧮" },
   { id: "architecture", label: "Architecture & Design", subtitle: "Practices delivering design, documentation, and contract administration", icon: "📐" },
   { id: "engineering", label: "Engineering Consultancy", subtitle: "Firms providing advisory, design, and technical engineering services", icon: "⚙️" },
   { id: "consulting", label: "Management & Business Consulting", subtitle: "Strategy, advisory, and professional services firms", icon: "💼" },
@@ -28,8 +37,9 @@ const HEAD = "'Bruna', 'DM Sans', sans-serif";
 
 /* Pre-fill the industry from the personalised campaign link, e.g.
    ?industry=architecture or ?vertical=engineering. Falls back to a
-   sensible default so the confirm step is always shown. Leo's enriched
-   links will always carry this param in production. */
+   sensible default so the confirm step is always shown. Booth QR links
+   carry no such param, so this always falls back and the confirm/vertical
+   pickers do the work instead. */
 const detectVertical = () => {
   if (typeof window === "undefined") return VERTICALS[0];
   const raw = (new URLSearchParams(window.location.search).get("industry") ||
@@ -43,12 +53,6 @@ const detectVertical = () => {
   );
 };
 
-/* Where the results-page CTAs send prospects. The vertical solution pages live
-   on the marketing site and should be pixeled (Meta / Google / LinkedIn) so we
-   can retarget everyone who reaches results, whether or not they click. These
-   are the soft, low-friction landing for the majority; booking is the
-   high-intent path for the ready few. NOTE: no dedicated Civil page exists yet,
-   so civil falls back to building-and-construction — change if a better fit. */
 const SOLUTION_URLS = {
   architecture: "https://workflowmax.com/architects",
   engineering: "https://workflowmax.com/engineers",
@@ -57,8 +61,6 @@ const SOLUTION_URLS = {
   civil: "https://workflowmax.com/building-and-construction",
   creative: "https://workflowmax.com/creative-agencies",
 };
-/* Booking routes by vertical: Sina owns architecture, construction, consulting;
-   Denzel owns civil, engineering, creative. */
 const BOOKING_URLS = {
   architecture: "https://meetings.hubspot.com/szarei",
   construction: "https://meetings.hubspot.com/szarei",
@@ -67,9 +69,6 @@ const BOOKING_URLS = {
   engineering: "https://meetings.hubspot.com/denzel-kereama",
   creative: "https://meetings.hubspot.com/denzel-kereama",
 };
-/* The campaign blob carries ?booking= and ?presenter= so the page books with —
-   and shows the product walkthrough recorded by — the presenter who actually
-   sent the email (Sina or Denzel); the vertical map / Sina video is the fallback. */
 const bookingUrl = (id) => {
   if (typeof window !== "undefined") {
     const b = (new URLSearchParams(window.location.search).get("booking") || "").trim();
@@ -77,15 +76,13 @@ const bookingUrl = (id) => {
   }
   return BOOKING_URLS[id];
 };
-const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" }; // product walkthrough per presenter
+const DEMO_VIDEOS = { sina: "X7RX3Bzz0sk", denzel: "699el1Gba3M" };
 const walkthroughUrl = () => {
   const p = typeof window !== "undefined"
     ? (new URLSearchParams(window.location.search).get("presenter") || "").toLowerCase() : "";
   return `https://www.youtube.com/watch?v=${DEMO_VIDEOS[p] || DEMO_VIDEOS.sina}`;
 };
 
-/* Open a CTA destination in a new tab so the prospect keeps their results.
-   No-op for unconfigured links so a placeholder never navigates to nowhere. */
 const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -235,6 +232,7 @@ const TIERS = [
 
 /* Average scores by vertical+size for comparison */
 const AVERAGES = {
+  accounting: { small: 13, mid: 16, large: 19 },
   architecture: { small: 14, mid: 17, large: 20 },
   engineering: { small: 15, mid: 18, large: 21 },
   consulting: { small: 14, mid: 17, large: 19 },
@@ -248,6 +246,11 @@ const AVERAGES = {
    ───────────────────────────────────── */
 const RECS = {
   reactive: {
+    accounting: [
+      { title: "Stop losing client calls and quick questions", desc: "The five-minute call answering a client's BAS question feels too small to log, but multiply that across every client and it adds up to real unbilled time. Firms that make the switch typically recover 5 to 8% of revenue." },
+      { title: "Connect onboarding through to billing", desc: "When client engagement letters, timesheets and invoices live in separate tools, detail gets lost at every handoff. One connected flow from engagement to Xero cuts the double-entry and gets invoices out faster." },
+      { title: "Keep client history from walking out the door", desc: "When client context sits in one bookkeeper's inbox or head, every staff departure risks the relationship. Linking notes and history straight to the client file keeps it findable." },
+    ],
     architecture: [
       { title: "See a job's costs while it's still live", desc: "On long architecture jobs, the hours and scope that eat your fee are easy to miss until the end. A live view against budget lets you catch them in time. Firms that make the switch typically recover 5 to 8% of revenue." },
       { title: "Connect quoting through to invoicing", desc: "When fee proposals, timesheets and invoices live in separate tools, detail gets lost at every handoff. One connected flow from proposal to Xero cuts the double-entry and gets invoices out faster." },
@@ -280,6 +283,11 @@ const RECS = {
     ],
   },
   structured: {
+    accounting: [
+      { title: "Close the gaps between client tools", desc: "You've got the pieces, but manual handoffs between practice management, time tracking and Xero cause delays and lost detail. Linking them into one flow gives you a single source of truth for every client." },
+      { title: "Catch scope creep before EOFY crunch", desc: "The client who 'just needs one more thing' outside the engagement letter is a quiet margin leak. A clear process for logging and billing extra work means nothing slips through unnoticed." },
+      { title: "Let your data flag at-risk clients", desc: "Leading firms use connected workflows to flag clients trending toward write-offs or overdue compliance work automatically, instead of finding out at BAS deadline." },
+    ],
     architecture: [
       { title: "Close the gaps between your tools", desc: "You've got the pieces, but the manual handoffs between them cause delays and lost detail. Linking quoting, time and invoicing into one flow gives you a single source of truth for every job." },
       { title: "Turn capacity from a spreadsheet into a live view", desc: "Knowing who's free next week shouldn't take a phone call. A live view drawn from real allocations lets you resource confidently and spot utilisation dips early." },
@@ -312,6 +320,11 @@ const RECS = {
     ],
   },
   optimised: {
+    accounting: [
+      { title: "Benchmark against the best firms in your region", desc: "You run a tight practice. The next step is seeing how your utilisation, write-off rate and days-to-invoice stack up against the top-performing bookkeeping firms around you." },
+      { title: "Move from compliance to advisory with clean data", desc: "With your data well-structured, you're set up to offer real advisory work, forecasting and benchmarking for clients, instead of just compliance, using connected analysis that would otherwise take hours to produce by hand." },
+      { title: "Make sure your processes scale with you", desc: "What works at 10 staff can break at 30. Keeping the same visibility across more clients and more complex engagements is what separates smooth growth from growing pains." },
+    ],
     architecture: [
       { title: "Benchmark against the best firms in your region", desc: "You run a tight ship. The next step is seeing how your utilisation, margins and invoicing cycles stack up against the top-performing architecture firms around you." },
       { title: "Put your clean data to work predicting", desc: "With your data well-structured, you're set up to use connected analysis for forecasting, risk detection and reporting that would otherwise take hours to produce." },
@@ -370,7 +383,7 @@ const Logo = () => (
 /* ─────────────────────────────────────
    MAIN COMPONENT
    ───────────────────────────────────── */
-export default function WorkflowHealthCheck() {
+export default function WorkflowHealthCheckBooth() {
   const [screen, setScreen] = useState("intro");
   const [vertical, setVertical] = useState(() => detectVertical());
   const [firmSize, setFirmSize] = useState(null);
@@ -379,10 +392,11 @@ export default function WorkflowHealthCheck() {
   const [anim, setAnim] = useState(false);
   const [dir, setDir] = useState("fwd");
   const [shareState, setShareState] = useState("idle"); // idle | copied
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState("idle"); // idle | sending | sent | error
+  const [gateState, setGateState] = useState("idle"); // idle | sending | error
+  const [identity, setIdentity] = useState(null); // null until name+email captured — gates results
   const topRef = useRef(null);
-  const completionSent = useRef(false); // fire the silent completion only once
 
   const totalScore = Object.values(answers).reduce((s, a) => s + a.score, 0);
   const tier = TIERS.find((t) => totalScore >= t.range[0] && totalScore <= t.range[1]) || TIERS[0];
@@ -421,7 +435,7 @@ export default function WorkflowHealthCheck() {
 
   const restart = () => {
     setAnswers({}); setCurrentQ(0); setVertical(detectVertical()); setFirmSize(null);
-    setShareState("idle"); setEmail(""); setEmailState("idle"); completionSent.current = false;
+    setShareState("idle"); setName(""); setEmail(""); setGateState("idle"); setIdentity(null);
     setDir("back"); go(() => setScreen("intro"));
   };
 
@@ -465,8 +479,9 @@ export default function WorkflowHealthCheck() {
     }
   };
 
-  /* The results record sent to HubSpot (field mapping). The endpoint + portal/
-     form config live in src/lib/hubspot.js. */
+  /* The results record sent to HubSpot. Same field mapping as the live
+     campaign version, plus firstname (from the gate) and a source tag so
+     these are distinguishable from real campaign completions. */
   const hubspotFields = () => ({
     wfm_completed_health_check: "true",
     wfm_firm_size: FIRM_SIZES.find((s) => s.id === firmSize)?.label,
@@ -474,29 +489,22 @@ export default function WorkflowHealthCheck() {
     wfm_maturity_tier: tier.label,
     wfm_biggest_issue: biggestGap?.theme,
     wfm_results_summary: buildSummary(),
+    firstname: name.trim(),
+    wfm_lead_source: "BookkeepCon 2026",
   });
 
-  /* Pre-HubSpot fallback: open the user's mail client with the summary. */
-  const mailtoFallback = () => {
-    if (typeof window === "undefined") return;
-    const subject = encodeURIComponent("Your Workflow Health Check results");
-    const body = encodeURIComponent(buildSummary());
-    window.location.href = `mailto:${email.trim()}?subject=${subject}&body=${body}`;
-  };
-
-  // TODO: submitResults() only captures the lead in HubSpot — it does not send an
-  // email. Actually emailing the results needs one of: a HubSpot workflow triggered
-  // off this form submission (send a marketing/transactional email with the PDF or
-  // a results token), a serverless function, or a transactional email service
-  // (e.g. SendGrid). Until that's wired up, don't claim an email was sent.
-  const sendResults = async (e) => {
+  /* Gate submit: validate name + email, submit to HubSpot, then unlock
+     results. Mirrors the live version's HubSpot-not-configured fallback
+     (treated as success so the flow keeps working pre-integration), since
+     the booth has no other way to identify who completed this. */
+  const unlockResults = async (e) => {
     e?.preventDefault();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!valid) { setEmailState("error"); return; }
-    setEmailState("sending");
-    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Workflow Health Check" });
-    if (skipped) mailtoFallback(); // HubSpot not wired yet — keep the flow working
-    setEmailState(ok || skipped ? "sent" : "error");
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!name.trim() || !validEmail) { setGateState("error"); return; }
+    setGateState("sending");
+    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Workflow Health Check — BookkeepCon booth" });
+    if (ok || skipped) { setIdentity({ name: name.trim(), email: email.trim() }); setGateState("idle"); }
+    else setGateState("error");
   };
 
   /* Build and download the branded PDF of the results, in the browser. */
@@ -512,18 +520,6 @@ export default function WorkflowHealthCheck() {
     highlights: recs.map((r) => ({ title: r.title, body: r.desc })),
   });
 
-  /* Frictionless completion: if identity rides in on the enriched campaign link
-     (?email=…), record the completion the moment they reach results — no form
-     needed. Everyone else is captured via the email block below. */
-  useEffect(() => {
-    if (screen !== "results" || completionSent.current) return;
-    const urlEmail = getEmailFromUrl();
-    if (urlEmail) {
-      completionSent.current = true;
-      submitResults({ email: urlEmail, fields: hubspotFields(), pageName: "Workflow Health Check" });
-    }
-  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
-
   /* Shared styles */
   const pill = (active) => ({
     padding: "14px 20px", background: active ? "#0A2F28" : "#F9FAFB",
@@ -537,6 +533,10 @@ export default function WorkflowHealthCheck() {
     borderRadius: 100, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
     transition: "all 0.2s", display: "block", width: "100%",
   });
+  const gateInput = {
+    width: "100%", padding: "13px 14px", borderRadius: 10, border: "1px solid #E5E7EB",
+    fontSize: 15, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box",
+  };
 
   return (
     <div ref={topRef} className="hc-root">
@@ -551,13 +551,7 @@ export default function WorkflowHealthCheck() {
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         @media (min-width: 768px) {
           body { margin: 0; }
-          .hc-root {
-            /* Transparent on desktop so the global green brand canvas (set on
-               body in shell.css) shows through. Painting it here from a
-               JS-imported asset URL doesn't survive Webflow Cloud's asset
-               rewriting, unlike the CSS-file reference in shell.css. */
-            background: transparent;
-          }
+          .hc-root { background: transparent; }
           .hc-shell { max-width: 1080px; margin: 0 auto; display: flex; align-items: stretch; }
           .hc-brand { display: flex; flex-direction: column; width: 360px; flex-shrink: 0; background: #0A2F28; }
           .hc-brand-inner { position: sticky; top: 0; padding: 44px 34px; display: flex; flex-direction: column; }
@@ -626,7 +620,9 @@ export default function WorkflowHealthCheck() {
         )}
       </div>
 
-      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) */}
+      {/* Personalised firm badge (mobile only; desktop shows it in the sidebar) —
+          won't render for booth visitors since there's no ?company= on a QR link,
+          same as the live version's fallback behaviour. */}
       {getFirm().company && (
         <div className="hc-hide-desktop" style={{ textAlign: "center", padding: "12px 20px 0", background: "#fff" }}>
           <FirmBadge align="center" />
@@ -770,8 +766,38 @@ export default function WorkflowHealthCheck() {
           </div>
         )}
 
-        {/* ════ RESULTS ════ */}
-        {screen === "results" && (
+        {/* ════ RESULTS (gated) ════ */}
+        {screen === "results" && !identity && (
+          <div style={{ padding: "28px 24px 48px" }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: "#0A2F28", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 20 }}>🔒</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0A2F28", lineHeight: 1.2, margin: "0 0 10px", letterSpacing: "-0.02em" }}>
+              Nearly there, let's get your results
+            </h2>
+            <p style={{ fontSize: 14, color: "#384250", lineHeight: 1.6, margin: "0 0 26px" }}>
+              Enter your name and email to see your maturity score, your biggest gap area, and the recommendations tailored to your industry.
+            </p>
+            <form onSubmit={unlockResults} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input type="text" value={name} placeholder="Your name"
+                onChange={(e) => { setName(e.target.value); if (gateState === "error") setGateState("idle"); }}
+                style={{ ...gateInput, borderColor: gateState === "error" && !name.trim() ? "#EC5F60" : "#E5E7EB" }} />
+              <input type="email" value={email} placeholder="you@yourfirm.com.au"
+                onChange={(e) => { setEmail(e.target.value); if (gateState === "error") setGateState("idle"); }}
+                style={{ ...gateInput, borderColor: gateState === "error" ? "#EC5F60" : "#E5E7EB" }} />
+              <button type="submit" disabled={gateState === "sending"} style={{ ...ctaBtn(true), opacity: gateState === "sending" ? 0.7 : 1, cursor: gateState === "sending" ? "default" : "pointer" }}
+                onMouseEnter={(e) => { if (gateState !== "sending") e.target.style.background = "#45c97e"; }} onMouseLeave={(e) => { if (gateState !== "sending") e.target.style.background = "#63DB94"; }}>
+                {gateState === "sending" ? "Unlocking…" : "Show my results"}
+              </button>
+              {gateState === "error" && (
+                <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter your name and a valid email address.</span>
+              )}
+              <span style={{ fontSize: 11.5, color: "#6C737F", textAlign: "center", lineHeight: 1.4 }}>
+                We'll only use this to send your results and follow up about WorkflowMAX.
+              </span>
+            </form>
+          </div>
+        )}
+
+        {screen === "results" && identity && (
           <div style={{ padding: "28px 24px 48px" }}>
 
             {/* Score card */}
@@ -861,54 +887,23 @@ export default function WorkflowHealthCheck() {
               </button>
             </div>
 
-            {/* Share + email results */}
+            {/* Share + download (email already captured via the gate, so no
+                second email ask here, unlike the live campaign version) */}
             <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#713b12", margin: "0 0 4px", textAlign: "center" }}>Worth comparing notes?</p>
               <p style={{ fontSize: 13, color: "#85490e", margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" }}>
-                Send this to your COO or ops lead, or email yourself the full results to revisit later.
+                Send this to your COO or ops lead, or download the full results to revisit later.
               </p>
 
-              {/* Share */}
               <button onClick={handleShare}
                 style={{ width: "100%", padding: "12px", background: shareState === "copied" ? "#0D8D5C" : "#0A2F28", color: "#fff", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}>
                 {shareState === "copied" ? "✓ Link copied" : "Share these results"}
               </button>
 
-              {/* Download PDF */}
               <button onClick={handleDownloadPdf}
                 style={{ width: "100%", padding: "12px", marginTop: 8, background: "#fff", color: "#713b12", border: "1px solid #ECD997", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 ⬇ Download results as PDF
               </button>
-
-              {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                <span style={{ fontSize: 12, color: "#85490e", fontWeight: 600 }}>or email them to me</span>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-              </div>
-
-              {/* Email results */}
-              {emailState === "sent" ? (
-                <div style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#087443" }}>
-                  ✓ Got it — we'll send your copy shortly. In the meantime, the PDF download above has it all.
-                </div>
-              ) : (
-                <form onSubmit={sendResults} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <input type="email" value={email} placeholder="you@yourfirm.com.au"
-                    onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${emailState === "error" ? "#EC5F60" : "#ECD997"}`, fontSize: 14, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box" }} />
-                  <button type="submit" disabled={emailState === "sending"}
-                    style={{ width: "100%", padding: "12px", background: "#63DB94", color: "#0A2F28", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: emailState === "sending" ? "default" : "pointer", fontFamily: "inherit", opacity: emailState === "sending" ? 0.7 : 1 }}>
-                    {emailState === "sending" ? "Sending…" : "Email me my results"}
-                  </button>
-                  {emailState === "error" && (
-                    <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter a valid email address.</span>
-                  )}
-                  <span style={{ fontSize: 11.5, color: "#85490e", textAlign: "center", lineHeight: 1.4 }}>
-                    We'll only use this to send your results and follow up about WorkflowMAX.
-                  </span>
-                </form>
-              )}
             </div>
 
             {/* Personalised bridge into the booking CTA */}
