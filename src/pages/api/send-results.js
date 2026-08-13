@@ -37,7 +37,7 @@ export async function POST({ request, locals }) {
     });
   }
 
-  const { email, firstName, company, toolName, resultsSummary, aeName, aeTitle, aeBookingLink } = body || {};
+  const { email, firstName, company, toolName, resultsSummary, aeName, aeTitle, aeBookingLink, aeEmail } = body || {};
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return new Response(JSON.stringify({ ok: false, error: "invalid email" }), {
       status: 400,
@@ -57,11 +57,17 @@ export async function POST({ request, locals }) {
   if (aeTitle) contactProperties.volcano_ae_title = aeTitle;
   if (aeBookingLink) contactProperties.volcano_ae_booking_link = aeBookingLink;
 
+  // Reply-to is fixed on the email template itself, so override it per-send
+  // to whichever AE actually owns this contact — otherwise every reply from
+  // every prospect lands in whoever's address is hardcoded on the template.
+  const message = { to: email };
+  if (aeEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(aeEmail)) message.replyTo = [aeEmail];
+
   try {
     const r = await fetch("https://api.hubapi.com/marketing/v3/transactional/single-email/send", {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ emailId: Number(emailId), message: { to: email }, contactProperties }),
+      body: JSON.stringify({ emailId: Number(emailId), message, contactProperties }),
     });
     const data = await r.json().catch(() => ({}));
     return new Response(JSON.stringify({ ok: r.ok, status: r.status, data }), {

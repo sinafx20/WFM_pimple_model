@@ -463,7 +463,7 @@ export default function FirmBenchmark() {
       sendResultsEmail({
         email: urlEmail, firstName: firm.firstName, company: firm.company,
         toolName: "Firm Benchmark", resultsSummary: buildSummary(),
-        aeName: ae.name, aeTitle: ae.title, aeBookingLink: ae.bookingLink,
+        aeName: ae.name, aeTitle: ae.title, aeBookingLink: ae.bookingLink, aeEmail: ae.email,
       });
     }
   }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps

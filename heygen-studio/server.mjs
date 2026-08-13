@@ -63,9 +63,13 @@ const FACE = { sina: path.join(__dirname, 'face-sina.png'), denzel: path.join(__
 // Per-presenter routing: booking link (rides in the blob so the LP books the
 // actual sender) and the product-demo recording (YouTube ID) for tp4 + the
 // demo-email thumbnail. Mirrors PRESENTERS in public/index.html.
+// email: used as the results-email reply-to so replies land with the AE who
+// actually owns the contact, not whoever's name is hardcoded in the template.
+// TODO(denzel email): fill in once confirmed — left blank so the results-email
+// endpoint falls back to the template's default reply-to rather than guessing.
 const PRESENTER_META = {
-  sina: { booking: 'https://meetings.hubspot.com/szarei', demoVideo: 'X7RX3Bzz0sk', fullName: 'Sina Zarei', title: 'Account Executive' },
-  denzel: { booking: 'https://meetings.hubspot.com/denzel-kereama', demoVideo: '699el1Gba3M', fullName: 'Denzel Kereama', title: 'Account Executive' },
+  sina: { booking: 'https://meetings.hubspot.com/szarei', demoVideo: 'X7RX3Bzz0sk', fullName: 'Sina Zarei', title: 'Account Executive', email: 'sina.zarei@workflowmax.com' },
+  denzel: { booking: 'https://meetings.hubspot.com/denzel-kereama', demoVideo: '699el1Gba3M', fullName: 'Denzel Kereama', title: 'Account Executive', email: '' },
 };
 // Hand-picked product-demo frames (Sina chose these) for the demo-email thumbnail's
 // left half. Drop demo-frame-<presenter>.png next to server.mjs; the presenter's
@@ -477,6 +481,7 @@ const server = http.createServer(async (req, res) => {
         `presenter=${encodeURIComponent(pKey)}`,
         `ae_name=${encodeURIComponent(pMeta.fullName)}`,
         `ae_title=${encodeURIComponent(pMeta.title)}`,
+        `ae_email=${encodeURIComponent(pMeta.email || '')}`,
       ];
       if (country) parts.push(`country=${encodeURIComponent(country)}`);
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);

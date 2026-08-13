@@ -54,5 +54,6 @@ export function getAe() {
     name: param("ae_name"),
     title: param("ae_title"),
     bookingLink: param("booking"),
+    email: param("ae_email"),
   };
 }
