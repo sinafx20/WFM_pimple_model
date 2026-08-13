@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
-import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import { submitResults, getEmailFromUrl, sendResultsEmail } from "../../lib/hubspot";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
-import { getFirm } from "../../lib/personalize.js";
+import { getFirm, getAe } from "../../lib/personalize.js";
 
 /* ─────────────────────────────────────
    VERTICALS
@@ -468,6 +468,7 @@ export default function WorkflowHealthCheck() {
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
     wfm_completed_health_check: "true",
+    wfm_tool_name: "Workflow Health Check",
     wfm_firm_size: FIRM_SIZES.find((s) => s.id === firmSize)?.label,
     wfm_health_score: totalScore,
     wfm_maturity_tier: tier.label,
@@ -490,13 +491,20 @@ export default function WorkflowHealthCheck() {
 
   /* Frictionless completion: if identity rides in on the enriched campaign link
      (?email=…), record the completion the moment they reach results — no form
-     needed. Everyone else is captured via the email block below. */
+     needed, since every real campaign contact already has ?email= in their link. */
   useEffect(() => {
     if (screen !== "results" || completionSent.current) return;
     const urlEmail = getEmailFromUrl();
     if (urlEmail) {
       completionSent.current = true;
+      const firm = getFirm();
+      const ae = getAe();
       submitResults({ email: urlEmail, fields: hubspotFields(), pageName: "Workflow Health Check" });
+      sendResultsEmail({
+        email: urlEmail, firstName: firm.firstName, company: firm.company,
+        toolName: "Workflow Health Check", resultsSummary: buildSummary(),
+        aeName: ae.name, aeTitle: ae.title, aeBookingLink: ae.bookingLink,
+      });
     }
   }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
 

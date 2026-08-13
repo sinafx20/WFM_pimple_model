@@ -44,3 +44,15 @@ export function getFirm() {
     firstName: param("firstname", "first_name", "fname"),
   };
 }
+
+// The AE actually running this contact's outreach (?ae_name=/?ae_title=/
+// ?booking=, written into every campaign link by heygen-studio's /api/writeback
+// from PRESENTER_META). Used so the results email is signed by, and merge-field
+// personalised as, whichever AE the prospect has actually been hearing from.
+export function getAe() {
+  return {
+    name: param("ae_name"),
+    title: param("ae_title"),
+    bookingLink: param("booking"),
+  };
+}

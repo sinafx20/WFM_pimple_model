@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
-import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import { submitResults, getEmailFromUrl, sendResultsEmail } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
-import { getFirm } from "../../lib/personalize.js";
+import { getFirm, getAe } from "../../lib/personalize.js";
 import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
@@ -356,6 +356,7 @@ export default function ProfitLeakCalculator() {
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
     wfm_completed_calculator: "true",
+    wfm_tool_name: "Profit Leak Calculator",
     wfm_revenue_band: revLabel,
     wfm_firm_size: countLabel,
     wfm_profit_leak: Math.round(totalLeakage),
@@ -384,7 +385,14 @@ export default function ProfitLeakCalculator() {
     const urlEmail = getEmailFromUrl();
     if (urlEmail) {
       completionSent.current = true;
+      const firm = getFirm();
+      const ae = getAe();
       submitResults({ email: urlEmail, fields: hubspotFields(), pageName: "Profit Leak Calculator" });
+      sendResultsEmail({
+        email: urlEmail, firstName: firm.firstName, company: firm.company,
+        toolName: "Profit Leak Calculator", resultsSummary: buildSummary(),
+        aeName: ae.name, aeTitle: ae.title, aeBookingLink: ae.bookingLink,
+      });
     }
   }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
 

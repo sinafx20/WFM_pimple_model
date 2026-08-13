@@ -54,6 +54,26 @@ export const getEmailFromUrl = () => {
    triggered off this form submission, a serverless function, or a transactional
    email service (e.g. SendGrid). Callers must not tell the user an email was
    sent based on { ok: true } alone. */
+/* Trigger the actual "your results" email via our own server route (never
+   call HubSpot's transactional API directly from the browser — it needs a
+   private token). Returns { ok, skipped }: skipped means the deployed
+   environment doesn't have HUBSPOT_TOKEN / HUBSPOT_RESULTS_EMAIL_ID set yet,
+   so this is a silent no-op rather than a broken promise to the prospect. */
+export async function sendResultsEmail({ email, firstName, company, toolName, resultsSummary, aeName, aeTitle, aeBookingLink }) {
+  if (!email) return { ok: false, skipped: false };
+  try {
+    const res = await fetch("/api/send-results", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, firstName, company, toolName, resultsSummary, aeName, aeTitle, aeBookingLink }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok && data.ok !== false, skipped: !!data.skipped };
+  } catch {
+    return { ok: false, skipped: false };
+  }
+}
+
 export async function submitResults({ email, fields = {}, pageName }) {
   if (!isHubSpotConfigured()) return { ok: false, skipped: true };
   if (!email) return { ok: false, skipped: false };

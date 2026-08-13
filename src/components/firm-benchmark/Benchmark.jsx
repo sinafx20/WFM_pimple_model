@@ -1,11 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
-import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
+import { submitResults, getEmailFromUrl, sendResultsEmail } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
-import { getFirm } from "../../lib/personalize.js";
+import { getFirm, getAe } from "../../lib/personalize.js";
 import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
@@ -428,6 +428,7 @@ export default function FirmBenchmark() {
      form config live in src/lib/hubspot.js. */
   const hubspotFields = () => ({
     wfm_completed_benchmark: "true",
+    wfm_tool_name: "Firm Benchmark",
     wfm_firm_size: isProject ? `${jobs} jobs/yr` : `${staff} staff`,
     wfm_revenue_band: fmt(revenue),
     wfm_benchmark_gap: Math.round(totalGap),
@@ -456,7 +457,14 @@ export default function FirmBenchmark() {
     const urlEmail = getEmailFromUrl();
     if (urlEmail) {
       completionSent.current = true;
+      const firm = getFirm();
+      const ae = getAe();
       submitResults({ email: urlEmail, fields: hubspotFields(), pageName: "Firm Benchmark" });
+      sendResultsEmail({
+        email: urlEmail, firstName: firm.firstName, company: firm.company,
+        toolName: "Firm Benchmark", resultsSummary: buildSummary(),
+        aeName: ae.name, aeTitle: ae.title, aeBookingLink: ae.bookingLink,
+      });
     }
   }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
 

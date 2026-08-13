@@ -475,6 +475,8 @@ const server = http.createServer(async (req, res) => {
         `email=${encodeURIComponent(c.email || '')}`,
         `video=${encodeURIComponent(c.video || '')}`,
         `presenter=${encodeURIComponent(pKey)}`,
+        `ae_name=${encodeURIComponent(pMeta.fullName)}`,
+        `ae_title=${encodeURIComponent(pMeta.title)}`,
       ];
       if (country) parts.push(`country=${encodeURIComponent(country)}`);
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
