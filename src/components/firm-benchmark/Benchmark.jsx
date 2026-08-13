@@ -3,9 +3,11 @@ import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
+import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
 import { getFirm } from "../../lib/personalize.js";
-import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
+import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
+import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
 /* ─── WFM Logo ─── */
 const Logo = () => (
@@ -30,11 +32,8 @@ const Logo = () => (
 /* Heading typeface (Bruna), shared by display numbers below */
 const HEAD = "'Bruna', 'DM Sans', sans-serif";
 
-const fmt = (v) => {
-  if (Math.abs(v) >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1000) return `$${Math.round(v / 1000).toLocaleString("en-AU")}K`;
-  return `$${Math.round(v).toLocaleString("en-AU")}`;
-};
+// fmt is defined inside FirmBenchmark, closed over the detected/selected
+// currency (fmtCurrency from ../../lib/currency.js does the actual formatting).
 
 /* ─── VERTICALS ─── */
 const VERTICALS = [
@@ -123,7 +122,12 @@ const METRICS = {
     hook: "The biggest profitability risk for architecture practices in 2026 isn't losing projects. It's delivering them without knowing what they actually cost.",
     items: [
       { key: "util", label: "Billable utilisation", question: "What percentage of your team's available hours actually generate revenue?", avg: "62%", top: "78%", avgNum: 62, topNum: 78, unit: "%", lower: false,
-        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.62); return staff * 1760 * ((78 - 62) / 100) * rate; },
+        // Gap = revenue x the avg-to-top utilisation-point gap, consistent with how every
+        // other metric in this vertical is costed (a flat % of revenue). Previously this
+        // divided by the firm's own avg utilisation to imply an hourly rate, which meant a
+        // narrow avg-to-top gap still produced a gap cost 4-6x every other metric's, so
+        // "Billable utilisation" won "biggest gap" almost regardless of self-placement.
+        gapCalc: (rev) => rev * ((78 - 62) / 100),
         gapSimple: "Moving from average to top performer would recover this in additional billable revenue each year",
         topDo: "Live capacity planning with forward-looking allocation based on actual project commitments",
         source: "SPI Research 2025" },
@@ -151,7 +155,7 @@ const METRICS = {
     hook: "Engineering consultancies are billing more hours than ever but capturing fewer of them. The gap between work delivered and revenue collected is widening.",
     items: [
       { key: "invisible", label: "Invisible cost gap", question: "What percentage of the hours your team works never gets recorded anywhere?", avg: "12%", top: "3%", avgNum: 12, topNum: 3, unit: "%", lower: true,
-        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.65); return staff * 1760 * 0.09 * rate; },
+        gapCalc: (rev) => rev * 0.09,
         gapSimple: "Hours your team works but never records, costed at your blended rate",
         topDo: "Flexible time entry (mobile, timer, weekly views) with automated reminders and approval workflows",
         source: "SPI Research 2025" },
@@ -166,7 +170,7 @@ const METRICS = {
         topDo: "Invoicing workflows connected to job milestones that generate draft invoices automatically",
         source: "SPI Research 2025" },
       { key: "util", label: "Billable utilisation", question: "What percentage of your team's available hours actually generate revenue?", avg: "65%", top: "80%", avgNum: 65, topNum: 80, unit: "%", lower: false,
-        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.65); return staff * 1760 * 0.15 * rate; },
+        gapCalc: (rev) => rev * 0.15,
         gapSimple: "Additional billable revenue if your team moved from average to top-performer utilisation",
         topDo: "Forward-looking capacity views with resource allocation against live commitments",
         source: "SPI Research 2025" },
@@ -184,7 +188,7 @@ const METRICS = {
         topDo: "Structured variation logging at the engagement level with automated client approval workflows",
         source: "SPI Research 2025" },
       { key: "util", label: "Billable utilisation", question: "What percentage of your team's available hours actually generate revenue?", avg: "64%", top: "78%", avgNum: 64, topNum: 78, unit: "%", lower: false,
-        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.64); return staff * 1760 * 0.14 * rate; },
+        gapCalc: (rev) => rev * 0.14,
         gapSimple: "Additional billable revenue if your team moved from average to top-performer utilisation",
         topDo: "Forward-looking capacity views with resource allocation against live engagement commitments",
         source: "SPI Research 2025" },
@@ -273,7 +277,7 @@ const METRICS = {
         topDo: "Real-time job profitability dashboards showing margin by project, client, and team composition",
         source: "SPI Research 2025" },
       { key: "util", label: "Billable utilisation", question: "What percentage of your team's time is actually spent on billable client work?", avg: "60%", top: "78%", avgNum: 60, topNum: 78, unit: "%", lower: false,
-        gapCalc: (rev, staff) => { const rate = rev / (staff * 1760 * 0.60); return staff * 1760 * 0.18 * rate; },
+        gapCalc: (rev) => rev * 0.18,
         gapSimple: "Additional billable revenue if your team moved from average to top-performer utilisation",
         topDo: "Live utilisation dashboards showing team-level and individual billing rates against targets",
         source: "SPI Research 2025" },
@@ -329,7 +333,14 @@ function MetricBar({ avg, top, lower, unit }) {
 export default function FirmBenchmark() {
   const [screen, setScreen] = useState("intro");
   const [verticalId, setVerticalId] = useState(() => detectVertical().id);
-  const [revenue, setRevenue] = useState(() => nearestBand(REVENUE_BANDS, detectVertical().defaults.rev).value);
+  const [currencyCode, setCurrencyCode] = useState(() => detectCurrency());
+  const revenueBands = getRevenueBands(CURRENCIES[currencyCode].symbol);
+  const fmt = (val) => fmtCurrency(val, currencyCode);
+  // rev defaults are AUD-anchored industry benchmarks, so they're FX-converted
+  // for the detected/selected currency; every gapCalc below is a plain
+  // percentage of THIS revenue value, so nothing downstream needs its own
+  // conversion once this seed is right.
+  const [revenue, setRevenue] = useState(() => nearestBand(revenueBands, fx(detectVertical().defaults.rev, currencyCode)).value);
   const [staff, setStaff] = useState(() => nearestBand(COUNT_BANDS, detectVertical().defaults.staff).value);
   const [jobs, setJobs] = useState(() => nearestBand(COUNT_BANDS, detectVertical().defaults.jobs).value);
   const [placements, setPlacements] = useState({});
@@ -337,8 +348,6 @@ export default function FirmBenchmark() {
   const [anim, setAnim] = useState(false);
   const [dir, setDir] = useState("fwd");
   const [shareState, setShareState] = useState("idle"); // idle | copied
-  const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState("idle"); // idle | sending | sent | error
   const topRef = useRef(null);
   const completionSent = useRef(false); // fire the silent completion only once
 
@@ -352,7 +361,7 @@ export default function FirmBenchmark() {
   /* Seed the firm inputs from a vertical's typical-firm defaults and clear
      any self-placements, so each industry starts from a sensible baseline. */
   const seedFirm = (vert) => {
-    setRevenue(vert.defaults.rev);
+    setRevenue(nearestBand(revenueBands, fx(vert.defaults.rev, currencyCode)).value);
     setStaff(vert.defaults.staff);
     setJobs(vert.defaults.jobs);
     setPlacements({});
@@ -426,29 +435,6 @@ export default function FirmBenchmark() {
     wfm_results_summary: buildSummary(),
   });
 
-  /* Pre-HubSpot fallback: open the user's mail client with the summary. */
-  const mailtoFallback = () => {
-    if (typeof window === "undefined") return;
-    const subject = encodeURIComponent("Your Firm Benchmark results");
-    const body = encodeURIComponent(buildSummary());
-    window.location.href = `mailto:${email.trim()}?subject=${subject}&body=${body}`;
-  };
-
-  // TODO: submitResults() only captures the lead in HubSpot — it does not send an
-  // email. Actually emailing the results needs one of: a HubSpot workflow triggered
-  // off this form submission (send a marketing/transactional email with the PDF or
-  // a results token), a serverless function, or a transactional email service
-  // (e.g. SendGrid). Until that's wired up, don't claim an email was sent.
-  const sendResults = async (e) => {
-    e?.preventDefault();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!valid) { setEmailState("error"); return; }
-    setEmailState("sending");
-    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Firm Benchmark" });
-    if (skipped) mailtoFallback(); // HubSpot not wired yet — keep the flow working
-    setEmailState(ok || skipped ? "sent" : "error");
-  };
-
   /* Build and download the branded PDF of the results, in the browser. */
   const handleDownloadPdf = () => downloadResultsPdf({
     tool: "Firm Benchmark",
@@ -464,7 +450,7 @@ export default function FirmBenchmark() {
 
   /* Frictionless completion: if identity rides in on the enriched campaign link
      (?email=…), record the completion the moment they reach results — no form
-     needed. Everyone else is captured via the email block below. */
+     needed, since every real campaign contact already has ?email= in their link. */
   useEffect(() => {
     if (screen !== "results" || completionSent.current) return;
     const urlEmail = getEmailFromUrl();
@@ -501,7 +487,10 @@ export default function FirmBenchmark() {
 
       {/* HEADER */}
       <div className="wfm-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
-        <Logo />
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Logo />
+          <AllResourcesLink />
+        </div>
         {screen === "metric" && data && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>Metric {metricStep + 1}/{data.items.length}</span>
         )}
@@ -607,9 +596,22 @@ export default function FirmBenchmark() {
             <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A2F28", margin: "0 0 6px" }}>Tell us about your firm</h2>
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 24px" }}>This lets us calculate what the benchmarks mean in dollars for you specifically.</p>
 
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 8 }}>Annual revenue (AUD)</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#6C737F", marginBottom: 6 }}>Currency</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+              {CURRENCY_ORDER.map((code) => {
+                const sel = currencyCode === code;
+                return (
+                  <button key={code} onClick={() => setCurrencyCode(code)}
+                    style={{ padding: "6px 12px", background: sel ? "#0A2F28" : "#F9FAFB", color: sel ? "#fff" : "#384250", border: `1px solid ${sel ? "#0A2F28" : "#E5E7EB"}`, borderRadius: 100, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    {CURRENCIES[code].symbol} {code}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 8 }}>Annual revenue ({currencyCode})</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {REVENUE_BANDS.map((b) => {
+              {revenueBands.map((b) => {
                 const sel = revenue === b.value;
                 return (
                   <button key={b.id} onClick={() => setRevenue(b.value)}
@@ -811,11 +813,11 @@ export default function FirmBenchmark() {
                 </p>
               </div>
 
-              {/* Share + email results */}
+              {/* Share + download results */}
               <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#713b12", margin: "0 0 4px", textAlign: "center" }}>Worth comparing notes?</p>
                 <p style={{ fontSize: 13, color: "#85490e", margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" }}>
-                  Send this to your CFO or ops lead, or email yourself the full benchmark to revisit later.
+                  Send this to your CFO or ops lead, or download the full benchmark to revisit later.
                 </p>
 
                 {/* Share */}
@@ -830,35 +832,6 @@ export default function FirmBenchmark() {
                   ⬇ Download results as PDF
                 </button>
 
-                {/* Divider */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-                  <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                  <span style={{ fontSize: 12, color: "#85490e", fontWeight: 600 }}>or email them to me</span>
-                  <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                </div>
-
-                {/* Email results */}
-                {emailState === "sent" ? (
-                  <div style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#087443" }}>
-                    ✓ Got it — we'll send your copy shortly. In the meantime, the PDF download above has it all.
-                  </div>
-                ) : (
-                  <form onSubmit={sendResults} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <input type="email" value={email} placeholder="you@yourfirm.com.au"
-                      onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${emailState === "error" ? "#EC5F60" : "#ECD997"}`, fontSize: 14, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box" }} />
-                    <button type="submit" disabled={emailState === "sending"}
-                      style={{ width: "100%", padding: "12px", background: "#63DB94", color: "#0A2F28", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: emailState === "sending" ? "default" : "pointer", fontFamily: "inherit", opacity: emailState === "sending" ? 0.7 : 1 }}>
-                      {emailState === "sending" ? "Sending…" : "Email me my results"}
-                    </button>
-                    {emailState === "error" && (
-                      <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter a valid email address.</span>
-                    )}
-                    <span style={{ fontSize: 11.5, color: "#85490e", textAlign: "center", lineHeight: 1.4 }}>
-                      We'll only use this to send your results and follow up about WorkflowMAX.
-                    </span>
-                  </form>
-                )}
               </div>
 
               {/* CTAs — soft, tailored destination first; booking demoted below */}
@@ -891,7 +864,7 @@ export default function FirmBenchmark() {
               </div>
 
               {/* Restart */}
-              <button onClick={() => { const d = detectVertical(); setVerticalId(d.id); seedFirm(d); setMetricStep(0); setShareState("idle"); setEmail(""); setEmailState("idle"); completionSent.current = false; setDir("back"); go(() => setScreen("intro")); }}
+              <button onClick={() => { const d = detectVertical(); setVerticalId(d.id); seedFirm(d); setMetricStep(0); setShareState("idle"); completionSent.current = false; setDir("back"); go(() => setScreen("intro")); }}
                 style={{ width: "100%", padding: "12px", background: "none", border: "1px solid #E5E7EB", borderRadius: 100, fontSize: 14, fontWeight: 500, color: "#6C737F", cursor: "pointer", fontFamily: "inherit", marginTop: 16 }}>
                 See benchmarks for a different industry
               </button>

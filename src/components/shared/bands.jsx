@@ -1,13 +1,22 @@
 // Shared firm-input bands + banded slider, used by the Calculator and the
 // Benchmark so both ask for revenue / headcount the same way.
 
-export const REVENUE_BANDS = [
-  { id: "r1", label: "$500K - $1M", value: 750000 },
-  { id: "r2", label: "$1M - $5M", value: 3000000 },
-  { id: "r3", label: "$5M - $10M", value: 7500000 },
-  { id: "r4", label: "$10M - $20M", value: 15000000 },
-  { id: "r5", label: "$20M - $50M", value: 35000000 },
+// Bucket boundaries are currency-agnostic magnitude choices (a "$1M-$5M
+// revenue" firm is the same rough size whether that's AUD, GBP or USD) — only
+// the displayed symbol changes with the prospect's detected/selected currency.
+const REVENUE_BAND_BOUNDS = [
+  { id: "r1", lo: 500000, hi: 1000000, value: 750000 },
+  { id: "r2", lo: 1000000, hi: 5000000, value: 3000000 },
+  { id: "r3", lo: 5000000, hi: 10000000, value: 7500000 },
+  { id: "r4", lo: 10000000, hi: 20000000, value: 15000000 },
+  { id: "r5", lo: 20000000, hi: 50000000, value: 35000000 },
 ];
+const fmtBandM = (v, symbol) => (v >= 1000000 ? `${symbol}${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `${symbol}${Math.round(v / 1000)}K`);
+export function getRevenueBands(symbol = "$") {
+  return REVENUE_BAND_BOUNDS.map((b) => ({ ...b, label: `${fmtBandM(b.lo, symbol)} - ${fmtBandM(b.hi, symbol)}` }));
+}
+// Default (AUD symbol) export kept for any caller that hasn't gone currency-aware yet.
+export const REVENUE_BANDS = getRevenueBands("$");
 
 /* Headcount / jobs bands: the slider snaps across these ranges rather
    than moving continuously. Representative midpoints feed the maths. */

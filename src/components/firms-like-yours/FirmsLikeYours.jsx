@@ -2,6 +2,7 @@ import { useState } from "react";
 import CredibilityStrip from "../shared/CredibilityStrip.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
+import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 
 /* ─── WFM Logo ─── */
 const WFMLogo = () => (
@@ -234,6 +235,9 @@ export default function FirmsLikeYours() {
         padding: "16px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
       }}>
+        <div style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)" }}>
+          <AllResourcesLink />
+        </div>
         <WFMLogo />
         <FirmBadge align="center" />
       </div>

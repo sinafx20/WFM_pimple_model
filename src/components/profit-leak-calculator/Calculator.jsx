@@ -3,8 +3,10 @@ import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
 import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
+import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import { getFirm } from "../../lib/personalize.js";
-import { REVENUE_BANDS, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
+import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
+import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
 /* ─── WFM Logo ─── */
 const Logo = () => (
@@ -26,12 +28,11 @@ const Logo = () => (
   </svg>
 );
 
-/* ─── FORMAT HELPERS ─── */
-const fmt = (v) => {
-  if (Math.abs(v) >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1000) return `$${Math.round(v / 1000).toLocaleString("en-AU")}K`;
-  return `$${Math.round(v).toLocaleString("en-AU")}`;
-};
+/* ─── FORMAT HELPERS ───
+   fmtCurrency (currency-aware) is imported from ../../lib/currency.js. The
+   component defines its own `fmt` closed over the detected/selected currency;
+   module-level leak `detail` functions below take an explicit `code` param
+   instead, since they can't see component state. */
 
 /* ─── VERTICALS ─── */
 const VERTICALS = [
@@ -127,7 +128,7 @@ const SERVICES_LEAKS = [
     source: "SPI Research 2025: services firms average 7-12% fee erosion",
     inputKey: "feeErosion", unit: "%", min: 0, max: 25, step: 1,
     calc: (i) => i.annualRevenue * (i.feeErosion / 100),
-    detail: (i) => `${i.feeErosion}% of $${(i.annualRevenue/1000000).toFixed(1)}M revenue`,
+    detail: (i, code) => `${i.feeErosion}% of ${(CURRENCIES[code] || CURRENCIES.AUD).symbol}${(i.annualRevenue/1000000).toFixed(1)}M revenue`,
   },
   { key: "invisibleCost", icon: "⏱️", label: "Invisible cost gap",
     question: "How many of the hours your team actually works never make it onto a timesheet?",
@@ -135,7 +136,7 @@ const SERVICES_LEAKS = [
     source: "SPI Research 2025: 10-15% of worked hours typically go unrecorded",
     inputKey: "invisibleCost", unit: "%", min: 0, max: 30, step: 1,
     calc: (i) => (i.staff * 1760 * (i.invisibleCost / 100)) * i.avgRate,
-    detail: (i) => `${i.invisibleCost}% of ${i.staff} staff x 1,760 hrs x $${i.avgRate}/hr`,
+    detail: (i, code) => `${i.invisibleCost}% of ${i.staff} staff x 1,760 hrs x ${(CURRENCIES[code] || CURRENCIES.AUD).symbol}${Math.round(i.avgRate)}/hr`,
   },
   { key: "invoiceDelay", icon: "🏦", label: "Invoicing delay cost",
     question: "How many days pass between finishing the work and the client getting an invoice?",
@@ -143,7 +144,7 @@ const SERVICES_LEAKS = [
     source: "Industry average: 14-24 days. Top performers: under 7 days",
     inputKey: "invoiceDelay", unit: "days", min: 1, max: 60, step: 1,
     calc: (i) => { const daily = i.annualRevenue / 12 / 22; const excess = Math.max(i.invoiceDelay - 5, 0); return daily * excess * 0.09; },
-    detail: (i) => `${Math.max(i.invoiceDelay - 5, 0)} excess days on ${fmt(i.annualRevenue / 12 / 22)}/day billing at 9% cost of capital`,
+    detail: (i, code) => `${Math.max(i.invoiceDelay - 5, 0)} excess days on ${fmtCurrency(i.annualRevenue / 12 / 22, code)}/day billing at 9% cost of capital`,
   },
   { key: "scopeCreep", icon: "📋", label: "Scope creep tax",
     question: "When scope grows on a job, how much of that extra work actually makes it onto an invoice?",
@@ -186,7 +187,7 @@ const PROJECT_LEAKS = [
     source: "Industry average: 22-30 days. Top performers: under 10 days",
     inputKey: "invoiceDelay", unit: "days", min: 1, max: 60, step: 1,
     calc: (i) => { const daily = i.annualRevenue / 12 / 22; const excess = Math.max(i.invoiceDelay - 7, 0); return daily * excess * 0.09; },
-    detail: (i) => `${Math.max(i.invoiceDelay - 7, 0)} excess days on ${fmt(i.annualRevenue / 12 / 22)}/day billing`,
+    detail: (i, code) => `${Math.max(i.invoiceDelay - 7, 0)} excess days on ${fmtCurrency(i.annualRevenue / 12 / 22, code)}/day billing`,
   },
   { key: "unattributed", icon: "🔍", label: "Unattributed costs",
     question: "How much of your spend on materials, subbies and plant never gets allocated to the right job?",
@@ -233,7 +234,7 @@ function Slider({ value, onChange, min, max, step, unit }) {
 // BandSlider now imported from shared/bands.jsx
 
 /* ─── ANIMATED COUNTER ─── */
-function Counter({ value, duration = 1500 }) {
+function Counter({ value, duration = 1500, code = "AUD" }) {
   const [display, setDisplay] = useState(0);
   const ref = useRef(null);
   useEffect(() => {
@@ -247,7 +248,7 @@ function Counter({ value, duration = 1500 }) {
     ref.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(ref.current);
   }, [value, duration]);
-  return <>{fmt(display)}</>;
+  return <>{fmtCurrency(display, code)}</>;
 }
 
 /* ─── MAIN ─── */
@@ -261,24 +262,32 @@ export default function ProfitLeakCalculator() {
   const [dir, setDir] = useState("fwd");
   const [showCalcs, setShowCalcs] = useState(false);
   const [shareState, setShareState] = useState("idle"); // idle | copied
-  const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState("idle"); // idle | sending | sent | error
   const topRef = useRef(null);
   const completionSent = useRef(false); // fire the silent completion only once
+  const [currencyCode, setCurrencyCode] = useState(() => detectCurrency());
+  const revenueBands = getRevenueBands(CURRENCIES[currencyCode].symbol);
+  const fmt = (val) => fmtCurrency(val, currencyCode);
 
   const v = VERTICALS.find((x) => x.id === verticalId);
   const leaks = v?.model === "services" ? SERVICES_LEAKS : PROJECT_LEAKS;
 
-  // Seed inputs from vertical defaults, snapping revenue + count to the nearest band
+  // Seed inputs from vertical defaults, snapping revenue + count to the nearest
+  // band. annualRevenue/avgRate/avgJobValue are AUD-anchored industry defaults,
+  // so they're FX-converted for the detected/selected currency; the prospect's
+  // own answers from here on (once they adjust a slider) are already in their
+  // own currency and never get run back through fx().
   useEffect(() => {
     if (!v) return;
     const countKey = v.model === "services" ? "staff" : "jobCount";
+    const converted = { ...v.defaults, annualRevenue: fx(v.defaults.annualRevenue, currencyCode) };
+    if (converted.avgRate != null) converted.avgRate = Math.round(fx(v.defaults.avgRate, currencyCode));
+    if (converted.avgJobValue != null) converted.avgJobValue = Math.round(fx(v.defaults.avgJobValue, currencyCode));
     setInputs({
-      ...v.defaults,
-      annualRevenue: nearestBand(REVENUE_BANDS, v.defaults.annualRevenue).value,
+      ...converted,
+      annualRevenue: nearestBand(revenueBands, converted.annualRevenue).value,
       [countKey]: nearestBand(COUNT_BANDS, v.defaults[countKey]).value,
     });
-  }, [verticalId]);
+  }, [verticalId, currencyCode]);
 
   const go = (cb) => { setAnim(true); setTimeout(() => { cb(); setTimeout(() => setAnim(false), 40); }, 220); };
   const set = (k) => (val) => setInputs((p) => ({ ...p, [k]: val }));
@@ -302,14 +311,14 @@ export default function ProfitLeakCalculator() {
     return { amount: top2.reduce((s, l) => s + l.amount * 0.5, 0), names: top2.map((l) => l.label) };
   })();
 
-  const revLabel = nearestBand(REVENUE_BANDS, inputs.annualRevenue || 0).label;
+  const revLabel = nearestBand(revenueBands, inputs.annualRevenue || 0).label;
   const countLabel = v
     ? nearestBand(COUNT_BANDS, inputs[v.model === "services" ? "staff" : "jobCount"] || 0).label + (v.model === "services" ? " staff" : " jobs/yr")
     : "";
 
   /* Plain-text summary of the result, used for share + emailed results. */
   const buildSummary = () => {
-    const revLabel = nearestBand(REVENUE_BANDS, inputs.annualRevenue || 0).label;
+    const revLabel = nearestBand(revenueBands, inputs.annualRevenue || 0).label;
     const countKey = v?.model === "services" ? "staff" : "jobCount";
     const countLabel = nearestBand(COUNT_BANDS, inputs[countKey] || 0).label + (v?.model === "services" ? " staff" : " jobs/yr");
     return [
@@ -353,29 +362,6 @@ export default function ProfitLeakCalculator() {
     wfm_results_summary: buildSummary(),
   });
 
-  /* Pre-HubSpot fallback: open the user's mail client with the summary. */
-  const mailtoFallback = () => {
-    if (typeof window === "undefined") return;
-    const subject = encodeURIComponent("Your Profit Leak Calculator results");
-    const body = encodeURIComponent(buildSummary());
-    window.location.href = `mailto:${email.trim()}?subject=${subject}&body=${body}`;
-  };
-
-  // TODO: submitResults() only captures the lead in HubSpot — it does not send an
-  // email. Actually emailing the results needs one of: a HubSpot workflow triggered
-  // off this form submission (send a marketing/transactional email with the PDF or
-  // a results token), a serverless function, or a transactional email service
-  // (e.g. SendGrid). Until that's wired up, don't claim an email was sent.
-  const sendResults = async (e) => {
-    e?.preventDefault();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!valid) { setEmailState("error"); return; }
-    setEmailState("sending");
-    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Profit Leak Calculator" });
-    if (skipped) mailtoFallback(); // HubSpot not wired yet — keep the flow working
-    setEmailState(ok || skipped ? "sent" : "error");
-  };
-
   /* Build and download the branded PDF of the results, in the browser. */
   const handleDownloadPdf = () => downloadResultsPdf({
     tool: "Profit Leak Calculator",
@@ -383,7 +369,7 @@ export default function ProfitLeakCalculator() {
     meta: `${revLabel} revenue · ${countLabel}`,
     hero: { label: "Total annual profit leakage", value: `${fmt(totalLeakage)}/yr`, sub: `${totalPct}% of revenue`, accent: "#EC5F60" },
     itemsTitle: "Where the leakage comes from",
-    items: leakResults.map((l) => ({ label: l.label, value: `${fmt(l.amount)}/yr`, note: l.detail(inputs) })),
+    items: leakResults.map((l) => ({ label: l.label, value: `${fmt(l.amount)}/yr`, note: l.detail(inputs, currencyCode) })),
     highlights: [
       { title: "A realistic starting point", body: `If you closed ${halfFix.names[0].toLowerCase()} and ${halfFix.names[1].toLowerCase()} by half, you'd recover ${fmt(halfFix.amount)}/yr — not a total overhaul.` },
       { title: "For context", body: `Firms your size typically invest $10K–$50K a year in connected job management. Your current leakage is ${roiMultiple}x that.` },
@@ -392,7 +378,7 @@ export default function ProfitLeakCalculator() {
 
   /* Frictionless completion: if identity rides in on the enriched campaign link
      (?email=…), record the completion the moment they reach results — no form
-     needed. Everyone else is captured via the email block below. */
+     needed, since every real campaign contact already has ?email= in their link. */
   useEffect(() => {
     if (screen !== "results" || completionSent.current) return;
     const urlEmail = getEmailFromUrl();
@@ -435,7 +421,10 @@ export default function ProfitLeakCalculator() {
 
       {/* HEADER */}
       <div className="wfm-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
-        <Logo />
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Logo />
+          <AllResourcesLink />
+        </div>
         {screen === "leak" && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>Leak {leakStep + 1}/{leaks.length}</span>
         )}
@@ -538,9 +527,22 @@ export default function ProfitLeakCalculator() {
             <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A2F28", margin: "0 0 6px" }}>A couple of quick numbers</h2>
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 24px" }}>Pick the ranges that fit your firm. We've started you near a typical {v.label.toLowerCase()} firm.</p>
 
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 8 }}>Annual revenue (AUD)</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#6C737F", marginBottom: 6 }}>Currency</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+              {CURRENCY_ORDER.map((code) => {
+                const sel = currencyCode === code;
+                return (
+                  <button key={code} onClick={() => setCurrencyCode(code)}
+                    style={{ padding: "6px 12px", background: sel ? "#0A2F28" : "#F9FAFB", color: sel ? "#fff" : "#384250", border: `1px solid ${sel ? "#0A2F28" : "#E5E7EB"}`, borderRadius: 100, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    {CURRENCIES[code].symbol} {code}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0A2F28", marginBottom: 8 }}>Annual revenue ({currencyCode})</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {REVENUE_BANDS.map((b) => {
+              {revenueBands.map((b) => {
                 const sel = inputs.annualRevenue === b.value;
                 return (
                   <button key={b.id} onClick={() => set("annualRevenue")(b.value)}
@@ -639,7 +641,7 @@ export default function ProfitLeakCalculator() {
               <div style={{ background: "#0A2F28", borderRadius: 14, padding: "20px 16px", textAlign: "center", marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#9DA4AE", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>This leak costs you</div>
                 <div style={{ fontFamily: HEAD, fontSize: 36, fontWeight: 800, color: "#EC5F60", lineHeight: 1, letterSpacing: "-0.02em" }}>{fmt(leakAmount)}<span style={{ fontSize: 16, fontWeight: 500, color: "#9DA4AE" }}>/yr</span></div>
-                <div style={{ fontSize: 12, color: "#6C737F", marginTop: 6 }}>{leak.detail(inputs)}</div>
+                <div style={{ fontSize: 12, color: "#6C737F", marginTop: 6 }}>{leak.detail(inputs, currencyCode)}</div>
               </div>
 
               {/* Next button */}
@@ -668,7 +670,7 @@ export default function ProfitLeakCalculator() {
             <div style={{ background: "#0A2F28", borderRadius: 16, padding: "28px 20px", textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#9DA4AE", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Total annual profit leakage</div>
               <div style={{ fontFamily: HEAD, fontSize: 46, fontWeight: 800, color: "#EC5F60", lineHeight: 1, letterSpacing: "-0.03em", marginBottom: 6 }}>
-                <Counter value={totalLeakage} />
+                <Counter value={totalLeakage} code={currencyCode} />
               </div>
               <div style={{ fontSize: 15, color: "#9DA4AE", marginBottom: 14 }}>{totalPct}% of your annual revenue</div>
               <div style={{ height: 6, background: "#1a4a40", borderRadius: 3, overflow: "hidden" }}>
@@ -702,7 +704,7 @@ export default function ProfitLeakCalculator() {
                     <div style={{ height: 8, background: "#E5E7EB", borderRadius: 4, overflow: "hidden" }}>
                       <div style={{ height: "100%", background: "#EC5F60", borderRadius: 4, width: `${barW}%`, transition: "width 0.8s ease" }} />
                     </div>
-                    <div style={{ fontSize: 11, color: "#6C737F", marginTop: 4 }}>{l.detail(inputs)}</div>
+                    <div style={{ fontSize: 11, color: "#6C737F", marginTop: 4 }}>{l.detail(inputs, currencyCode)}</div>
                   </div>
                 );
               })}
@@ -734,7 +736,7 @@ export default function ProfitLeakCalculator() {
               <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderTop: "none", borderRadius: "0 0 12px 12px", padding: "14px 16px", marginBottom: 24 }}>
                 {leakResults.map((l) => (
                   <div key={l.key} style={{ padding: "8px 0", borderBottom: "1px solid #E5E7EB", fontSize: 12, color: "#384250", lineHeight: 1.5 }}>
-                    <strong>{l.label}:</strong> {l.detail(inputs)} = {fmt(l.amount)}/yr
+                    <strong>{l.label}:</strong> {l.detail(inputs, currencyCode)} = {fmt(l.amount)}/yr
                   </div>
                 ))}
                 <div style={{ padding: "8px 0", fontSize: 12, color: "#6C737F", lineHeight: 1.5 }}>
@@ -754,11 +756,11 @@ export default function ProfitLeakCalculator() {
               </button>
             </div>
 
-            {/* Share + email results */}
+            {/* Share + download results */}
             <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#713b12", margin: "0 0 4px", textAlign: "center" }}>Think this number is too high?</p>
               <p style={{ fontSize: 13, color: "#85490e", margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" }}>
-                Send it to your CFO and ask them, or email yourself the full breakdown to dig into later.
+                Send it to your CFO and ask them, or download the full breakdown to dig into later.
               </p>
 
               {/* Share */}
@@ -772,36 +774,6 @@ export default function ProfitLeakCalculator() {
                 style={{ width: "100%", padding: "12px", marginTop: 8, background: "#fff", color: "#713b12", border: "1px solid #ECD997", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 ⬇ Download results as PDF
               </button>
-
-              {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                <span style={{ fontSize: 12, color: "#85490e", fontWeight: 600 }}>or email them to me</span>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-              </div>
-
-              {/* Email results */}
-              {emailState === "sent" ? (
-                <div style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#087443" }}>
-                  ✓ Got it — we'll send your copy shortly. In the meantime, the PDF download above has it all.
-                </div>
-              ) : (
-                <form onSubmit={sendResults} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <input type="email" value={email} placeholder="you@yourfirm.com.au"
-                    onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${emailState === "error" ? "#EC5F60" : "#ECD997"}`, fontSize: 14, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box" }} />
-                  <button type="submit" disabled={emailState === "sending"}
-                    style={{ width: "100%", padding: "12px", background: "#63DB94", color: "#0A2F28", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: emailState === "sending" ? "default" : "pointer", fontFamily: "inherit", opacity: emailState === "sending" ? 0.7 : 1 }}>
-                    {emailState === "sending" ? "Sending…" : "Email me my results"}
-                  </button>
-                  {emailState === "error" && (
-                    <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter a valid email address.</span>
-                  )}
-                  <span style={{ fontSize: 11.5, color: "#85490e", textAlign: "center", lineHeight: 1.4 }}>
-                    We'll only use this to send your results and follow up about WorkflowMAX.
-                  </span>
-                </form>
-              )}
             </div>
 
             {/* Bottom booking CTA (optional, high-intent path) */}
@@ -816,7 +788,7 @@ export default function ProfitLeakCalculator() {
             </div>
 
             {/* Restart */}
-            <button onClick={() => { setAdjusting({}); setLeakStep(0); setVerticalId(detectVertical().id); setShareState("idle"); setEmail(""); setEmailState("idle"); completionSent.current = false; setDir("back"); go(() => setScreen("intro")); }}
+            <button onClick={() => { setAdjusting({}); setLeakStep(0); setVerticalId(detectVertical().id); setShareState("idle"); completionSent.current = false; setDir("back"); go(() => setScreen("intro")); }}
               style={{ width: "100%", padding: "12px", background: "none", border: "1px solid #E5E7EB", borderRadius: 100, fontSize: 14, fontWeight: 500, color: "#6C737F", cursor: "pointer", fontFamily: "inherit", marginTop: 16 }}>
               Recalculate with different inputs
             </button>

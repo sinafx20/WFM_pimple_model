@@ -3,6 +3,7 @@
 // + white content pane come from src/styles/shell.css.
 
 import FirmBadge from "./FirmBadge.jsx";
+import AllResourcesLink from "./AllResourcesLink.jsx";
 
 const Logo = () => (
   <svg width="120" height="36" viewBox="0 0 134 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -33,6 +34,9 @@ export default function BrandSidebar({ title, blurb, step, progress = 0, bullets
   return (
     <aside className="wfm-brand">
       <div className="wfm-brand-inner">
+        <div style={{ marginBottom: 20 }}>
+          <AllResourcesLink variant="dark" />
+        </div>
         <div style={{ background: "#fff", borderRadius: 12, padding: "9px 14px", display: "inline-flex", alignSelf: "flex-start", marginBottom: 34 }}>
           <Logo />
         </div>

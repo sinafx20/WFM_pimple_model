@@ -1,5 +1,7 @@
+import { useRef, useState } from "react";
 import CredibilityStrip from "../shared/CredibilityStrip.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
+import { getFirm } from "../../lib/personalize.js";
 
 /* ─── WFM Logo ─── */
 const WFMLogo = () => (
@@ -85,11 +87,26 @@ const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
 };
 
+/* Resolve the personalised video, same rule as intro-video/IntroVideo.jsx:
+   Clay drops a HeyGen share link on the contact, the campaign blob carries it
+   as ?video=… (a direct .mp4 also works). HeyGen share pages must be iframed
+   via their /embeds/ URL, not /share/. */
+const resolveVideo = () => {
+  if (typeof window === "undefined") return { kind: "none" };
+  const q = new URLSearchParams(window.location.search);
+  const raw = (q.get("video") || q.get("video_url") || q.get("heygen") || "").trim();
+  const thumb = (q.get("thumb") || q.get("thumbnail") || "").trim();
+  if (!raw) return { kind: "none" };
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(raw)) return { kind: "file", src: raw, thumb };
+  const src = /heygen\.com\/share\//i.test(raw) ? raw.replace("/share/", "/embeds/") : raw;
+  return { kind: "iframe", src, thumb };
+};
+
 /* Carry the current ?industry= + firm identity (?company=, ?logo=, ?firstname=)
    through to the linked tool so personalisation persists across the journey.
    Resolve against the full current URL (not just the origin) so the deploy
    path/mount (e.g. /app) is preserved. */
-const PERSONALISATION_PARAMS = ["company", "logo", "domain", "firstname", "email"];
+const PERSONALISATION_PARAMS = ["company", "logo", "domain", "firstname", "email", "country", "currency"];
 const withIndustry = (url, industryId) => {
   if (!url || url === "#") return url;
   try {
@@ -133,6 +150,18 @@ export default function ResourceHub() {
   const industryId = typeof window !== "undefined"
     ? (new URLSearchParams(window.location.search).get("industry") || new URLSearchParams(window.location.search).get("vertical") || "")
     : "";
+  const { firstName, company } = getFirm();
+  const video = resolveVideo();
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  const headline = firstName && company
+    ? `Hey ${firstName}, here's your personal video and the resources we've built for you and ${company}`
+    : firstName
+    ? `Hey ${firstName}, here's your personal video and the resources we've built for you`
+    : company
+    ? `Here's your personal video and the resources we've built for ${company}`
+    : "Here's your personal video and the resources we've built for you";
 
   const trialBtn = {
     padding: "14px 28px", background: "#63DB94", color: "#0A2F28", border: "none",
@@ -206,12 +235,56 @@ export default function ResourceHub() {
             <span style={{ fontSize: 12, fontWeight: 600, color: "#087443" }}>Your toolkit</span>
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0A2F28", lineHeight: 1.2, margin: "0 0 10px" }}>
-            Everything in one place
+            {headline}
           </h1>
           <p style={{ fontSize: 15, color: "#384250", lineHeight: 1.6, margin: 0 }}>
             Over this series you've explored how {v.label.toLowerCase()} firms find and fix profit leaks. Here's the full set — revisit anything, any time.
           </p>
         </div>
+
+        {/* Personal video */}
+        {video.kind !== "none" && (
+          <div style={{
+            position: "relative", width: "100%", paddingBottom: "56.25%",
+            borderRadius: 14, overflow: "hidden", marginBottom: 24,
+            background: "#0A2F28", boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
+          }}>
+            {video.kind === "file" && (
+              <>
+                <video
+                  ref={videoRef}
+                  src={video.src}
+                  controls={playing || !video.thumb}
+                  playsInline
+                  preload="metadata"
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                {video.thumb && !playing && (
+                  <button
+                    onClick={() => { setPlaying(true); videoRef.current?.play(); }}
+                    aria-label="Play video"
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", padding: 0, border: "none", background: "transparent", cursor: "pointer" }}
+                  >
+                    <img
+                      src={video.thumb}
+                      alt={`A personal video for ${firstName || company || "you"}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </button>
+                )}
+              </>
+            )}
+            {video.kind === "iframe" && (
+              <iframe
+                src={video.src}
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                allowFullScreen
+                title="A personal message from WorkflowMAX"
+              />
+            )}
+          </div>
+        )}
 
         {/* Start-here nudge */}
         <button

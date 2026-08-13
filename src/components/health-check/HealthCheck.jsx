@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { downloadResultsPdf } from "../../lib/resultsPdf";
 import { submitResults, getEmailFromUrl } from "../../lib/hubspot";
 import FirmBadge from "../shared/FirmBadge.jsx";
+import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
 import { getFirm } from "../../lib/personalize.js";
 
@@ -379,8 +380,6 @@ export default function WorkflowHealthCheck() {
   const [anim, setAnim] = useState(false);
   const [dir, setDir] = useState("fwd");
   const [shareState, setShareState] = useState("idle"); // idle | copied
-  const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState("idle"); // idle | sending | sent | error
   const topRef = useRef(null);
   const completionSent = useRef(false); // fire the silent completion only once
 
@@ -421,7 +420,7 @@ export default function WorkflowHealthCheck() {
 
   const restart = () => {
     setAnswers({}); setCurrentQ(0); setVertical(detectVertical()); setFirmSize(null);
-    setShareState("idle"); setEmail(""); setEmailState("idle"); completionSent.current = false;
+    setShareState("idle"); completionSent.current = false;
     setDir("back"); go(() => setScreen("intro"));
   };
 
@@ -475,29 +474,6 @@ export default function WorkflowHealthCheck() {
     wfm_biggest_issue: biggestGap?.theme,
     wfm_results_summary: buildSummary(),
   });
-
-  /* Pre-HubSpot fallback: open the user's mail client with the summary. */
-  const mailtoFallback = () => {
-    if (typeof window === "undefined") return;
-    const subject = encodeURIComponent("Your Workflow Health Check results");
-    const body = encodeURIComponent(buildSummary());
-    window.location.href = `mailto:${email.trim()}?subject=${subject}&body=${body}`;
-  };
-
-  // TODO: submitResults() only captures the lead in HubSpot — it does not send an
-  // email. Actually emailing the results needs one of: a HubSpot workflow triggered
-  // off this form submission (send a marketing/transactional email with the PDF or
-  // a results token), a serverless function, or a transactional email service
-  // (e.g. SendGrid). Until that's wired up, don't claim an email was sent.
-  const sendResults = async (e) => {
-    e?.preventDefault();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    if (!valid) { setEmailState("error"); return; }
-    setEmailState("sending");
-    const { ok, skipped } = await submitResults({ email: email.trim(), fields: hubspotFields(), pageName: "Workflow Health Check" });
-    if (skipped) mailtoFallback(); // HubSpot not wired yet — keep the flow working
-    setEmailState(ok || skipped ? "sent" : "error");
-  };
 
   /* Build and download the branded PDF of the results, in the browser. */
   const handleDownloadPdf = () => downloadResultsPdf({
@@ -576,6 +552,9 @@ export default function WorkflowHealthCheck() {
         {/* ── BRAND SIDEBAR (desktop only) ── */}
         <aside className="hc-brand">
           <div className="hc-brand-inner">
+            <div style={{ marginBottom: 20 }}>
+              <AllResourcesLink variant="dark" />
+            </div>
             <div style={{ background: "#fff", borderRadius: 12, padding: "9px 14px", display: "inline-flex", alignSelf: "flex-start", marginBottom: 34 }}>
               <Logo />
             </div>
@@ -620,7 +599,10 @@ export default function WorkflowHealthCheck() {
 
       {/* ── HEADER (mobile) ── */}
       <div className="hc-hide-desktop" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
-        <Logo />
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Logo />
+          <AllResourcesLink />
+        </div>
         {screen === "question" && (
           <span style={{ fontSize: 13, color: "#6C737F", fontWeight: 500 }}>{currentQ + 1}/{QUESTIONS.length}</span>
         )}
@@ -861,11 +843,11 @@ export default function WorkflowHealthCheck() {
               </button>
             </div>
 
-            {/* Share + email results */}
+            {/* Share + download results */}
             <div style={{ background: "#fff8e4", border: "1px solid #ECD99740", borderRadius: 14, padding: "18px 16px", marginTop: 24 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#713b12", margin: "0 0 4px", textAlign: "center" }}>Worth comparing notes?</p>
               <p style={{ fontSize: 13, color: "#85490e", margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" }}>
-                Send this to your COO or ops lead, or email yourself the full results to revisit later.
+                Send this to your COO or ops lead, or download the full results to revisit later.
               </p>
 
               {/* Share */}
@@ -880,35 +862,6 @@ export default function WorkflowHealthCheck() {
                 ⬇ Download results as PDF
               </button>
 
-              {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-                <span style={{ fontSize: 12, color: "#85490e", fontWeight: 600 }}>or email them to me</span>
-                <div style={{ flex: 1, height: 1, background: "#ECD99780" }} />
-              </div>
-
-              {/* Email results */}
-              {emailState === "sent" ? (
-                <div style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#087443" }}>
-                  ✓ Got it — we'll send your copy shortly. In the meantime, the PDF download above has it all.
-                </div>
-              ) : (
-                <form onSubmit={sendResults} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <input type="email" value={email} placeholder="you@yourfirm.com.au"
-                    onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1px solid ${emailState === "error" ? "#EC5F60" : "#ECD997"}`, fontSize: 14, fontFamily: "inherit", outline: "none", background: "#fff", color: "#0A2F28", boxSizing: "border-box" }} />
-                  <button type="submit" disabled={emailState === "sending"}
-                    style={{ width: "100%", padding: "12px", background: "#63DB94", color: "#0A2F28", border: "none", borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: emailState === "sending" ? "default" : "pointer", fontFamily: "inherit", opacity: emailState === "sending" ? 0.7 : 1 }}>
-                    {emailState === "sending" ? "Sending…" : "Email me my results"}
-                  </button>
-                  {emailState === "error" && (
-                    <span style={{ fontSize: 12, color: "#b42318", textAlign: "center" }}>Please enter a valid email address.</span>
-                  )}
-                  <span style={{ fontSize: 11.5, color: "#85490e", textAlign: "center", lineHeight: 1.4 }}>
-                    We'll only use this to send your results and follow up about WorkflowMAX.
-                  </span>
-                </form>
-              )}
             </div>
 
             {/* Personalised bridge into the booking CTA */}
