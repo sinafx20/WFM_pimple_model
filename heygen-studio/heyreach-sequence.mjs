@@ -1,6 +1,7 @@
 // Writes the Volcano LinkedIn sequence to a HeyReach campaign via UpdateSequence.
 //   node heyreach-sequence.mjs [campaignId]        -> full sequence (default 495367 "Volcano LI - Sina")
 //   node heyreach-sequence.mjs [campaignId] test   -> one-message-with-video test (default 495416)
+//   node heyreach-sequence.mjs [campaignId] compact [senderName] -> compact 5-day test (default 497484, Sina)
 //
 // Connection-aware: the root is CHECK_IS_CONNECTION, so leads you are ALREADY
 // connected with (Kim, Ryan, ...) skip the connection request and get the DM arc
@@ -24,10 +25,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const K = fs.readFileSync(path.join(__dirname, '.env'), 'utf8').match(/^HEYREACH_API_KEY=(.+)$/m)?.[1]?.trim();
-if (!K) { console.error('no HEYREACH_API_KEY in .env'); process.exit(1); }
-const mode = ['test', 'compact'].includes(process.argv[3]) ? process.argv[3] : 'full';
-const campaignId = +(process.argv[2] || (mode === 'test' ? 495416 : 495367));
 
 const END = { nodeType: 'END', actionDelay: 3, actionDelayUnit: 'HOUR' };
 
@@ -69,6 +66,7 @@ const inmail = () => ({
 });
 
 // FULL: connection-aware. connected -> DM arc; else request -> accepted DM arc / not -> InMail if open.
+// Legacy/unused by the studio (no campaign currently runs this) — kept for reference.
 const fullSequence = {
   nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'volcano-conn-gate',
   conditionalNode: connectedArc(), // already connected -> message directly
@@ -95,85 +93,102 @@ const testSequence = {
   unconditionalNode: END,
 };
 
-// COMPACT: the 5-day test overlay — 3 DMs that NUDGE TO THE EMAIL series and
-// share the built resources. Connection-aware; warm audience is mostly already
-// connected so they get the DMs directly.
-// 6 short DMs across ~5 days, one per touchpoint tool, each nudging to the email
-// series. Chained newest-last via a small builder so the tree stays readable.
+// COMPACT: the 5-day known-contacts test overlay — nudges to the email series and
+// shares the built resources. Connection-aware; warm audience is mostly already
+// connected so they get the DMs directly. Message TEXT lives in copy-heyreach-
+// test.json (read fresh each call, same reasoning as heyreach-real-sequences.mjs —
+// so the Campaign Copy editor's saves take effect without a server restart). This
+// is a single shared copy (not per-vertical): the compact sequence is generic,
+// only nudging to whichever email series each contact is already getting.
+const COPY_TEST_PATH = path.join(__dirname, 'copy-heyreach-test.json');
+export function loadCompactCopy() {
+  return JSON.parse(fs.readFileSync(COPY_TEST_PATH, 'utf8'));
+}
+const withSig = (s, senderName) => (s || '').replace(/\{signature\}/g, senderName);
+
 const DM = (ref, delay, unit, msg, fb, next) => ({
   nodeType: 'MESSAGE', actionDelay: delay, actionDelayUnit: unit, externalReference: ref,
   payload: { messages: [msg], fallbackMessage: fb }, unconditionalNode: next,
 });
-const compactDMs = () =>
-  DM('compact-dm1-intro', 3, 'HOUR',
-    '{FIRST_NAME}, just sent you an email with a short personal video on where firms like {company} usually leak margin. Would genuinely value your honest take: {intro_link}',
-    'Just sent you an email with a short personal video on where firms usually leak margin. Would value your honest take.',
-  DM('compact-dm2-healthcheck', 1, 'DAY',
-    'Following up on the email series, {FIRST_NAME}. The 2-minute Workflow Health Check shows where {company} sits today: {health_check_link}',
-    'Following up on the email series. The 2-minute Workflow Health Check is worth a look.',
-  DM('compact-dm3-calculator', 1, 'DAY',
-    'This one is worth two minutes, {FIRST_NAME}: the profit-leak calculator puts a real number on the time that never gets billed at {company}: {calculator_link}',
-    'The profit-leak calculator puts a real number on the time that never gets billed. Worth two minutes.',
-  DM('compact-dm4-benchmark', 1, 'DAY',
-    'Curious how {company} compares to similar firms, {FIRST_NAME}? The benchmark gives you an instant read: {benchmark_link}',
-    'Curious how your firm compares to similar ones? The benchmark gives an instant read.',
-  DM('compact-dm5-demo', 1, 'DAY',
-    'If you would rather see the fix than read about it, {FIRST_NAME}, here is the 6-minute walkthrough: {demo_link}',
-    'If you would rather see the fix than read about it, here is the 6-minute walkthrough.',
-  DM('compact-dm6-hub', 3, 'HOUR',
-    'Last one, {FIRST_NAME}. Everything from this week in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
-    'Last one. Everything from this week in one place. Any feedback on the whole set would mean a lot.',
-  END))))));
+// DM3 onward is shared between the two entry points below: someone already
+// connected gets the video as DM1 (they've never seen it); someone who just
+// accepted the connection request already got the video in the CR note itself,
+// so their first message acknowledges that instead of repeating it.
+function compactTailFromCalculator(c) {
+  return DM('compact-dm3-calculator', 1, 'DAY', c.dm3.message, c.dm3.fallback,
+  DM('compact-dm4-benchmark', 1, 'DAY', c.dm4.message, c.dm4.fallback,
+  DM('compact-dm5-demo', 1, 'DAY', c.dm5.message, c.dm5.fallback,
+  DM('compact-dm6-hub', 3, 'HOUR', c.dm6.message, c.dm6.fallback,
+  END))));
+}
+// Already connected (no CR was ever sent) -> DM1 delivers the video.
+function compactDMs(c) {
+  return DM('compact-dm1-intro', 3, 'HOUR', c.dm1.message, c.dm1.fallback,
+  DM('compact-dm2-healthcheck', 1, 'DAY', c.dm2.message, c.dm2.fallback,
+  compactTailFromCalculator(c)));
+}
+// CR accepted -> the video already went out in the connection-request note, so
+// this opens with an acknowledgment + the health check instead of repeating it.
+function compactAcceptedDMs(c) {
+  return DM('compact-dm2-accept-healthcheck', 3, 'HOUR', c.dm2_accept.message, c.dm2_accept.fallback,
+  compactTailFromCalculator(c));
+}
 // InMail nudge chain for non-connected who don't accept. Sales Nav lets us send
 // follow-up InMails without a reply (1 credit each; 50/month per seat). 3 InMails
 // mirror the DM arc condensed. Each message + its token-free fallback are objects.
+// {signature} was hardcoded "Sina" until 2026-07-10 — a real bug once this same
+// sequence started getting pushed to Denzel's test campaign (500764) too.
 const INMAIL = (ref, delay, unit, subject, message, fbSubject, fbMessage, next) => ({
   nodeType: 'INMAIL', actionDelay: delay, actionDelayUnit: unit, externalReference: ref,
   payload: { messages: [{ subject, message }], fallbackMessage: { subject: fbSubject, message: fbMessage } },
   unconditionalNode: next,
 });
-const compactInmailChain = () =>
-  INMAIL('compact-inmail1-video', 2, 'DAY',
-    'a 2-minute video for {company}',
-    'Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I recorded a 2-minute video on where firms like {company} usually leak margin, and I have sent it to your inbox too. Here it is if easier: {intro_link}\n\nThere is a short series of tools behind it. Would genuinely value your feedback this week.\n\nSina',
-    'a 2-minute video from WorkflowMAX',
-    'Hi, we are not connected yet so I will keep this short. I recorded a 2-minute video on where professional services firms usually leak margin, and sent it to your inbox too. Would genuinely value your feedback this week.\n\nSina',
-  INMAIL('compact-inmail2-tools', 2, 'DAY',
-    'the number most {company} cannot name',
-    'Following up, {FIRST_NAME}. Two quick tools from the series: a 2-minute health check on where {company} sits ({health_check_link}) and a profit-leak calculator that puts a number on unbilled time ({calculator_link}). Curious what you make of them.',
-    'the number most firms cannot name',
-    'Following up. Two quick tools worth a look: a 2-minute health check and a profit-leak calculator that puts a number on unbilled time. Curious what you make of them.',
-  INMAIL('compact-inmail3-hub', 2, 'DAY',
-    'everything in one place for {company}',
-    'Last one, {FIRST_NAME}. Everything from this week (video, tools, benchmark, demo) in one place: {resource_hub_link}. Any feedback on the whole set would mean a lot.',
-    'everything in one place',
-    'Last one. Everything from this week (video, tools, benchmark, demo) in one place. Any feedback on the whole set would mean a lot.',
+function compactInmailChain(c, senderName) {
+  return INMAIL('compact-inmail1-video', 2, 'DAY', c.inmail1.subject, withSig(c.inmail1.message, senderName), c.inmail1.fallbackSubject, withSig(c.inmail1.fallbackMessage, senderName),
+  INMAIL('compact-inmail2-tools', 2, 'DAY', c.inmail2.subject, withSig(c.inmail2.message, senderName), c.inmail2.fallbackSubject, withSig(c.inmail2.fallbackMessage, senderName),
+  INMAIL('compact-inmail3-hub', 2, 'DAY', c.inmail3.subject, withSig(c.inmail3.message, senderName), c.inmail3.fallbackSubject, withSig(c.inmail3.fallbackMessage, senderName),
   END)));
-const compactSequence = {
-  nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
-  conditionalNode: compactDMs(), // already connected -> the 6-DM arc directly
-  // NOT connected -> send a connection request. If accepted, they get the full
-  // DM arc; if not accepted within 2 days, one InMail (Sales Nav) then stop.
-  // Connection status is decided at each branching node, so a very late accept
-  // (after the InMail) won't backfill the DMs — that is expected.
-  unconditionalNode: {
-    nodeType: 'CONNECTION_REQUEST', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-cr',
-    payload: {
-      messages: ['Hi {FIRST_NAME}, sending you a few bits from WorkflowMAX this week and would genuinely value your feedback, thought it was worth connecting first.'],
-      fallbackMessage: 'Hi, sending a few bits from WorkflowMAX this week and would genuinely value your feedback, thought it was worth connecting first.',
-      toBeWithdrawnAfterDays: 7,
+}
+export function buildCompactSequence(senderName, copy = null) {
+  const c = copy || loadCompactCopy();
+  return {
+    nodeType: 'CHECK_IS_CONNECTION', actionDelay: 0, actionDelayUnit: 'DAY', externalReference: 'compact-conn-gate',
+    conditionalNode: compactDMs(c), // already connected -> the 6-DM arc directly
+    // NOT connected -> send a connection request carrying the video (acts as DM1).
+    // If accepted, they get an acknowledgment + health check (not a repeat of the
+    // video); if not accepted within 2 days, one InMail (Sales Nav) then stop.
+    // Connection status is decided at each branching node, so a very late accept
+    // (after the InMail) won't backfill the DMs — that is expected.
+    unconditionalNode: {
+      nodeType: 'CONNECTION_REQUEST', actionDelay: 3, actionDelayUnit: 'HOUR', externalReference: 'compact-cr',
+      payload: {
+        messages: [c.cr.message],
+        fallbackMessage: c.cr.fallback,
+        toBeWithdrawnAfterDays: 7,
+      },
+      conditionalNode: compactAcceptedDMs(c), // accepted -> ack + health check (video already sent via CR note)
+      unconditionalNode: compactInmailChain(c, senderName), // not accepted -> 3-InMail nudge chain
     },
-    conditionalNode: compactDMs(), // accepted -> full 6-DM arc
-    unconditionalNode: compactInmailChain(), // not accepted -> 3-InMail nudge chain
-  },
-};
+  };
+}
 
-const sequence = mode === 'test' ? testSequence : mode === 'compact' ? compactSequence : fullSequence;
+// CLI entry point — only runs when this file is executed directly (`node
+// heyreach-sequence.mjs ...`), NOT when imported for its exports (server.mjs
+// imports buildCompactSequence/loadCompactCopy for the Campaign Copy editor, and
+// must not trigger a live push just by importing).
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`)) {
+  const K = fs.readFileSync(path.join(__dirname, '.env'), 'utf8').match(/^HEYREACH_API_KEY=(.+)$/m)?.[1]?.trim();
+  if (!K) { console.error('no HEYREACH_API_KEY in .env'); process.exit(1); }
+  const mode = ['test', 'compact'].includes(process.argv[3]) ? process.argv[3] : 'full';
+  const campaignId = +(process.argv[2] || (mode === 'test' ? 495416 : mode === 'compact' ? 497484 : 495367));
+  const senderName = process.argv[4] || 'Sina';
+  const sequence = mode === 'test' ? testSequence : mode === 'compact' ? buildCompactSequence(senderName) : fullSequence;
 
-const r = await fetch('https://api.heyreach.io/api/public/campaign/UpdateSequence', {
-  method: 'POST', headers: { 'X-API-KEY': K, 'content-type': 'application/json' },
-  body: JSON.stringify({ campaignId, sequence }),
-});
-console.log(`UpdateSequence (${mode}, campaign ${campaignId}):`, r.status, (await r.text()).slice(0, 400));
-const g = await fetch(`https://api.heyreach.io/api/public/campaign/GetCampaignSequence?campaignId=${campaignId}`, { headers: { 'X-API-KEY': K } });
-console.log('GetCampaignSequence:', g.status, (await g.text()).slice(0, 300));
+  const r = await fetch('https://api.heyreach.io/api/public/campaign/UpdateSequence', {
+    method: 'POST', headers: { 'X-API-KEY': K, 'content-type': 'application/json' },
+    body: JSON.stringify({ campaignId, sequence }),
+  });
+  console.log(`UpdateSequence (${mode}, campaign ${campaignId}):`, r.status, (await r.text()).slice(0, 400));
+  const g = await fetch(`https://api.heyreach.io/api/public/campaign/GetCampaignSequence?campaignId=${campaignId}`, { headers: { 'X-API-KEY': K } });
+  console.log('GetCampaignSequence:', g.status, (await g.text()).slice(0, 300));
+}

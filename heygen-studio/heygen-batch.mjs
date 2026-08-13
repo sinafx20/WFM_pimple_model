@@ -15,7 +15,7 @@ const HEYGEN = get('HEYGEN_API_KEY'), TOKEN = get('HUBSPOT_TOKEN');
 // ---- config ----
 const LIST_ID = 3698;                                         // "Volcano Model MVP_all targets"
 const AVATAR_ID = 'b8f33c1ab4cd48dbb356d9d38871703a';         // Sina - new avatar
-const VOICE_ID  = '2ef6edfd75494239bc22093fb671b7b3';         // new voice with mic
+const VOICE_ID  = 'f8bdb54f8f50454fbaa633c51c2b9609';         // sina voice with mic 2
 const DIM = { width: 1280, height: 720 };
 const VIDEO_URL_PROP = 'volcano_heygen_video_url';
 const PROP_GROUP = 'wfm_content_tools';

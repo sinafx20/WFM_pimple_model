@@ -86,6 +86,7 @@
 <body>
 <header>
   <b>Workflow<span>MAX</span></b> <span class="sub">Volcano GTM Studio</span>
+  <button id="openCopyEditor" class="ghost" style="margin-left:14px;background:transparent;border-color:#ffffff44;color:#fff">&#128221; Campaign Copy</button>
   <div class="grow"></div>
   <span class="sub">generate &rarr; dispatch &rarr; track, one pass per list</span>
 </header>
@@ -137,11 +138,15 @@
 <div id="scriptModal" class="modal" style="display:none">
   <div class="modalbox">
     <h2>Script templates <span class="muted" style="font-weight:400">&mdash; edits apply to every contact &amp; the batch</span></h2>
-    <div class="muted" style="margin-bottom:10px">Tokens filled per contact: <b>{firstName}</b> · <b>{company}</b> · <b>{industry}</b> · <b>{presenter}</b>. Two templates, chosen by model.</div>
-    <label style="font-size:12px;font-weight:700;color:#6b7a75">Services &mdash; architecture / engineering / consulting / creative</label>
+    <div class="muted" style="margin-bottom:10px">Tokens filled per contact: <b>{firstName}</b> · <b>{company}</b> · <b>{industry}</b> · <b>{presenter}</b>. Construction and engineering have their own template; everyone else falls back to Services or Project by model.</div>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Services (fallback) &mdash; architecture / consulting / creative</label>
     <textarea id="tplServices"></textarea>
-    <label style="font-size:12px;font-weight:700;color:#6b7a75">Project &mdash; construction / civil</label>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Project (fallback) &mdash; civil</label>
     <textarea id="tplProject"></textarea>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Construction</label>
+    <textarea id="tplConstruction"></textarea>
+    <label style="font-size:12px;font-weight:700;color:#6b7a75">Engineering</label>
+    <textarea id="tplEngineering"></textarea>
     <div class="modalbtns">
       <button id="tplReset" class="ghost">Reset to default</button>
       <div class="grow"></div>
@@ -175,27 +180,54 @@
       <div class="grow"></div>
       <button id="pushGo" class="primary" style="padding:9px 16px">Push</button>
     </div>
+    <div class="muted" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px"><a href="#" id="reviewCopyLink">Review copy for these campaigns &rarr;</a></div>
+  </div>
+</div>
+
+<div id="copyModal" class="modal" style="display:none">
+  <div class="modalbox" style="max-width:1180px">
+    <h2>Campaign Copy <span class="muted" style="font-weight:400">&mdash; edit once per vertical, saves push to the live campaigns</span></h2>
+    <div id="copyVerticalTabs" style="display:flex;gap:6px;margin:8px 0 14px;flex-wrap:wrap"></div>
+    <div id="copyStatus" class="muted" style="margin-bottom:10px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-height:60vh;overflow:auto;padding-right:4px">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><h2 style="margin:0">HeyReach (LinkedIn)</h2><div class="grow"></div><button id="hrCopySave" class="primary" style="padding:7px 12px">Save &amp; push live</button></div>
+        <div id="hrCopyFields"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><h2 style="margin:0">Instantly (Email)</h2><div class="grow"></div><button id="instCopySave" class="primary" style="padding:7px 12px">Save &amp; push live</button></div>
+        <div id="instCopyFields"></div>
+      </div>
+    </div>
+    <div id="copySaveResult" class="muted" style="margin-top:10px"></div>
+    <div class="modalbtns"><div class="grow"></div><button id="copyClose" class="ghost">Close</button></div>
   </div>
 </div>
 
 <script>
 const PRESETS = {
-  sina:   { name:'Sina',   fullName:'Sina Zarei',     title:'Account Executive', booking:'https://meetings.hubspot.com/szarei',          avatar:'b8f33c1ab4cd48dbb356d9d38871703a', voice:'2ef6edfd75494239bc22093fb671b7b3' },
+  sina:   { name:'Sina',   fullName:'Sina Zarei',     title:'Account Executive', booking:'https://meetings.hubspot.com/szarei',          avatar:'b8f33c1ab4cd48dbb356d9d38871703a', voice:'f8bdb54f8f50454fbaa633c51c2b9609' },
   denzel: { name:'Denzel', fullName:'Denzel Kereama', title:'Account Executive', booking:'https://meetings.hubspot.com/denzel-kereama', avatar:'b8aebde6a4664874ac1b014ea17e4635', voice:'13cb23d75356448b828aed75430c1df0' },
 };
 const MAP = { architecture:['services','architecture'],engineering:['services','engineering'],consulting:['services','consulting'],creative:['services','creative'],construction:['project','construction'],civil:['project','civil'] };
-const classify = v => { const k=(v||'').toLowerCase(); for(const x in MAP) if(k.includes(x)) return {model:MAP[x][0],word:MAP[x][1]}; return {model:'services',word:'professional services'}; };
+const classify = v => { const k=(v||'').toLowerCase(); for(const x in MAP) if(k.includes(x)) return {model:MAP[x][0],word:MAP[x][1],key:x}; return {model:'services',word:'professional services',key:''}; };
 
 // Editable master script templates (tokens: {firstName} {company} {industry} {presenter}).
+// Looked up by vertical key first (construction/engineering get their own), falling back
+// to the model-level template (services/project) for architecture/consulting/creative/civil.
 // Saved to localStorage so edits apply to EVERY contact + the batch "Generate".
 const DEFAULT_TEMPLATES = {
-  services: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX, so I'll keep this quick. Here's something most {industry} MDs underestimate. The biggest drain on margin usually isn't pricing or headcount, it's the time that gets worked but never billed. It might be a few unbilled minutes on each job, or scope that quietly creeps past the fee. It never shows up on a report, which is exactly why it compounds. For a firm {company}'s size, that's often tens of thousands a year, hiding in plain sight. The point isn't to guess, it's to see your number. So I built you a 2-minute Workflow Health Check, just below this video. It shows where {company} sits today, and the single gap costing you the most. Even if we never work together, you'll walk away knowing that number. Worth a look?`,
+  services: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX. I record a few of these each week for {industry} firms, and wanted to send one to {company}, there's a pattern I keep seeing with firms your size. The biggest drain on the profitability of each project isn't typically pricing or staffing costs, it's the time that gets worked but never billed. A few unbilled minutes on each job, or scope that quietly creeps past the fee. It never shows up on a report, which is exactly why it compounds. For a firm {company}'s size, that's often tens of thousands a year, hiding in plain sight. But look, you might have all of this figured out already, so instead of presuming to tell you where your margin gaps are coming from, I built you a 2-minute Workflow Health Check, just below this video. A few reflective questions on how {company} runs today, and what comes back isn't just a score, it's the gap costing you the most, and what to do about it. Even if WorkflowMAX is never the right fit for you, you'll walk away with a clearer read on where to focus. Go ahead and click it below, it only takes two minutes.`,
   project: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX, so I'll keep this quick. Here's what most {industry} MDs miss. The margin you lose usually isn't on the quote, it's between the quote and the final number. It's the variations that got done but never invoiced, or the costs that crept in before anyone flagged them. On one job it's noise, but across a year it's real money, and it stays invisible until the job closes out. The fix starts with seeing it. So I built you a 2-minute Workflow Health Check, just below this video. It shows where {company} sits, and the biggest gap between the margin you quote and the margin you actually deliver. Even if we never work together, you'll walk away knowing that number. Worth a look?`,
+  construction: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX. I record a few of these each week for {industry} firms, and wanted to send one to {company}, there's a pattern I keep seeing with firms your size. The biggest drain on the margin of each job isn't typically the quote or staffing costs, it's the variations that get done but never claimed. A few unrecorded changes on site, or scope that creeps past the original fee. It never shows up until the job closes out, which is exactly why it compounds. For a firm {company}'s size, that's often tens of thousands a year, hiding in plain sight. But look, you might have all of this figured out already, so instead of presuming to tell you where your margin gaps are coming from, I built you a 2-minute Workflow Health Check, just below this video. A few reflective questions on how {company} runs today, and what comes back isn't just a score, it's the gap costing you the most, and what to do about it. Even if WorkflowMAX is never the right fit for you, you'll walk away with a clearer read on where to focus. Go ahead and click it below, it only takes two minutes.`,
+  engineering: `Hi {firstName}, I'm {presenter}'s AI twin from WorkflowMAX. I record a few of these each week for {industry} firms, and wanted to send one to {company}, there's a pattern I keep seeing with firms your size. The biggest drain on the profitability of each project isn't typically pricing or staffing costs, it's the hours that get worked but never make it onto the timesheet. A few minutes logged late, rounded down, or never recorded at all. It never shows up on a report, which is exactly why it compounds. For a firm {company}'s size, that's often tens of thousands a year, hiding in plain sight. But look, you might have all of this figured out already, so instead of presuming to tell you where your margin gaps are coming from, I built you a 2-minute Workflow Health Check, just below this video. A few reflective questions on how {company} runs today, and what comes back isn't just a score, it's the gap costing you the most, and what to do about it. Even if WorkflowMAX is never the right fit for you, you'll walk away with a clearer read on where to focus. Go ahead and click it below, it only takes two minutes.`,
 };
 const templates = () => Object.assign({}, DEFAULT_TEMPLATES, JSON.parse(localStorage.getItem('scriptTemplates')||'{}'));
 function script(c, presenter){
-  const {model,word}=classify(c.vertical);
-  return templates()[model]
+  const {model,word,key}=classify(c.vertical);
+  const t = templates();
+  const tpl = (key && t[key]) ? t[key] : t[model];
+  return tpl
     .replace(/{firstName}/g, c.firstName||'there')
     .replace(/{company}/g, c.company||'your firm')
     .replace(/{industry}/g, word)
@@ -203,6 +235,12 @@ function script(c, presenter){
 }
 
 const $=s=>document.querySelector(s);
+// localStorage's `casting` map starts empty on every fresh browser/machine, which
+// silently defaulted EVERY contact to Sina until someone manually opened the Casting
+// modal. Hardcode the known real owner ids as the built-in default so presenter is
+// correct out of the box; localStorage (set via the Casting modal) still overrides it.
+const KNOWN_OWNERS={'80127259':'sina','80406430':'denzel'};
+const presenterFor=ownerId=>casting[ownerId]||KNOWN_OWNERS[ownerId]||'sina';
 let CONTACTS=[], AVATARS=[], VOICES=[], casting=JSON.parse(localStorage.getItem('casting')||'{}');
 const PREVIEW_BASE='https://lp.workflowmax.com/app'; // live pages; use http://localhost:4321/app while testing the dev server
 let currentList={id:'3698',name:'Volcano Model MVP_all targets'};
@@ -255,7 +293,7 @@ function render(){
       <div class="colhead"><input type="checkbox" class="colsel" data-stage="${s.key}" ${allSel?'checked':''} title="Select all in column">${s.title} <span class="cnt">${cards.length}</span></div>
       <div class="colcards">${cards.map(c=>{
         const {model}=classify(c.vertical);
-        const who=(casting[c.owner]?PRESETS[casting[c.owner]].name:'')||('#'+(c.owner||'?').slice(-3));
+        const who=PRESETS[presenterFor(c.owner)].name;
         return `<div class="kcard ${c._sel?'sel':''}" data-id="${c.id}">
           <input type="checkbox" class="cbx" data-id="${c.id}" ${c._sel?'checked':''}>
           <div style="min-width:0">
@@ -331,10 +369,10 @@ $('#pull').onclick = async () => {
 })();
 
 // --- script template editor (edits apply to all contacts + the batch) ---
-$('#editScripts').onclick=()=>{ const t=templates(); $('#tplServices').value=t.services; $('#tplProject').value=t.project; $('#scriptModal').style.display='flex'; };
+$('#editScripts').onclick=()=>{ const t=templates(); $('#tplServices').value=t.services; $('#tplProject').value=t.project; $('#tplConstruction').value=t.construction; $('#tplEngineering').value=t.engineering; $('#scriptModal').style.display='flex'; };
 $('#tplCancel').onclick=()=>{ $('#scriptModal').style.display='none'; };
-$('#tplReset').onclick=()=>{ $('#tplServices').value=DEFAULT_TEMPLATES.services; $('#tplProject').value=DEFAULT_TEMPLATES.project; };
-$('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringify({services:$('#tplServices').value.trim(), project:$('#tplProject').value.trim()})); $('#scriptModal').style.display='none'; if(SELECTED) openContact(SELECTED); };
+$('#tplReset').onclick=()=>{ $('#tplServices').value=DEFAULT_TEMPLATES.services; $('#tplProject').value=DEFAULT_TEMPLATES.project; $('#tplConstruction').value=DEFAULT_TEMPLATES.construction; $('#tplEngineering').value=DEFAULT_TEMPLATES.engineering; };
+$('#tplSave').onclick=()=>{ localStorage.setItem('scriptTemplates', JSON.stringify({services:$('#tplServices').value.trim(), project:$('#tplProject').value.trim(), construction:$('#tplConstruction').value.trim(), engineering:$('#tplEngineering').value.trim()})); $('#scriptModal').style.display='none'; if(SELECTED) openContact(SELECTED); };
 
 // --- casting modal ---
 $('#editCasting').onclick=()=>{ renderCasting(); $('#castModal').style.display='flex'; };
@@ -378,11 +416,12 @@ function openContact(c){
   SELECTED=c;
   $('#drawer').style.display='flex';
   $('#drawerTitle').textContent=((c.firstName||'')+' '+(c.lastName||'')).trim()+' @ '+(c.company||'?');
-  const presetKey=casting[c.owner]||'sina';
+  const presetKey=presenterFor(c.owner);
   const preset=PRESETS[presetKey];
   $('#editor').innerHTML = assetsHtml(c) + `
     <div class="card" id="genCard">
       <div class="muted">${c.jobtitle?c.jobtitle+' · ':''}${c.email||''} ${c.domain?'· '+c.domain:''} · owner ${c.owner||'-'} · presenter <b>${preset.name}</b> · <span class="pill ${classify(c.vertical).model==='project'?'prj':'svc'}">${c.vertical||'?'}</span></div>
+      <div style="margin:8px 0"><label>Bulletproof check &mdash; everything that would be sent to this contact</label><div style="display:flex;gap:6px;flex-wrap:wrap"><a class="lp" target="_blank" href="/api/contact-preview?contactId=${c.id}&mode=real">Preview (real campaign) &#8599;</a><a class="lp" target="_blank" href="/api/contact-preview?contactId=${c.id}&mode=test">Preview (known-contacts test) &#8599;</a></div></div>
       <label>Script (editable)</label>
       <textarea id="script">${script(c, preset.name).replace(/</g,'&lt;')}</textarea>
       <div class="row2">
@@ -396,13 +435,13 @@ function openContact(c){
   const rb=document.getElementById('rebuild');
   if(rb) rb.onclick=async()=>{
     rb.disabled=true; rb.textContent='Rebuilding…';
-    const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:c._hosted||c.videoUrl,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:casting[c.owner]||'sina'})}).then(r=>r.json()).catch(()=>({ok:false}));
+    const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:c._hosted||c.videoUrl,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:presenterFor(c.owner)})}).then(r=>r.json()).catch(()=>({ok:false}));
     if(!w.ok){ rb.disabled=false; rb.textContent='Rebuild failed — retry'; return; }
     c._blob=w.blob; c.blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; c._status='done'; c.hasVideo=true;
     let note='Links & thumbnails rebuilt for '+(c.firstName||'contact')+'.';
     // if the lead is already in an Instantly sequence, refresh its merge vars too
     rb.textContent='Updating Instantly lead…';
-    const pr=PRESETS[casting[c.owner]||'sina'];
+    const pr=PRESETS[presenterFor(c.owner)];
     const upd=await fetch('/api/instantly/update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:w.blob,video:c._hosted||c.videoUrl,thumb:w.thumb,demo_thumb:w.demo_thumb,brand_color:w.brand_color,logo:w.logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json()).catch(()=>({ok:false}));
     if(upd.ok){ c.inInstantly=true; c.instCampId=upd.campaignId||c.instCampId; note+=' Instantly lead updated in "'+(upd.campaign||'campaign')+'".'; }
     else if(upd.notFound){ note+=' Not in Instantly yet.'; }
@@ -437,7 +476,7 @@ function openContact(c){
         const h=await fetch('/api/host',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({video_url:s.video_url, name:(c.company||'volcano')+'-'+c.id})}).then(r=>r.json());
         if(!h.url){ return setSt('Host failed: <code>'+JSON.stringify(h.error)+'</code>',true); }
         setSt('Writing back to HubSpot…');
-        const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id, video:h.url, firstName:c.firstName, company:c.company, vertical:c.vertical, email:c.email, domain:c.domain, presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
+        const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id, video:h.url, firstName:c.firstName, company:c.company, vertical:c.vertical, email:c.email, domain:c.domain, presenter:presenterFor(c.owner)})}).then(r=>r.json());
         if(!w.ok){ return setSt('Write-back failed: <code>'+JSON.stringify(w.error)+'</code>',true); }
         c.hasVideo=true; c._status='done'; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; moveCard(c);
         setSt('<b>Written back to HubSpot.</b><video controls src="'+h.url+'"></video>'+
@@ -456,7 +495,7 @@ function openContact(c){
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function pool(items,n,fn){ let i=0; await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const idx=i++; await fn(items[idx],idx);} })); }
 async function generateOne(c){
-  const preset=PRESETS[casting[c.owner]||'sina'];
+  const preset=PRESETS[presenterFor(c.owner)];
   c._status='submitting'; moveCard(c);
   const r=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({avatar_id:preset.avatar,voice_id:preset.voice,script:script(c,preset.name),width:1280,height:720,background:'#FFFFFF'})}).then(r=>r.json());
   if(!r.video_id){ c._status='err'; c._err=JSON.stringify(r.error||r.raw); updateSt(c); return; }
@@ -469,7 +508,7 @@ async function writeOne(c){
   c._status='hosting'; updateSt(c);
   const h=await fetch('/api/host',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({video_url:c._video,name:(c.company||'volcano')+'-'+c.id})}).then(r=>r.json());
   if(!h.url){ c._status='err'; c._err='host failed'; updateSt(c); return; }
-  const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:h.url,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:casting[c.owner]||"sina"})}).then(r=>r.json());
+  const w=await fetch('/api/writeback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,video:h.url,firstName:c.firstName,company:c.company,vertical:c.vertical,email:c.email,domain:c.domain,presenter:presenterFor(c.owner)})}).then(r=>r.json());
   if(w.ok){ c._status='done'; c.hasVideo=true; c._hosted=h.url; c._blob=w.blob; c._thumb=w.thumb; c._demo_thumb=w.demo_thumb; c._brand=w.brand_color; c._logo=w.logo; } else { c._status='err'; c._err='writeback failed'; }
   updateSt(c);
 }
@@ -524,8 +563,8 @@ $('#pushGo').onclick=async()=>{
 async function loadHrCampaigns(){
   const sel=$('#hrCamp'); if(!sel) return;
   const d=await fetch('/api/heyreach/campaigns').then(r=>r.json()).catch(()=>({campaigns:[]}));
-  const saved=localStorage.getItem('hrCamp')||'';
-  sel.innerHTML='<option value="">Don\'t push to LinkedIn</option>'+(d.campaigns||[]).map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name} (${c.status||'?'})</option>`).join('');
+  const saved=localStorage.getItem('hrCamp')||'auto';
+  sel.innerHTML='<option value="">Don\'t push to LinkedIn</option><option value="auto" '+(saved==='auto'?'selected':'')+'>Auto: Volcano LI &ndash; {vertical} &ndash; {owner}</option>'+(d.campaigns||[]).map(c=>`<option value="${c.id}" ${String(c.id)===saved?'selected':''}>${c.name} (${c.status||'?'})</option>`).join('');
   sel.onchange=()=>localStorage.setItem('hrCamp',sel.value);
 }
 async function loadInstCampaigns(){
@@ -538,7 +577,7 @@ async function loadInstCampaigns(){
 loadInstCampaigns(); loadHrCampaigns();
 async function pushOne(c,campaignId){
   if(!c.email){ c._status='err'; c._err='no email'; updateSt(c); return; }
-  const pr=PRESETS[casting[c.owner]||'sina'];
+  const pr=PRESETS[presenterFor(c.owner)];
   const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contactId:c.id,campaignId,email:c.email,firstName:c.firstName,company:c.company,vertical:c.vertical,domain:c.domain,blob:c._blob,video:c._hosted,thumb:c._thumb,demo_thumb:c._demo_thumb,brand_color:c._brand,logo:c._logo,presenter:pr.fullName,presenter_title:pr.title,booking:pr.booking})}).then(r=>r.json());
   if(r.ok){ c._pushed=true; c._instCampId=r.campaignId||''; } else { c._status='err'; c._err=(''+JSON.stringify(r.error||'push failed')).slice(0,140); }
   updateSt(c); refreshLeadLinks(c);
@@ -549,6 +588,185 @@ async function pushLiOne(c,campaignId){
   updateSt(c); refreshLeadLinks(c);
 }
 function refreshLeadLinks(c){ if(SELECTED&&SELECTED.id===c.id){ const el=document.getElementById('leadLinks'); if(el) el.innerHTML=leadLinksHtml(c); } }
+
+// ---- Campaign Copy editor: see + edit the real DM/InMail/email text, saves push live ----
+const CP_VERTICALS=['architecture','consulting','construction','creative','engineering'];
+const CP_TEST_VERTICALS=['consulting','creative']; // the 2 verticals the known-contacts test actually covers
+const HR_FIELDS=[
+  {key:'cr',label:'Connection request',kind:'dm'},
+  {key:'dm1',label:'DM 1 · intro (already connected)',kind:'dm'},
+  {key:'dm2',label:'DM 2 · health check (already connected)',kind:'dm'},
+  {key:'dm2_accept',label:'DM 2 · accept variant (just connected via CR)',kind:'dm'},
+  {key:'dm3',label:'DM 3 · calculator',kind:'dm'},
+  {key:'dm4',label:'DM 4 · benchmark',kind:'dm'},
+  {key:'dm5',label:'DM 5 · demo',kind:'dm'},
+  {key:'dm6',label:'DM 6 · firms like yours',kind:'dm'},
+  {key:'dm7',label:'DM 7 · resource hub',kind:'dm'},
+  {key:'inmail1',label:'InMail 1 · video',kind:'inmail'},
+  {key:'inmail2',label:'InMail 2 · tools',kind:'inmail'},
+  {key:'inmail3',label:'InMail 3 · hub',kind:'inmail'},
+];
+const escHtml=s=>(''+(s||'')).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const escAttr=s=>escHtml(s).replace(/"/g,'&quot;');
+let CP_MODE='real', CP_CURRENT='architecture', CP_TEST_VERTICAL='consulting', CP_INST_LEN=7;
+
+// Sample values so the preview reads naturally instead of showing raw {{tokens}}.
+function sampleFill(html){
+  return (html||'')
+    .replace(/\{\{firstName\}\}/g,'Jordan').replace(/\{\{companyName\}\}/g,'Acme Consulting')
+    .replace(/\{\{logo\}\}/g,'https://img.logo.dev/acme.com?size=200')
+    .replace(/\{\{thumb\}\}/g,'https://placehold.co/512x288/0A2F28/ffffff?text=Video')
+    .replace(/\{\{demo_thumb\}\}/g,'https://placehold.co/512x288/0A2F28/ffffff?text=Demo')
+    .replace(/\{\{presenter\}\}/g,'Sina Zarei').replace(/\{\{presenter_title\}\}/g,'Account Executive')
+    .replace(/\{\{brand_color\}\}/g,'#0A2F28').replace(/\{\{volcano_blob\}\}/g,'preview=1')
+    .replace(/\{\{unsubscribeLink\}\}/g,'#');
+}
+function renderCopyTabs(){
+  const modeBtn=(m,label)=>`<button class="ghost cpmode" data-m="${m}" style="${CP_MODE===m?'background:var(--green);color:#fff;border-color:var(--green)':''}">${label}</button>`;
+  const verticals = CP_MODE==='real' ? CP_VERTICALS : CP_TEST_VERTICALS;
+  const cur = CP_MODE==='real' ? CP_CURRENT : CP_TEST_VERTICAL;
+  const vTabs = (CP_MODE==='test' ? '<span class="muted" style="align-self:center;margin-right:2px">Email vertical (HeyReach copy is shared):</span>' : '')
+    + verticals.map(v=>`<button class="ghost cptab" data-v="${v}" style="${v===cur?'background:var(--money);border-color:var(--money);font-weight:700':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('');
+  $('#copyVerticalTabs').innerHTML=`<div style="display:flex;gap:6px;margin-bottom:8px">${modeBtn('real','Real campaigns')}${modeBtn('test','Known-contacts test')}</div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${vTabs}</div>`;
+  document.querySelectorAll('.cpmode').forEach(b=>b.onclick=()=>{ CP_MODE=b.dataset.m; CP_MODE==='real'?loadCopyVertical(CP_CURRENT):loadCopyTest(CP_TEST_VERTICAL); });
+  document.querySelectorAll('.cptab').forEach(b=>b.onclick=()=>{
+    if(CP_MODE==='real'){ CP_CURRENT=b.dataset.v; loadCopyVertical(CP_CURRENT); }
+    else { CP_TEST_VERTICAL=b.dataset.v; loadCopyTest(CP_TEST_VERTICAL); }
+  });
+}
+function hrFieldCard(f,d){
+  if(f.kind==='dm') return `<div class="card" style="padding:10px;margin-bottom:10px">
+    <label style="margin-top:0">${f.label}</label>
+    <textarea data-hr="${f.key}" data-sub="message" style="min-height:64px">${escHtml(d.message)}</textarea>
+    <label style="font-size:11px;color:var(--muted);margin:6px 0 2px">Fallback (if tokens fail)</label>
+    <textarea data-hr="${f.key}" data-sub="fallback" style="min-height:44px;font-size:12px">${escHtml(d.fallback)}</textarea>
+  </div>`;
+  return `<div class="card" style="padding:10px;margin-bottom:10px">
+    <label style="margin-top:0">${f.label}</label>
+    <input type="text" data-hr="${f.key}" data-sub="subject" value="${escAttr(d.subject)}" placeholder="Subject" style="margin-bottom:6px">
+    <textarea data-hr="${f.key}" data-sub="message" style="min-height:72px">${escHtml(d.message)}</textarea>
+    <label style="font-size:11px;color:var(--muted);margin:6px 0 2px">Fallback subject</label>
+    <input type="text" data-hr="${f.key}" data-sub="fallbackSubject" value="${escAttr(d.fallbackSubject)}" style="margin-bottom:6px">
+    <label style="font-size:11px;color:var(--muted)">Fallback message</label>
+    <textarea data-hr="${f.key}" data-sub="fallbackMessage" style="min-height:44px;font-size:12px">${escHtml(d.fallbackMessage)}</textarea>
+  </div>`;
+}
+function instStepCard(s,i){
+  return `<div class="card" style="padding:10px;margin-bottom:10px">
+    <label style="margin-top:0">Step ${i+1} <span class="muted" style="font-weight:400">&middot; ${s.delay!=null?`+${s.delay}d after previous`:''}</span></label>
+    <input type="text" data-inst="${i}" data-sub="subject" value="${escAttr(s.subject)}" style="margin-bottom:6px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <textarea data-inst="${i}" data-sub="body" style="min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:11px">${escHtml(s.body)}</textarea>
+        <button class="ghost" data-preview-refresh="${i}" style="margin-top:4px;font-size:11px;padding:5px 9px">&#8635; Refresh preview</button>
+      </div>
+      <iframe data-preview="${i}" title="Email preview" style="width:100%;height:250px;border:1px solid var(--line);border-radius:8px;background:#fff" srcdoc="${escAttr(sampleFill(s.body))}"></iframe>
+    </div>
+  </div>`;
+}
+function wirePreviewButtons(){
+  document.querySelectorAll('[data-preview-refresh]').forEach(btn=>btn.onclick=()=>{
+    const i=btn.dataset.previewRefresh;
+    const body=document.querySelector(`#instCopyFields [data-inst="${i}"][data-sub="body"]`).value;
+    document.querySelector(`#instCopyFields iframe[data-preview="${i}"]`).srcdoc=sampleFill(body);
+  });
+}
+function gatherHrCopy(){
+  const out={};
+  document.querySelectorAll('#hrCopyFields [data-hr]').forEach(el=>{
+    const k=el.dataset.hr, sub=el.dataset.sub;
+    out[k]=out[k]||{}; out[k][sub]=el.value;
+  });
+  return out;
+}
+function gatherInstCopy(){
+  const out=[];
+  for(let i=0;i<CP_INST_LEN;i++){
+    out.push({
+      subject: document.querySelector(`#instCopyFields [data-inst="${i}"][data-sub="subject"]`).value,
+      body: document.querySelector(`#instCopyFields [data-inst="${i}"][data-sub="body"]`).value,
+    });
+  }
+  return out;
+}
+async function loadCopyVertical(vertical){
+  renderCopyTabs();
+  $('#copyStatus').textContent='Loading…'; $('#copySaveResult').textContent='';
+  const [hr,inst]=await Promise.all([
+    fetch('/api/copy/heyreach?vertical='+vertical).then(r=>r.json()),
+    fetch('/api/copy/instantly?vertical='+vertical).then(r=>r.json()),
+  ]);
+  if(hr.ok){ $('#hrCopyFields').innerHTML=HR_FIELDS.map(f=>hrFieldCard(f,hr.copy[f.key]||{})).join(''); }
+  else { $('#hrCopyFields').innerHTML=`<div class="muted">${hr.error||'failed to load'}</div>`; }
+  if(inst.ok){ CP_INST_LEN=inst.copy.length; $('#instCopyFields').innerHTML=inst.copy.map((s,i)=>instStepCard(s,i)).join(''); wirePreviewButtons(); }
+  else { $('#instCopyFields').innerHTML=`<div class="muted">${inst.error||'failed to load'}</div>`; }
+  const hrStatus=(hr.campaigns||[]).map(c=>`${c.owner} ${c.campaignId} (${c.status})`).join(' · ');
+  const instStatus=inst.ok?`Instantly ${inst.campaignId} (${['DRAFT','ACTIVE','PAUSED'][inst.status]||inst.status})`:'';
+  $('#copyStatus').textContent=[hrStatus,instStatus].filter(Boolean).join('  |  ');
+}
+async function loadCopyTest(vertical){
+  renderCopyTabs();
+  $('#copyStatus').textContent='Loading…'; $('#copySaveResult').textContent='';
+  const [hr,inst]=await Promise.all([
+    fetch('/api/copy/heyreach-test').then(r=>r.json()),
+    fetch('/api/copy/instantly-test?vertical='+vertical).then(r=>r.json()),
+  ]);
+  if(hr.ok){ $('#hrCopyFields').innerHTML=HR_FIELDS.filter(f=>f.key!=='dm7').map(f=>hrFieldCard(f,hr.copy[f.key]||{})).join(''); }
+  else { $('#hrCopyFields').innerHTML=`<div class="muted">${hr.error||'failed to load'}</div>`; }
+  if(inst.ok){ CP_INST_LEN=inst.copy.length; $('#instCopyFields').innerHTML=inst.copy.map((s,i)=>instStepCard(s,i)).join(''); wirePreviewButtons(); }
+  else { $('#instCopyFields').innerHTML=`<div class="muted">${inst.error||'failed to load'}</div>`; }
+  const hrStatus=(hr.campaigns||[]).map(c=>`${c.owner} ${c.campaignId} (${c.status})`).join(' · ');
+  const instStatus=(inst.campaigns||[]).map(c=>`${c.owner} Instantly (${['DRAFT','ACTIVE','PAUSED'][c.status]||c.status})`).join(' · ');
+  $('#copyStatus').textContent=[hrStatus,instStatus].filter(Boolean).join('  |  ');
+}
+$('#openCopyEditor').onclick=()=>{ $('#copyModal').style.display='flex'; CP_MODE==='real'?loadCopyVertical(CP_CURRENT):loadCopyTest(CP_TEST_VERTICAL); };
+$('#copyClose').onclick=()=>{ $('#copyModal').style.display='none'; };
+$('#reviewCopyLink').onclick=(e)=>{
+  e.preventDefault();
+  const sel=CONTACTS.filter(c=>c._sel);
+  const v=sel.length?classify(sel[0].vertical).key:null;
+  if(v&&CP_VERTICALS.includes(v)){ CP_MODE='real'; CP_CURRENT=v; }
+  $('#pushModal').style.display='none';
+  $('#copyModal').style.display='flex';
+  CP_MODE==='real'?loadCopyVertical(CP_CURRENT):loadCopyTest(CP_TEST_VERTICAL);
+};
+$('#hrCopySave').onclick=async()=>{
+  $('#hrCopySave').disabled=true;
+  const copy=gatherHrCopy();
+  const url = CP_MODE==='real' ? '/api/copy/heyreach/save' : '/api/copy/heyreach-test/save';
+  const payload = CP_MODE==='real' ? {vertical:CP_CURRENT,copy} : {copy};
+  const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  $('#hrCopySave').disabled=false;
+  if(!r.ok){ $('#copySaveResult').innerHTML=`<span style="color:#b42318">HeyReach save failed: ${r.error||'?'}</span>`; return; }
+  let msg=`HeyReach: pushed to ${r.updated.map(u=>u.owner+' '+u.campaignId).join(', ')||'nothing (all locked)'}`;
+  if(r.needsReplacement.length){
+    msg+=`<br><span style="color:#b4540e">Locked (already started/finished), copy saved locally but NOT pushed: ${r.needsReplacement.map(n=>`${n.owner} ${n.campaignId} (${n.status})`).join(', ')}. </span>`;
+    r.needsReplacement.forEach(n=>{ msg+=`<button class="ghost" style="margin-left:4px" data-replace-owner="${n.owner}">Create replacement for ${n.owner}</button>`; });
+  }
+  $('#copySaveResult').innerHTML=msg;
+  document.querySelectorAll('[data-replace-owner]').forEach(btn=>btn.onclick=async()=>{
+    btn.disabled=true; btn.textContent='Creating…';
+    const replaceUrl = CP_MODE==='real' ? '/api/copy/heyreach/replace' : '/api/copy/heyreach-test/replace';
+    const replaceBody = CP_MODE==='real' ? {vertical:CP_CURRENT,owner:btn.dataset.replaceOwner} : {owner:btn.dataset.replaceOwner};
+    const rr=await fetch(replaceUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(replaceBody)}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+    btn.textContent=rr.ok?`New campaign ${rr.campaignId} created ✓`:`Failed: ${rr.error}`;
+  });
+  CP_MODE==='real'?loadCopyVertical(CP_CURRENT):loadCopyTest(CP_TEST_VERTICAL);
+};
+$('#instCopySave').onclick=async()=>{
+  $('#instCopySave').disabled=true;
+  const copy=gatherInstCopy();
+  const url = CP_MODE==='real' ? '/api/copy/instantly/save' : '/api/copy/instantly-test/save';
+  const vertical = CP_MODE==='real' ? CP_CURRENT : CP_TEST_VERTICAL;
+  const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vertical,copy})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  $('#instCopySave').disabled=false;
+  const pausedAny = CP_MODE==='real' ? r.pausedForEdit : (r.results||[]).some(x=>x.pausedForEdit);
+  $('#copySaveResult').innerHTML=r.ok
+    ? `Instantly: saved and pushed live.${pausedAny?' <span style="color:#b4540e">A campaign was active — paused before editing, left paused. Resume manually when ready.</span>':''}`
+    : `<span style="color:#b42318">Instantly save failed: ${r.error||JSON.stringify(r.results||'?')}</span>`;
+  if(r.ok) CP_MODE==='real'?loadCopyVertical(CP_CURRENT):loadCopyTest(CP_TEST_VERTICAL);
+};
+
 render();
 </script>
 </body>

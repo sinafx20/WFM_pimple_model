@@ -1,0 +1,282 @@
+{
+  "architecture": {
+    "cr": {
+      "message": "Hi {FIRST_NAME}, noticed {company} does similar work to a few architecture practices I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: {intro_link}",
+      "fallback": "Hi, noticed your work is similar to a few architecture practices I have been chatting with. Recorded a quick video, thought it was worth connecting first."
+    },
+    "dm1": {
+      "message": "Hey {FIRST_NAME}, I noticed {company} does similar work to a few other architecture practices I have been talking to lately. I am sure you have already got systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}",
+      "fallback": "I noticed your firm does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, would appreciate you taking a look."
+    },
+    "dm2": {
+      "message": "Hey, not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, the whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that. You may have it all figured out, but if not, happy to chat."
+    },
+    "dm2_accept": {
+      "message": "Hey, thanks for connecting. Not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, thanks for connecting. The whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that, happy to chat if useful."
+    },
+    "dm3": {
+      "message": "I guess even if there are problems, the priority really comes down to whether leadership actually sees a dollar value against what it costs to operate as-is. Hope this calculator is useful in helping frame that for {company}: {calculator_link}",
+      "fallback": "Even if there are problems, the priority comes down to whether leadership sees a dollar value against what it costs to operate as-is. Hope this calculator helps frame that."
+    },
+    "dm4": {
+      "message": "On a similar note, thought you might want to see how {company} stacks up against similar firms. The benchmark gives you an instant read: {benchmark_link}",
+      "fallback": "On a similar note, thought you might want to see how your firm stacks up against similar ones. The benchmark gives an instant read."
+    },
+    "dm5": {
+      "message": "I do not want to flood your DMs, but thought I would complete the loop on what we actually offer and why all of this matters. Here is a quick demo of WorkflowMAX you can watch on your own time: {demo_link}",
+      "fallback": "Do not want to flood your DMs, but thought I would complete the loop on what we actually offer. Here is a quick demo you can watch on your own time."
+    },
+    "dm6": {
+      "message": "A couple of firms like {company} have worked through this same time problem already, thought these might be worth a look: {firms_like_yours_link}",
+      "fallback": "A couple of firms with the same time problem have worked through this already, thought these might be worth a look."
+    },
+    "dm7": {
+      "message": "To wrap it all up, here is everything in one place: {resource_hub_link}. I would love to hear from you if you find any of it useful, and if you would rather just chat it through, my calendar is here too: {booking}",
+      "fallback": "To wrap it all up, everything is in one place. I would love to hear from you if you find any of it useful."
+    },
+    "inmail1": {
+      "subject": "a 2-minute video for {company}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "fallbackSubject": "a 2-minute video from WorkflowMAX",
+      "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
+    },
+    "inmail2": {
+      "subject": "the number most firms like {company} cannot name",
+      "message": "Following up, not sure if you got the chance to look at the video, but the idea is to see whether there is anything worth solving for at {company}. Two quick tools if useful: a health check to assess that ({health_check_link}), and a calculator that puts a dollar value on what it costs to operate as-is ({calculator_link}). Would love to hear what you make of them.\n\n{signature}",
+      "fallbackSubject": "the number most firms cannot name",
+      "fallbackMessage": "Following up, the idea is to see whether there is anything worth solving for. Two quick tools if useful: a health check, and a calculator that puts a dollar value on what it costs to operate as-is. Would love to hear what you make of them.\n\n{signature}"
+    },
+    "inmail3": {
+      "subject": "everything in one place for {company}",
+      "message": "Last one from me, wrapping it all up with everything in one place: {resource_hub_link}. I would love to get in touch if you find any of it useful.\n\n{signature}",
+      "fallbackSubject": "everything in one place",
+      "fallbackMessage": "Last one from me, wrapping it all up with everything in one place. I would love to get in touch if you find any of it useful.\n\n{signature}"
+    }
+  },
+  "consulting": {
+    "cr": {
+      "message": "Hi {FIRST_NAME}, noticed {company} does similar work to a few consulting firms I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: {intro_link}",
+      "fallback": "Hi, noticed your work is similar to a few consulting firms I have been chatting with. Recorded a quick video, thought it was worth connecting first."
+    },
+    "dm1": {
+      "message": "Hey {FIRST_NAME}, I noticed {company} does similar work to a few other consulting firms I have been talking to lately. I am sure you have already got systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}",
+      "fallback": "I noticed your firm does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, would appreciate you taking a look."
+    },
+    "dm2": {
+      "message": "Hey, not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, the whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that. You may have it all figured out, but if not, happy to chat."
+    },
+    "dm2_accept": {
+      "message": "Hey, thanks for connecting. Not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, thanks for connecting. The whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that, happy to chat if useful."
+    },
+    "dm3": {
+      "message": "I guess even if there are problems, the priority really comes down to whether leadership actually sees a dollar value against what it costs to operate as-is. Hope this calculator is useful in helping frame that for {company}: {calculator_link}",
+      "fallback": "Even if there are problems, the priority comes down to whether leadership sees a dollar value against what it costs to operate as-is. Hope this calculator helps frame that."
+    },
+    "dm4": {
+      "message": "On a similar note, thought you might want to see how {company} stacks up against similar firms. The benchmark gives you an instant read: {benchmark_link}",
+      "fallback": "On a similar note, thought you might want to see how your firm stacks up against similar ones. The benchmark gives an instant read."
+    },
+    "dm5": {
+      "message": "I do not want to flood your DMs, but thought I would complete the loop on what we actually offer and why all of this matters. Here is a quick demo of WorkflowMAX you can watch on your own time: {demo_link}",
+      "fallback": "Do not want to flood your DMs, but thought I would complete the loop on what we actually offer. Here is a quick demo you can watch on your own time."
+    },
+    "dm6": {
+      "message": "A couple of firms like {company} have worked through this same time problem already, thought these might be worth a look: {firms_like_yours_link}",
+      "fallback": "A couple of firms with the same time problem have worked through this already, thought these might be worth a look."
+    },
+    "dm7": {
+      "message": "To wrap it all up, here is everything in one place: {resource_hub_link}. I would love to hear from you if you find any of it useful, and if you would rather just chat it through, my calendar is here too: {booking}",
+      "fallback": "To wrap it all up, everything is in one place. I would love to hear from you if you find any of it useful."
+    },
+    "inmail1": {
+      "subject": "a 2-minute video for {company}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "fallbackSubject": "a 2-minute video from WorkflowMAX",
+      "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
+    },
+    "inmail2": {
+      "subject": "the number most firms like {company} cannot name",
+      "message": "Following up, not sure if you got the chance to look at the video, but the idea is to see whether there is anything worth solving for at {company}. Two quick tools if useful: a health check to assess that ({health_check_link}), and a calculator that puts a dollar value on what it costs to operate as-is ({calculator_link}). Would love to hear what you make of them.\n\n{signature}",
+      "fallbackSubject": "the number most firms cannot name",
+      "fallbackMessage": "Following up, the idea is to see whether there is anything worth solving for. Two quick tools if useful: a health check, and a calculator that puts a dollar value on what it costs to operate as-is. Would love to hear what you make of them.\n\n{signature}"
+    },
+    "inmail3": {
+      "subject": "everything in one place for {company}",
+      "message": "Last one from me, wrapping it all up with everything in one place: {resource_hub_link}. I would love to get in touch if you find any of it useful.\n\n{signature}",
+      "fallbackSubject": "everything in one place",
+      "fallbackMessage": "Last one from me, wrapping it all up with everything in one place. I would love to get in touch if you find any of it useful.\n\n{signature}"
+    }
+  },
+  "construction": {
+    "cr": {
+      "message": "Hi {FIRST_NAME}, noticed {company} does similar work to a few construction and trades businesses I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: {intro_link}",
+      "fallback": "Hi, noticed your work is similar to a few construction and trades businesses I have been chatting with. Recorded a quick video, thought it was worth connecting first."
+    },
+    "dm1": {
+      "message": "Hey {FIRST_NAME}, I noticed {company} does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have already got systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}",
+      "fallback": "I noticed your firm does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, would appreciate you taking a look."
+    },
+    "dm2": {
+      "message": "Hey, not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, the whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that. You may have it all figured out, but if not, happy to chat."
+    },
+    "dm2_accept": {
+      "message": "Hey, thanks for connecting. Not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, thanks for connecting. The whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that, happy to chat if useful."
+    },
+    "dm3": {
+      "message": "I guess even if there are problems, the priority really comes down to whether leadership actually sees a dollar value against what it costs to operate as-is. Hope this calculator is useful in helping frame that for {company}: {calculator_link}",
+      "fallback": "Even if there are problems, the priority comes down to whether leadership sees a dollar value against what it costs to operate as-is. Hope this calculator helps frame that."
+    },
+    "dm4": {
+      "message": "On a similar note, thought you might want to see how {company} stacks up against similar firms. The benchmark gives you an instant read: {benchmark_link}",
+      "fallback": "On a similar note, thought you might want to see how your firm stacks up against similar ones. The benchmark gives an instant read."
+    },
+    "dm5": {
+      "message": "I do not want to flood your DMs, but thought I would complete the loop on what we actually offer and why all of this matters. Here is a quick demo of WorkflowMAX you can watch on your own time: {demo_link}",
+      "fallback": "Do not want to flood your DMs, but thought I would complete the loop on what we actually offer. Here is a quick demo you can watch on your own time."
+    },
+    "dm6": {
+      "message": "A couple of firms like {company} have worked through this same margin problem already, thought these might be worth a look: {firms_like_yours_link}",
+      "fallback": "A couple of firms with the same margin problem have worked through this already, thought these might be worth a look."
+    },
+    "dm7": {
+      "message": "To wrap it all up, here is everything in one place: {resource_hub_link}. I would love to hear from you if you find any of it useful, and if you would rather just chat it through, my calendar is here too: {booking}",
+      "fallback": "To wrap it all up, everything is in one place. I would love to hear from you if you find any of it useful."
+    },
+    "inmail1": {
+      "subject": "a 2-minute video for {company}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "fallbackSubject": "a 2-minute video from WorkflowMAX",
+      "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
+    },
+    "inmail2": {
+      "subject": "the number most firms like {company} cannot name",
+      "message": "Following up, not sure if you got the chance to look at the video, but the idea is to see whether there is anything worth solving for at {company}. Two quick tools if useful: a health check to assess that ({health_check_link}), and a calculator that puts a dollar value on what it costs to operate as-is ({calculator_link}). Would love to hear what you make of them.\n\n{signature}",
+      "fallbackSubject": "the number most firms cannot name",
+      "fallbackMessage": "Following up, the idea is to see whether there is anything worth solving for. Two quick tools if useful: a health check, and a calculator that puts a dollar value on what it costs to operate as-is. Would love to hear what you make of them.\n\n{signature}"
+    },
+    "inmail3": {
+      "subject": "everything in one place for {company}",
+      "message": "Last one from me, wrapping it all up with everything in one place: {resource_hub_link}. I would love to get in touch if you find any of it useful.\n\n{signature}",
+      "fallbackSubject": "everything in one place",
+      "fallbackMessage": "Last one from me, wrapping it all up with everything in one place. I would love to get in touch if you find any of it useful.\n\n{signature}"
+    }
+  },
+  "creative": {
+    "cr": {
+      "message": "Hi {FIRST_NAME}, noticed {company} does similar work to a few creative agencies I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: {intro_link}",
+      "fallback": "Hi, noticed your work is similar to a few creative agencies I have been chatting with. Recorded a quick video, thought it was worth connecting first."
+    },
+    "dm1": {
+      "message": "Hey {FIRST_NAME}, I noticed {company} does similar work to a few other creative agencies I have been talking to lately. I am sure you have already got systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}",
+      "fallback": "I noticed your firm does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, would appreciate you taking a look."
+    },
+    "dm2": {
+      "message": "Hey, not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, the whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that. You may have it all figured out, but if not, happy to chat."
+    },
+    "dm2_accept": {
+      "message": "Hey, thanks for connecting. Not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, thanks for connecting. The whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that, happy to chat if useful."
+    },
+    "dm3": {
+      "message": "I guess even if there are problems, the priority really comes down to whether leadership actually sees a dollar value against what it costs to operate as-is. Hope this calculator is useful in helping frame that for {company}: {calculator_link}",
+      "fallback": "Even if there are problems, the priority comes down to whether leadership sees a dollar value against what it costs to operate as-is. Hope this calculator helps frame that."
+    },
+    "dm4": {
+      "message": "On a similar note, thought you might want to see how {company} stacks up against similar firms. The benchmark gives you an instant read: {benchmark_link}",
+      "fallback": "On a similar note, thought you might want to see how your firm stacks up against similar ones. The benchmark gives an instant read."
+    },
+    "dm5": {
+      "message": "I do not want to flood your DMs, but thought I would complete the loop on what we actually offer and why all of this matters. Here is a quick demo of WorkflowMAX you can watch on your own time: {demo_link}",
+      "fallback": "Do not want to flood your DMs, but thought I would complete the loop on what we actually offer. Here is a quick demo you can watch on your own time."
+    },
+    "dm6": {
+      "message": "A couple of firms like {company} have worked through this same time problem already, thought these might be worth a look: {firms_like_yours_link}",
+      "fallback": "A couple of firms with the same time problem have worked through this already, thought these might be worth a look."
+    },
+    "dm7": {
+      "message": "To wrap it all up, here is everything in one place: {resource_hub_link}. I would love to hear from you if you find any of it useful, and if you would rather just chat it through, my calendar is here too: {booking}",
+      "fallback": "To wrap it all up, everything is in one place. I would love to hear from you if you find any of it useful."
+    },
+    "inmail1": {
+      "subject": "a 2-minute video for {company}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "fallbackSubject": "a 2-minute video from WorkflowMAX",
+      "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
+    },
+    "inmail2": {
+      "subject": "the number most firms like {company} cannot name",
+      "message": "Following up, not sure if you got the chance to look at the video, but the idea is to see whether there is anything worth solving for at {company}. Two quick tools if useful: a health check to assess that ({health_check_link}), and a calculator that puts a dollar value on what it costs to operate as-is ({calculator_link}). Would love to hear what you make of them.\n\n{signature}",
+      "fallbackSubject": "the number most firms cannot name",
+      "fallbackMessage": "Following up, the idea is to see whether there is anything worth solving for. Two quick tools if useful: a health check, and a calculator that puts a dollar value on what it costs to operate as-is. Would love to hear what you make of them.\n\n{signature}"
+    },
+    "inmail3": {
+      "subject": "everything in one place for {company}",
+      "message": "Last one from me, wrapping it all up with everything in one place: {resource_hub_link}. I would love to get in touch if you find any of it useful.\n\n{signature}",
+      "fallbackSubject": "everything in one place",
+      "fallbackMessage": "Last one from me, wrapping it all up with everything in one place. I would love to get in touch if you find any of it useful.\n\n{signature}"
+    }
+  },
+  "engineering": {
+    "cr": {
+      "message": "Hi {FIRST_NAME}, noticed {company} does similar work to a few engineering consultancies I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: {intro_link}",
+      "fallback": "Hi, noticed your work is similar to a few engineering consultancies I have been chatting with. Recorded a quick video, thought it was worth connecting first."
+    },
+    "dm1": {
+      "message": "Hey {FIRST_NAME}, I noticed {company} does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have already got systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}",
+      "fallback": "I noticed your firm does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, would appreciate you taking a look."
+    },
+    "dm2": {
+      "message": "Hey, not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, the whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that. You may have it all figured out, but if not, happy to chat."
+    },
+    "dm2_accept": {
+      "message": "Hey, thanks for connecting. Not sure if you got the chance to look at the video above, but the whole point of it is to see whether you think there is anything worth solving for at {company}. Here is a health check to help assess that: {health_check_link}. You may have it all figured out, but if not, I would love to chat.",
+      "fallback": "Hey, thanks for connecting. The whole point of the video was to see whether you think there is anything worth solving for. Here is a health check to help assess that, happy to chat if useful."
+    },
+    "dm3": {
+      "message": "I guess even if there are problems, the priority really comes down to whether leadership actually sees a dollar value against what it costs to operate as-is. Hope this calculator is useful in helping frame that for {company}: {calculator_link}",
+      "fallback": "Even if there are problems, the priority comes down to whether leadership sees a dollar value against what it costs to operate as-is. Hope this calculator helps frame that."
+    },
+    "dm4": {
+      "message": "On a similar note, thought you might want to see how {company} stacks up against similar firms. The benchmark gives you an instant read: {benchmark_link}",
+      "fallback": "On a similar note, thought you might want to see how your firm stacks up against similar ones. The benchmark gives an instant read."
+    },
+    "dm5": {
+      "message": "I do not want to flood your DMs, but thought I would complete the loop on what we actually offer and why all of this matters. Here is a quick demo of WorkflowMAX you can watch on your own time: {demo_link}",
+      "fallback": "Do not want to flood your DMs, but thought I would complete the loop on what we actually offer. Here is a quick demo you can watch on your own time."
+    },
+    "dm6": {
+      "message": "A couple of firms like {company} have worked through this same time problem already, thought these might be worth a look: {firms_like_yours_link}",
+      "fallback": "A couple of firms with the same time problem have worked through this already, thought these might be worth a look."
+    },
+    "dm7": {
+      "message": "To wrap it all up, here is everything in one place: {resource_hub_link}. I would love to hear from you if you find any of it useful, and if you would rather just chat it through, my calendar is here too: {booking}",
+      "fallback": "To wrap it all up, everything is in one place. I would love to hear from you if you find any of it useful."
+    },
+    "inmail1": {
+      "subject": "a 2-minute video for {company}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "fallbackSubject": "a 2-minute video from WorkflowMAX",
+      "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
+    },
+    "inmail2": {
+      "subject": "the number most firms like {company} cannot name",
+      "message": "Following up, not sure if you got the chance to look at the video, but the idea is to see whether there is anything worth solving for at {company}. Two quick tools if useful: a health check to assess that ({health_check_link}), and a calculator that puts a dollar value on what it costs to operate as-is ({calculator_link}). Would love to hear what you make of them.\n\n{signature}",
+      "fallbackSubject": "the number most firms cannot name",
+      "fallbackMessage": "Following up, the idea is to see whether there is anything worth solving for. Two quick tools if useful: a health check, and a calculator that puts a dollar value on what it costs to operate as-is. Would love to hear what you make of them.\n\n{signature}"
+    },
+    "inmail3": {
+      "subject": "everything in one place for {company}",
+      "message": "Last one from me, wrapping it all up with everything in one place: {resource_hub_link}. I would love to get in touch if you find any of it useful.\n\n{signature}",
+      "fallbackSubject": "everything in one place",
+      "fallbackMessage": "Last one from me, wrapping it all up with everything in one place. I would love to get in touch if you find any of it useful.\n\n{signature}"
+    }
+  }
+}

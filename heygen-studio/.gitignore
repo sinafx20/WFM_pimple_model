@@ -3,3 +3,4 @@ node_modules/
 *.mp4
 output/
 *.cache.json
+known-contacts-test-snapshot.json

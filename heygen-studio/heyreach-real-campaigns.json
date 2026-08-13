@@ -1,0 +1,58 @@
+{
+  "architecture-sina": {
+    "campaignId": 500646,
+    "listId": 782930,
+    "vertical": "architecture",
+    "owner": "sina",
+    "hubspotListId": 3693
+  },
+  "construction-sina": {
+    "campaignId": 500647,
+    "listId": 782931,
+    "vertical": "construction",
+    "owner": "sina",
+    "hubspotListId": 3694
+  },
+  "consulting-sina": {
+    "campaignId": 500648,
+    "listId": 782932,
+    "vertical": "consulting",
+    "owner": "sina",
+    "hubspotListId": 3696
+  },
+  "engineering-sina": {
+    "campaignId": 500649,
+    "listId": 782933,
+    "vertical": "engineering",
+    "owner": "sina",
+    "hubspotListId": 3695
+  },
+  "architecture-denzel": {
+    "campaignId": 500704,
+    "listId": 783031,
+    "vertical": "architecture",
+    "owner": "denzel",
+    "hubspotListId": 3693
+  },
+  "construction-denzel": {
+    "campaignId": 500705,
+    "listId": 783032,
+    "vertical": "construction",
+    "owner": "denzel",
+    "hubspotListId": 3694
+  },
+  "consulting-denzel": {
+    "campaignId": 500706,
+    "listId": 783034,
+    "vertical": "consulting",
+    "owner": "denzel",
+    "hubspotListId": 3696
+  },
+  "creative-denzel": {
+    "campaignId": 500707,
+    "listId": 783035,
+    "vertical": "creative",
+    "owner": "denzel",
+    "hubspotListId": 3697
+  }
+}
