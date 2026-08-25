@@ -106,7 +106,11 @@ const resolveVideo = () => {
    through to the linked tool so personalisation persists across the journey.
    Resolve against the full current URL (not just the origin) so the deploy
    path/mount (e.g. /app) is preserved. */
-const PERSONALISATION_PARAMS = ["company", "logo", "domain", "firstname", "email", "country", "currency"];
+const PERSONALISATION_PARAMS = [
+  "company", "logo", "domain", "firstname", "email", "country", "currency",
+  "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb",
+  "booking", "presenter", "ae_name", "ae_title", "ae_email",
+];
 const withIndustry = (url, industryId) => {
   if (!url || url === "#") return url;
   try {

@@ -93,8 +93,9 @@ const goToHealthCheck = () => {
   const next = new URLSearchParams({ tool: "tp1" });
   if (q.get("industry")) next.set("industry", q.get("industry"));
   if (q.get("email")) next.set("email", q.get("email"));
-  // Carry firm identity so the personalised badge persists into the Health Check.
-  for (const p of ["company", "logo", "domain", "firstname"]) {
+  // Carry firm identity, the personalised video, and AE identity so they all
+  // persist past this first hop instead of only existing on the intro page.
+  for (const p of ["company", "logo", "domain", "firstname", "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb", "booking", "presenter", "country", "currency", "ae_name", "ae_title", "ae_email"]) {
     if (q.get(p)) next.set(p, q.get(p));
   }
   window.location.href = `${window.location.pathname}?${next.toString()}`;
