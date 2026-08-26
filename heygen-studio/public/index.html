@@ -123,6 +123,15 @@
 <div class="boardbar">
   <input id="q" type="text" placeholder="Search name / company…">
   <select id="ownerFilter"><option value="">All owners</option></select>
+  <select id="verticalFilter">
+    <option value="">All verticals</option>
+    <option value="architecture">Architecture</option>
+    <option value="engineering">Engineering</option>
+    <option value="consulting">Consulting</option>
+    <option value="creative">Creative</option>
+    <option value="construction">Construction</option>
+    <option value="civil">Civil</option>
+  </select>
   <span class="muted" id="filterinfo"></span>
 </div>
 
@@ -279,8 +288,13 @@ function stLine(c){ const s=c._status;
 const visible = c => {
   const q=($('#q').value||'').toLowerCase().trim();
   const o=$('#ownerFilter').value; // presenter key (owner ids collapse into their cast presenter)
+  // presenterFor() falls back to KNOWN_OWNERS so Sina/Denzel filter correctly even
+  // before the Casting modal has ever been opened on this browser — casting[c.owner]
+  // alone silently filtered everyone out (or into "Unassigned") on a fresh machine.
   if(o==='none' && casting[c.owner]) return false;
-  if(o && o!=='none' && casting[c.owner]!==o) return false;
+  if(o && o!=='none' && presenterFor(c.owner)!==o) return false;
+  const vf=$('#verticalFilter').value;
+  if(vf && classify(c.vertical).key!==vf) return false;
   if(q && !((c.firstName||'')+' '+(c.lastName||'')+' '+(c.jobtitle||'')+' '+(c.company||'')+' '+(c.email||'')).toLowerCase().includes(q)) return false;
   return true;
 };
@@ -330,12 +344,15 @@ function updateCounts(){
 
 $('#q').oninput=()=>render();
 $('#ownerFilter').onchange=()=>render();
+$('#verticalFilter').onchange=()=>render();
 // One option per presenter (several owner ids can cast to the same person),
-// plus Unassigned only when some contacts' owners have no casting yet.
+// plus Unassigned only when some contacts' owners have no casting yet. Falls
+// back through presenterFor() (KNOWN_OWNERS) so Sina/Denzel both show up even
+// before the Casting modal has ever been opened on this browser.
 function fillOwnerFilter(){
   const owners=[...new Set(CONTACTS.map(c=>c.owner).filter(Boolean))];
-  const presenters=[...new Set(owners.map(o=>casting[o]).filter(Boolean))];
-  const uncast=CONTACTS.some(c=>!casting[c.owner]);
+  const presenters=[...new Set(owners.map(o=>presenterFor(o)).filter(Boolean))];
+  const uncast=CONTACTS.some(c=>!casting[c.owner]&&!KNOWN_OWNERS[c.owner]);
   const cur=$('#ownerFilter').value;
   $('#ownerFilter').innerHTML='<option value="">All owners</option>'
     +presenters.map(p=>`<option value="${p}">${PRESETS[p]?PRESETS[p].name:p}</option>`).join('')
