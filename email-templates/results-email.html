@@ -1,0 +1,72 @@
+<!--
+  Volcano Model MVP - automatic "your results" transactional email.
+  Paste this whole file into a HubSpot email's "Custom HTML" module.
+
+  Design matched to the live sequence (email-1..7, sample-cobranded.html): Arial body
+  copy, #46B347 CTA green, #1a1a1a text, #9AA3A0 footer grey, hosted WFM-Logo.png,
+  physical address in the footer. Not the web app's Evergreen/Moneytree palette from
+  CLAUDE.md - that's for the browser tools, the sequence emails use this green instead.
+
+  Setup in HubSpot (one-time, UI-only step HubSpot requires regardless of API access):
+  Marketing > Email > Create email > subscription type "Transactional" > send method
+  "Through an API" > name it > add one Custom HTML module > paste this in > save as draft.
+  Grab the emailId from the draft's URL and set it as HUBSPOT_RESULTS_EMAIL_ID on the
+  deployed environment (Webflow Cloud project settings), alongside HUBSPOT_TOKEN.
+
+  Fires from src/pages/api/send-results.js on tool completion (Health Check, Profit Leak
+  Calculator, Firm Benchmark) via HubSpot's Single-Send Transactional API. See that file
+  and src/lib/hubspot.js's sendResultsEmail() for what populates each merge token below.
+-->
+<div style="background:#eef1f0;padding:32px 16px;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td style="padding:20px 24px;border-bottom:1px solid #eef1f0;">
+      <img src="https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/WFM-Logo.png" alt="WorkflowMAX" style="height:26px;width:auto;display:block;">
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:24px 24px 0 24px;">
+      <p style="color:#1a1a1a;font-size:16px;line-height:25px;margin:0 0 16px 0;">Hi {{ contact.firstname }}, &#128075;</p>
+      <p style="color:#1a1a1a;font-size:16px;line-height:25px;margin:0 0 18px 0;">
+        Thanks for taking the {{ contact.wfm_tool_name }}. Here's a quick recap of what you got:
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0 24px 20px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#F4F4F4;border-left:3px solid #46B347;border-radius:6px;padding:18px 20px;font-size:14px;line-height:1.8;color:#1a1a1a;white-space:pre-wrap;">{{ contact.wfm_results_summary }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0 24px;">
+      <p style="color:#1a1a1a;font-size:16px;line-height:25px;margin:0 0 22px 0;">
+        If anything here doesn't look right, or you'd like to dig into next steps,
+        {{ contact.volcano_ae_name }} (<span style="color:#777777;">{{ contact.volcano_ae_title }}</span>) is happy to walk through it with you.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" bgcolor="#46B347" style="border-radius:6px;">
+            <!--[if mso]>&nbsp;&nbsp;<![endif]-->
+            <a href="{{ contact.volcano_ae_booking_link }}" target="_blank" style="display:inline-block;padding:11px 26px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:6px;">Book a Conversation</a>
+            <!--[if mso]>&nbsp;&nbsp;<![endif]-->
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:26px 24px 22px 24px;margin-top:10px;border-top:1px solid #ECECEC;">
+      <p style="color:#9AA3A0;font-size:11px;line-height:16px;margin:14px 0 0 0;">
+        WorkflowMAX &middot; 1/525 Collins Street, Melbourne, VIC, 3000 &middot;
+        <a href="{{ unsubscribe_link }}" style="color:#9AA3A0;text-decoration:underline;">Unsubscribe</a>
+        &middot;
+        <a href="{{ view_as_page_url }}" style="color:#9AA3A0;text-decoration:underline;">View in browser</a>
+      </p>
+    </td>
+  </tr>
+</table>
+</div>
