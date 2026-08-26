@@ -38,7 +38,7 @@
     },
     "inmail1": {
       "subject": "a 2-minute video for {company}",
-      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}. There is a short series of tools behind it if it is useful.\n\n{signature}",
       "fallbackSubject": "a 2-minute video from WorkflowMAX",
       "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other architecture practices I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
     },
@@ -94,7 +94,7 @@
     },
     "inmail1": {
       "subject": "a 2-minute video for {company}",
-      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}. There is a short series of tools behind it if it is useful.\n\n{signature}",
       "fallbackSubject": "a 2-minute video from WorkflowMAX",
       "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
     },
@@ -150,7 +150,7 @@
     },
     "inmail1": {
       "subject": "a 2-minute video for {company}",
-      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}. There is a short series of tools behind it if it is useful.\n\n{signature}",
       "fallbackSubject": "a 2-minute video from WorkflowMAX",
       "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other construction and trades businesses I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
     },
@@ -206,7 +206,7 @@
     },
     "inmail1": {
       "subject": "a 2-minute video for {company}",
-      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}. There is a short series of tools behind it if it is useful.\n\n{signature}",
       "fallbackSubject": "a 2-minute video from WorkflowMAX",
       "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other creative agencies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
     },
@@ -262,7 +262,7 @@
     },
     "inmail1": {
       "subject": "a 2-minute video for {company}",
-      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway and sent it to your inbox too, appreciate you taking a look. There is a short series of tools behind it if it is useful.\n\n{signature}",
+      "message": "Hi {FIRST_NAME}, we are not connected yet so I will keep this short. I noticed {company} does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: {intro_link}. There is a short series of tools behind it if it is useful.\n\n{signature}",
       "fallbackSubject": "a 2-minute video from WorkflowMAX",
       "fallbackMessage": "Hi, we are not connected yet so I will keep this short. I noticed your firm does similar work to a few other engineering consultancies I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded a quick video anyway, sent to your inbox too. Would appreciate you taking a look.\n\n{signature}"
     },
