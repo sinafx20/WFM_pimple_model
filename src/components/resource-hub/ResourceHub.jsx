@@ -108,7 +108,7 @@ const resolveVideo = () => {
    path/mount (e.g. /app) is preserved. */
 const PERSONALISATION_PARAMS = [
   "company", "logo", "domain", "firstname", "email", "country", "currency",
-  "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb",
+  "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb", "health_thumb", "calc_thumb", "benchmark_thumb", "testimonial_thumb",
   "booking", "presenter", "ae_name", "ae_title", "ae_email",
 ];
 const withIndustry = (url, industryId) => {

@@ -10,7 +10,10 @@
 // generate anything.
 import fs from 'node:fs';
 
-const HUB = fs.readFileSync('.env', 'utf8').match(/^HUBSPOT_TOKEN=(.+)$/m)[1].trim();
+const ENV = fs.readFileSync('.env', 'utf8');
+const HUB = ENV.match(/^HUBSPOT_TOKEN=(.+)$/m)[1].trim();
+const TINYURL_TOKEN = (ENV.match(/^TINYURL_API_TOKEN=(.+)$/m) || [])[1]?.trim();
+const TINYURL_DOMAIN = (ENV.match(/^TINYURL_DOMAIN=(.+)$/m) || [])[1]?.trim();
 const contactId = process.argv[2];
 if (!contactId) { console.error('usage: node preview-shortened-links.mjs <hubspotContactId>'); process.exit(1); }
 
@@ -23,7 +26,25 @@ if (!blob) { console.error(`contact ${contactId} (${p.firstname || '?'}) has no 
 
 console.log(`Previewing for ${p.firstname} @ ${p.company} (contact ${contactId})\n`);
 
+// Same authenticated-API-with-fallback logic as server.mjs's shorten().
 const shorten = async (url) => {
+  if (TINYURL_TOKEN) {
+    const create = async (domain) => {
+      const r = await fetch('https://api.tinyurl.com/create', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TINYURL_TOKEN}`, 'content-type': 'application/json' },
+        body: JSON.stringify(domain ? { url, domain } : { url }),
+      });
+      const b = await r.json().catch(() => null);
+      return r.ok && b?.data?.tiny_url ? b.data.tiny_url : null;
+    };
+    try {
+      const withDomain = TINYURL_DOMAIN ? await create(TINYURL_DOMAIN) : null;
+      if (withDomain) return withDomain;
+      const withoutDomain = await create(null);
+      if (withoutDomain) return withoutDomain;
+    } catch {}
+  }
   try { const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url)); if (r.ok) { const t = (await r.text()).trim(); if (/^https?:\/\//.test(t)) return t; } } catch {}
   return url;
 };

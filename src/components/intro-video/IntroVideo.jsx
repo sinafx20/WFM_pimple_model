@@ -95,7 +95,7 @@ const goToHealthCheck = () => {
   if (q.get("email")) next.set("email", q.get("email"));
   // Carry firm identity, the personalised video, and AE identity so they all
   // persist past this first hop instead of only existing on the intro page.
-  for (const p of ["company", "logo", "domain", "firstname", "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb", "booking", "presenter", "country", "currency", "ae_name", "ae_title", "ae_email"]) {
+  for (const p of ["company", "logo", "domain", "firstname", "video", "video_url", "heygen", "thumb", "thumbnail", "demo_thumb", "health_thumb", "calc_thumb", "benchmark_thumb", "testimonial_thumb", "booking", "presenter", "country", "currency", "ae_name", "ae_title", "ae_email"]) {
     if (q.get(p)) next.set(p, q.get(p));
   }
   window.location.href = `${window.location.pathname}?${next.toString()}`;

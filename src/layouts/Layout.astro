@@ -4,25 +4,50 @@ import "../styles/shell.css";
 const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
 // Per-contact Open Graph tags so a shared link (LinkedIn DM, Slack, etc.) unfurls
-// into a rich card. On the intro touchpoint the card is the co-branded thumbnail
-// (play button already burned in) plus the video, so a HeyReach DM shows a
-// play-thumbnail preview instead of a raw URL blob. Server output means
-// LinkedIn's crawler receives these rendered.
+// into a rich card. Server output means LinkedIn's crawler receives these rendered.
+// On the intro touchpoint the card is the co-branded video thumbnail (play button
+// already burned in) plus the video. Health Check / Calculator / Benchmark / Firms
+// Like Yours each get their own purpose-built results card instead (see
+// RESULTS_TOOLS below) rather than either falsely implying a video or (for Firms
+// Like Yours specifically) fabricating one representative frame when there are
+// really several per-vertical testimonials. Demo genuinely does open a video, so
+// it uses `demo_thumb` (the same product-frame thumbnail already shown as its
+// in-page video cover — was being generated all along but never actually wired to
+// the OG tag here, so the shared-link preview didn't match what the page shows).
 const sp = Astro.url.searchParams;
 const tool = sp.get("tool") || "";
 const firstname = (sp.get("firstname") || sp.get("first_name") || "").trim();
 const company = (sp.get("company") || sp.get("company_name") || "").trim();
 const thumb = (sp.get("thumb") || "").trim();
-const videoUrl = (sp.get("video") || "").trim();
+const demoThumb = (sp.get("demo_thumb") || "").trim();
 const canonical = Astro.url.href;
+
+const RESULTS_TOOLS = {
+  tp1: { title: "Workflow Health Check", desc: "An instant maturity score for your firm, benchmarked against firms your size. About 2 minutes, no sign-up.", param: "health_thumb" },
+  tp2: { title: "Profit Leak Calculator", desc: "Put a dollar figure on the gaps in your current workflow. About 2 minutes, no sign-up.", param: "calc_thumb" },
+  tp3: { title: "Firm Benchmark", desc: "See how you compare to the industry average and top performers. About 2 minutes, no sign-up.", param: "benchmark_thumb" },
+  tp5: { title: "Firms Like Yours", desc: "Video stories from customers across professional services, similar to your own firm.", param: "testimonial_thumb" },
+};
+const resultsTool = RESULTS_TOOLS[tool];
+const resultsThumb = resultsTool ? (sp.get(resultsTool.param) || "").trim() : "";
+const isDemo = tool === "tp4";
+
 const ogTitle = tool === "intro"
   ? (firstname ? `A personal video for ${firstname}${company ? ` at ${company}` : ""}` : "A personal message from WorkflowMAX")
+  : resultsTool ? resultsTool.title
+  : isDemo ? "See WorkflowMAX in action"
   : "WorkflowMAX";
 const ogDesc = tool === "intro"
   ? "A 2-minute video, and your own number. Where your firm's margin quietly leaks, and the single biggest gap to close."
+  : resultsTool ? resultsTool.desc
+  : isDemo ? "A short product walkthrough of the full job lifecycle inside WorkflowMAX. Watch on your own time, no calendar needed."
   : "See where your firm's time and margin quietly leak, with an instant benchmark for firms like yours.";
-const ogImage = /^https:\/\//.test(thumb) ? thumb : `${base}/WFM-Logo.svg`;
-const isVideoCard = tool === "intro" && /^https:\/\//.test(thumb);
+const ogImage = resultsTool && /^https:\/\//.test(resultsThumb)
+  ? resultsThumb
+  : isDemo && /^https:\/\//.test(demoThumb)
+  ? demoThumb
+  : /^https:\/\//.test(thumb) ? thumb : `${base}/WFM-Logo.svg`;
+const isVideoCard = (tool === "intro" || isDemo) && /^https:\/\//.test(isDemo ? (demoThumb || thumb) : thumb);
 ---
 
 <!doctype html>

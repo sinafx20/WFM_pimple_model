@@ -24,6 +24,8 @@ const HUB = () => envGet('HUBSPOT_TOKEN');
 const LOGODEV = () => envGet('LOGODEV_TOKEN');
 const INSTANTLY = () => envGet('INSTANTLY_API_KEY');
 const HEYREACH = () => envGet('HEYREACH_API_KEY'); // add to .env to activate LinkedIn dispatch
+const TINYURL = () => envGet('TINYURL_API_TOKEN');
+const TINYURL_DOMAIN = () => envGet('TINYURL_DOMAIN'); // e.g. wfm.info — must be verified in the TinyURL dashboard first
 // First run on a new machine: .env is gitignored, so guide the user to create it.
 if (!fs.existsSync(path.join(__dirname, '.env'))) {
   console.error('\n  No heygen-studio/.env found (it is gitignored, so it did not clone).');
@@ -105,9 +107,36 @@ const rgbHex = ({ r, g, b }) => '#' + [r, g, b].map(x => Math.max(0, Math.min(25
 // LinkedIn DMs show the raw URL as text (rarely auto-unfurls automated messages),
 // so the giant blob link looks terrible. Shortening resolves to the same co-branded
 // page. Shared by /api/heyreach/push and /api/contact-preview (bulletproof check).
+//
+// Uses TinyURL's authenticated create API (branded domain support) when
+// TINYURL_API_TOKEN is set, confirmed live 2026-08-25: POST /create with a
+// Bearer token, body {url, domain}, short link comes back at data.tiny_url.
+// TINYURL_DOMAIN must already be verified in the TinyURL dashboard — if the
+// account doesn't recognise it yet ("Domain not found"), retry once without a
+// domain (still shortened, just on tinyurl.com) rather than fail the whole push.
+// No token at all -> the old anonymous endpoint (unbranded, no login needed).
 const shorten = async (url) => {
+  const token = TINYURL();
+  if (token) {
+    const create = async (domain) => {
+      const r = await fetch('https://api.tinyurl.com/create', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(domain ? { url, domain } : { url }),
+      });
+      const b = await r.json().catch(() => null);
+      return r.ok && b?.data?.tiny_url ? b.data.tiny_url : null;
+    };
+    try {
+      const domain = TINYURL_DOMAIN();
+      const withDomain = domain ? await create(domain) : null;
+      if (withDomain) return withDomain;
+      const withoutDomain = await create(null);
+      if (withoutDomain) return withoutDomain;
+    } catch {}
+  }
   try { const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url)); if (r.ok) { const t = (await r.text()).trim(); if (/^https?:\/\//.test(t)) return t; } } catch {}
-  return url; // fall back to the full URL if the shortener is unavailable
+  return url; // fall back to the full URL if every shortener attempt fails
 };
 
 // A logo built for a dark background (white/light mark) is invisible on our white
@@ -192,6 +221,113 @@ async function composeThumb(presenterKey, logoBuf, rgb, leftBuf = null) {
     { input: card, left: faceW + Math.round((panelW - cardW) / 2), top: Math.round((H - cardH) / 2) },
     { input: play, left: Math.round(W / 2 - 75), top: Math.round(H / 2 - 75) },
   ]).png().toBuffer();
+}
+// Results-style thumbnail for non-video touchpoints (Health Check first): a score
+// gauge instead of a presenter face + play button, so a LinkedIn/DM preview reads
+// as "get scored" rather than falsely implying every link plays a video. No real
+// number is shown (nobody's answered anything yet at link-share time) — just the
+// gauge shape, so it's enticing without claiming a result that isn't theirs yet.
+const polarToCartesian = (cx, cy, r, angleDeg) => {
+  const a = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+};
+const describeArc = (cx, cy, r, startAngle, endAngle) => {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle <= 180 ? '0' : '1';
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+};
+// Shared scaffold for the 3 results-style thumbnails (Health Check, Calculator,
+// Benchmark): client logo top-left, centerSvg (the part that differs per tool)
+// centred, "Powered by" + light WFM wordmark bottom-right, solid brand-colour
+// background. Approved layout, 2026-08-26 — client logo top-left, WFM credit
+// bottom-right, nothing overlapping the centre graphic.
+async function composeResultsThumb(logoBuf, wfmLightLogoBuf, rgb, centerSvg, bottomLeftText = '') {
+  const W = 1088, H = 612;
+  const cardW = 240, cardH = 100, cardLeft = 40, cardTop = 30;
+  const logoResized = await sharp(logoBuf).resize({ width: cardW - 56, height: cardH - 40, fit: 'inside' }).toBuffer();
+  const logoMeta = await sharp(logoResized).metadata();
+  const card = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${cardW}" height="${cardH}"><rect rx="16" width="${cardW}" height="${cardH}" fill="#ffffff"/></svg>`))
+    .composite([{ input: logoResized, left: Math.round((cardW - logoMeta.width) / 2), top: Math.round((cardH - logoMeta.height) / 2) }])
+    .png().toBuffer();
+  const wfmResized = await sharp(wfmLightLogoBuf).resize({ width: 130, fit: 'inside' }).toBuffer();
+  const wfmMeta = await sharp(wfmResized).metadata();
+  const margin = 40;
+  const wfmLeft = W - margin - wfmMeta.width;
+  const wfmTop = H - margin - wfmMeta.height;
+  // Escape so a company name with & / < / > can't break the SVG.
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const poweredBySvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <text x="${W - margin}" y="${wfmTop - 12}" text-anchor="end" font-family="Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="2" fill="#ffffff" fill-opacity="0.85">POWERED BY</text>
+    ${bottomLeftText ? `<text x="${cardLeft}" y="${wfmTop + wfmMeta.height - 4}" text-anchor="start" font-family="Arial, sans-serif" font-weight="800" font-size="22" fill="#ffffff">${esc(bottomLeftText)}</text>` : ''}
+  </svg>`);
+  return await sharp({ create: { width: W, height: H, channels: 4, background: { ...rgb, alpha: 1 } } }).composite([
+    { input: centerSvg, left: 0, top: 0 },
+    { input: card, left: cardLeft, top: cardTop },
+    { input: poweredBySvg, left: 0, top: 0 },
+    { input: wfmResized, left: wfmLeft, top: wfmTop },
+  ]).png().toBuffer();
+}
+const RESULTS_CENTER = { cx: 544, cy: 340, r: 195, sw: 38 };
+async function composeHealthCheckThumb(logoBuf, wfmLightLogoBuf, rgb) {
+  const { cx, cy, r, sw } = RESULTS_CENTER;
+  const startA = -220, endA = 40, fillA = startA + (endA - startA) * 0.68;
+  const centerSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="612">
+    <path d="${describeArc(cx, cy, r, startA, endA)}" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="${sw}" stroke-linecap="round"/>
+    <path d="${describeArc(cx, cy, r, startA, fillA)}" fill="none" stroke="#ffffff" stroke-width="${sw}" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="${r - sw / 2 - 20}" fill="#000000" fill-opacity="0.12"/>
+    <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="38" fill="#ffffff">See your score</text>
+    <text x="${cx}" y="${cy + 38}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="22" fill="#ffffff" fill-opacity="0.9">Workflow Health Check</text>
+  </svg>`);
+  return composeResultsThumb(logoBuf, wfmLightLogoBuf, rgb, centerSvg);
+}
+async function composeBenchmarkThumb(logoBuf, wfmLightLogoBuf, rgb) {
+  const { cx, cy, r, sw } = RESULTS_CENTER;
+  const startA = -220, endA = 40, fillA = startA + (endA - startA) * 0.55;
+  const centerSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="612">
+    <path d="${describeArc(cx, cy, r, startA, endA)}" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="${sw}" stroke-linecap="round"/>
+    <path d="${describeArc(cx, cy, r, startA, fillA)}" fill="none" stroke="#ffffff" stroke-width="${sw}" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="${r - sw / 2 - 20}" fill="#000000" fill-opacity="0.12"/>
+    <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="38" fill="#ffffff">See where you rank</text>
+    <text x="${cx}" y="${cy + 38}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="22" fill="#ffffff" fill-opacity="0.9">Firm Benchmark</text>
+  </svg>`);
+  return composeResultsThumb(logoBuf, wfmLightLogoBuf, rgb, centerSvg);
+}
+async function composeCalculatorThumb(logoBuf, wfmLightLogoBuf, rgb) {
+  const { cx, cy, r } = RESULTS_CENTER;
+  const centerSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="612">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="4"/>
+    <circle cx="${cx}" cy="${cy}" r="${r - 24}" fill="#000000" fill-opacity="0.12"/>
+    <text x="${cx}" y="${cy - 34}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="110" fill="#ffffff">$</text>
+    <text x="${cx}" y="${cy + 44}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="30" fill="#ffffff">See your number</text>
+    <text x="${cx}" y="${cy + 78}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="20" fill="#ffffff" fill-opacity="0.9">Profit Leak Calculator</text>
+  </svg>`);
+  return composeResultsThumb(logoBuf, wfmLightLogoBuf, rgb, centerSvg);
+}
+// Firms Like Yours: quote-mark card instead of a fabricated single video frame
+// (there's no one representative frame — several per-vertical testimonials exist).
+// Bottom-left carries the prospect's own company name as a "you next?" nudge.
+async function composeTestimonialThumb(logoBuf, wfmLightLogoBuf, rgb, companyName) {
+  const { cx, cy, r } = RESULTS_CENTER;
+  const playR = 72, playCy = cy - 18;
+  const centerSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="612">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="4"/>
+    <circle cx="${cx}" cy="${cy}" r="${r - 24}" fill="#000000" fill-opacity="0.12"/>
+    <circle cx="${cx}" cy="${playCy}" r="${playR}" fill="#0A2F28" fill-opacity="0.78"/>
+    <path d="M${cx - 14} ${playCy - 28} L${cx - 14} ${playCy + 28} L${cx + 32} ${playCy} Z" fill="#fff"/>
+    <text x="${cx}" y="${cy + 68}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="30" fill="#ffffff">See similar firms&#8217;</text>
+    <text x="${cx}" y="${cy + 102}" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="20" fill="#ffffff" fill-opacity="0.9">stories on WorkflowMAX</text>
+  </svg>`);
+  const bottomLeftText = companyName ? `${companyName.toUpperCase()} COULD BE NEXT` : '';
+  return composeResultsThumb(logoBuf, wfmLightLogoBuf, rgb, centerSvg, bottomLeftText);
+}
+// WFM's own light wordmark never changes -> fetch once per process, not once per contact.
+let _wfmLightLogo = null;
+async function wfmLightLogo() {
+  if (_wfmLightLogo) return _wfmLightLogo;
+  const r = await fetch('https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/%5BInstantly%5D/Logos/WFM_Light_Logo.png');
+  _wfmLightLogo = Buffer.from(await r.arrayBuffer());
+  return _wfmLightLogo;
 }
 async function uploadPublic(buf, name, type = 'image/png') {
   const fd = new FormData();
@@ -449,7 +585,7 @@ const server = http.createServer(async (req, res) => {
       const pKey = (c.presenter || 'sina').toLowerCase();
       const pMeta = PRESENTER_META[pKey] || PRESENTER_META.sina;
       // composite the co-branded thumbnails + extract brand colour (before the blob, so thumb= can ride in it)
-      let thumb = '', demoThumb = '', brand = '#0A2F28', logo = '';
+      let thumb = '', demoThumb = '', healthThumb = '', calcThumb = '', benchmarkThumb = '', testimonialThumb = '', brand = '#0A2F28', logo = '';
       if (c.domain || c.company) {
         try {
           const { buf: logoBuf, fellBack } = await getLogoBuffer(c.domain, c.company);
@@ -470,6 +606,26 @@ const server = http.createServer(async (req, res) => {
             const dimg = await composeThumb(pKey, logoBuf, rgb, frame);
             demoThumb = (await uploadPublic(dimg, `demo-thumb-${c.contactId}.png`)) + `?v=${v}`;
           } catch (e) { /* leave demo thumb blank on failure */ }
+          // Results-style thumbnails (Health Check, Calculator, Benchmark): a
+          // purpose-built card per tool instead of the video-style face+play
+          // button, since none of these three actually open a video. Demo and
+          // Firms Like Yours keep the video-style `thumb` above unchanged —
+          // those two genuinely do open a video.
+          try {
+            const wfmLogo = await wfmLightLogo();
+            const [himg, cimg, bimg, timg] = await Promise.all([
+              composeHealthCheckThumb(logoBuf, wfmLogo, rgb),
+              composeCalculatorThumb(logoBuf, wfmLogo, rgb),
+              composeBenchmarkThumb(logoBuf, wfmLogo, rgb),
+              composeTestimonialThumb(logoBuf, wfmLogo, rgb, c.company),
+            ]);
+            [healthThumb, calcThumb, benchmarkThumb, testimonialThumb] = await Promise.all([
+              uploadPublic(himg, `health-thumb-${c.contactId}.png`).then(u => u + `?v=${v}`),
+              uploadPublic(cimg, `calc-thumb-${c.contactId}.png`).then(u => u + `?v=${v}`),
+              uploadPublic(bimg, `benchmark-thumb-${c.contactId}.png`).then(u => u + `?v=${v}`),
+              uploadPublic(timg, `testimonial-thumb-${c.contactId}.png`).then(u => u + `?v=${v}`),
+            ]);
+          } catch (e) { /* leave results thumbs blank on failure */ }
         } catch (e) { /* leave thumb/logo blank on failure */ }
       }
       const parts = [
@@ -487,6 +643,10 @@ const server = http.createServer(async (req, res) => {
       if (logo) parts.push(`logo=${encodeURIComponent(logo)}`);
       if (thumb) parts.push(`thumb=${encodeURIComponent(thumb)}`);
       if (demoThumb) parts.push(`demo_thumb=${encodeURIComponent(demoThumb)}`);
+      if (healthThumb) parts.push(`health_thumb=${encodeURIComponent(healthThumb)}`);
+      if (calcThumb) parts.push(`calc_thumb=${encodeURIComponent(calcThumb)}`);
+      if (benchmarkThumb) parts.push(`benchmark_thumb=${encodeURIComponent(benchmarkThumb)}`);
+      if (testimonialThumb) parts.push(`testimonial_thumb=${encodeURIComponent(testimonialThumb)}`);
       // booking last: astro DEV 500s when a URL's final characters are an image
       // extension (vite-plugin-assets misreads it as an image request), so keep
       // the .png thumb params away from the end of campaign links.
@@ -504,15 +664,19 @@ const server = http.createServer(async (req, res) => {
       await ensure('volcano_thumb_url', 'Volcano thumbnail URL');
       await ensure('volcano_brand_color', 'Volcano brand colour');
       await ensure('volcano_demo_thumb_url', 'Volcano demo thumbnail URL');
+      await ensure('volcano_health_thumb_url', 'Volcano Health Check thumbnail URL');
+      await ensure('volcano_calc_thumb_url', 'Volcano Calculator thumbnail URL');
+      await ensure('volcano_benchmark_thumb_url', 'Volcano Benchmark thumbnail URL');
+      await ensure('volcano_testimonial_thumb_url', 'Volcano Testimonial thumbnail URL');
       // AE identity as real contact properties (not just the URL blob), so a
       // HubSpot email template can merge-field {{contact.volcano_ae_name}} etc.
       // directly rather than needing the blob parsed apart.
       await ensure('volcano_ae_name', 'Volcano AE name');
       await ensure('volcano_ae_title', 'Volcano AE title');
       await ensure('volcano_ae_booking_link', 'Volcano AE booking link');
-      const patch = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}`, { method: 'PATCH', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ properties: { volcano_heygen_video_url: c.video || '', volcano_personalization: blob, volcano_thumb_url: thumb, volcano_brand_color: brand, volcano_demo_thumb_url: demoThumb, volcano_ae_name: pMeta.fullName, volcano_ae_title: pMeta.title, volcano_ae_booking_link: pMeta.booking } }) });
+      const patch = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${c.contactId}`, { method: 'PATCH', headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: JSON.stringify({ properties: { volcano_heygen_video_url: c.video || '', volcano_personalization: blob, volcano_thumb_url: thumb, volcano_brand_color: brand, volcano_demo_thumb_url: demoThumb, volcano_health_thumb_url: healthThumb, volcano_calc_thumb_url: calcThumb, volcano_benchmark_thumb_url: benchmarkThumb, volcano_testimonial_thumb_url: testimonialThumb, volcano_ae_name: pMeta.fullName, volcano_ae_title: pMeta.title, volcano_ae_booking_link: pMeta.booking } }) });
       const pb = await patch.json();
-      return json(res, patch.status < 300 ? 200 : patch.status, { ok: patch.status < 300, blob, logo, thumb, demo_thumb: demoThumb, brand_color: brand, error: patch.status >= 300 ? pb : null });
+      return json(res, patch.status < 300 ? 200 : patch.status, { ok: patch.status < 300, blob, logo, thumb, demo_thumb: demoThumb, health_thumb: healthThumb, calc_thumb: calcThumb, benchmark_thumb: benchmarkThumb, testimonial_thumb: testimonialThumb, brand_color: brand, error: patch.status >= 300 ? pb : null });
     }
 
     // --- Instantly: list campaigns ---
