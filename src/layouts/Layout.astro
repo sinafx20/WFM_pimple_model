@@ -20,6 +20,13 @@ const firstname = (sp.get("firstname") || sp.get("first_name") || "").trim();
 const company = (sp.get("company") || sp.get("company_name") || "").trim();
 const thumb = (sp.get("thumb") || "").trim();
 const demoThumb = (sp.get("demo_thumb") || "").trim();
+// Used by the og:video tags below. Do NOT remove: those tags reference it behind an
+// `isVideoCard &&` short-circuit, so dropping this line does not fail the build and
+// only throws at request time on the exact pages that DO have a video card (intro and
+// tp4 with an https thumb) — which is precisely every real TP1 link. That is how it
+// broke live on 2026-08-27: the definition was deleted here while the three usages
+// stayed, and every intro link served an empty 200 (blank white page) until restored.
+const videoUrl = (sp.get("video") || "").trim();
 const canonical = Astro.url.href;
 
 const RESULTS_TOOLS = {
