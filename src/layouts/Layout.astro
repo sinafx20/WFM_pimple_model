@@ -94,6 +94,29 @@ const isVideoCard = (tool === "intro" || isDemo) && /^https:\/\//.test(isDemo ? 
       async
       defer
       src="https://js.hs-scripts.com/24214994.js"></script>
+    <!-- Attribute the visit to the contact this link was personalised for.
+         Without this every prospect arriving from an email or LinkedIn link is an
+         ANONYMOUS HubSpot visitor: the page view is recorded, but never attached to
+         their contact record, so their timeline looks empty even when they really did
+         visit. That gap is why link-fetch counts could not be told apart from crawler
+         traffic (investigated 2026-08-29).
+         `_hsq` is a queue, so pushing before the loader finishes is the documented
+         pattern. Crawlers and link scanners do not execute JavaScript, so anything
+         recorded through here is a real browser, which is exactly the signal we want.
+         Self-contained on purpose: it reads only window/location, so it cannot throw a
+         ReferenceError into the render the way a missing frontmatter const did. -->
+    <script is:inline>
+      (function () {
+        try {
+          var email = new URLSearchParams(window.location.search).get("email");
+          if (!email || email.indexOf("@") < 0) return;
+          var _hsq = (window._hsq = window._hsq || []);
+          _hsq.push(["identify", { email: email }]);
+          _hsq.push(["setPath", window.location.pathname + window.location.search]);
+          _hsq.push(["trackPageView"]);
+        } catch (e) { /* tracking must never take the page down */ }
+      })();
+    </script>
     <!-- The tracking script also injects HubSpot "web interactives" (CTA banners),
          which render as a strip pushed above the page. These pages never use
          HubSpot CTAs. HubSpot's injected stylesheet overrides plain CSS with
