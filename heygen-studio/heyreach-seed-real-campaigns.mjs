@@ -31,7 +31,7 @@ const hr = (p, body) => fetch(`https://api.heyreach.io/api/public${p}`, {
 });
 
 // owner ids confirmed from real HubSpot contact data on list 3698, 2026-07-09
-const OWNER = { sina: '80127259', denzel: '80406430' };
+const OWNER = { sina: '80406430', denzel: '80127259' }; // verified 2026-08-29 via email senders
 // Sina's HeyReach seat. Denzel's seat is not connected yet -> his 4 campaigns are
 // defined here but `sender: null` blocks `create` from running them until it exists.
 // Denzel's seat connected 2026-07-09 (li_account/GetAll -> id 223029, denzel.kereama@workflowmax.com).

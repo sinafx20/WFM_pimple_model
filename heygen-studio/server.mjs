@@ -11,7 +11,12 @@ import { buildCompactSequence, loadCompactCopy } from './heyreach-sequence.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // hubspot_owner_id -> presenter/sender key. Same two real owners used throughout
 // (public/index.html's KNOWN_OWNERS, heyreach-seed-real-campaigns.mjs's OWNER map).
-const OWNER_NAME = { '80127259': 'sina', '80406430': 'denzel' };
+// VERIFIED 2026-08-29 against the actual sender on every logged email: 100/100 emails
+// owned by 80127259 are from denzel.kereama@, 99/100 owned by 80406430 are from
+// sina.zarei@. This map was inverted from the start, which sent every contact the wrong
+// AE's video, booking link, mailbox and LinkedIn seat (153 contacts before it was caught).
+// Do not "correct" it back without re-checking hs_email_from_email on real records.
+const OWNER_NAME = { '80127259': 'denzel', '80406430': 'sina' };
 const PORT = 5178;
 
 // Read .env fresh each call so added tokens (files scope, logo.dev) are picked up without restart.
@@ -26,6 +31,21 @@ const INSTANTLY = () => envGet('INSTANTLY_API_KEY');
 const HEYREACH = () => envGet('HEYREACH_API_KEY'); // add to .env to activate LinkedIn dispatch
 const TINYURL = () => envGet('TINYURL_API_TOKEN');
 const TINYURL_DOMAIN = () => envGet('TINYURL_DOMAIN'); // e.g. wfm.info — must be verified in the TinyURL dashboard first
+// Instantly's /campaigns endpoint silently caps at ~10 results per page regardless of the
+// `limit` param and returns `next_starting_after` when there's more — a bare single fetch
+// (found broken 2026-08-26, was returning "Volcano MVP - Consulting - Denzel" as not-found
+// with 19+ real campaigns in the account) undercounts every caller that lists campaigns.
+async function allInstantlyCampaigns() {
+  const K = INSTANTLY();
+  let starting, all = [], guard = 0;
+  do {
+    const r = await fetch(`https://api.instantly.ai/api/v2/campaigns?limit=100${starting ? `&starting_after=${starting}` : ''}`, { headers: { authorization: `Bearer ${K}` } });
+    const b = await r.json();
+    all = all.concat(b.items || b.data || []);
+    starting = b.next_starting_after; guard++;
+  } while (starting && guard < 20);
+  return all;
+}
 // First run on a new machine: .env is gitignored, so guide the user to create it.
 if (!fs.existsSync(path.join(__dirname, '.env'))) {
   console.error('\n  No heygen-studio/.env found (it is gitignored, so it did not clone).');
@@ -367,14 +387,14 @@ const server = http.createServer(async (req, res) => {
       // 1) contacts
       let after, ids = [];
       do { const r = await hs(`/crm/v3/lists/${LIST}/memberships?limit=100${after ? `&after=${after}` : ''}`); const b = await r.json(); ids.push(...(b.results || []).map(x => x.recordId)); after = b.paging?.next?.after; } while (after);
-      const props = ['firstname', 'company', 'email', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_thumb_url', 'volcano_lead_score', 'hs_linkedin_url'];
+      const props = ['firstname', 'lastname', 'jobtitle', 'company', 'email', 'volcano_icp_vertical', 'hubspot_owner_id', 'volcano_heygen_video_url', 'volcano_thumb_url', 'volcano_lead_score', 'hs_linkedin_url'];
       const contacts = [];
       for (let i = 0; i < ids.length; i += 100) {
         const r = await hs('/crm/v3/objects/contacts/batch/read', { method: 'POST', body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map(id => ({ id })) }) });
-        (await r.json()).results?.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.hs_linkedin_url, linkedinUrl: p.hs_linkedin_url || '' }); });
+        (await r.json()).results?.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), lastName: p.lastname || '', jobtitle: p.jobtitle || '', company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.hs_linkedin_url, linkedinUrl: p.hs_linkedin_url || '' }); });
       }
       // 2) Instantly engagement across Pimple (real) + Volcano TEST campaigns
-      const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json()).items || []).filter(c => /pimple|volcano/i.test(c.name));
+      const camps = (await allInstantlyCampaigns()).filter(c => /pimple|volcano/i.test(c.name));
       const eng = {};
       for (const camp of camps) {
         let starting, guard = 0;
@@ -385,22 +405,34 @@ const server = http.createServer(async (req, res) => {
           starting = b.next_starting_after; guard++;
         } while (starting && guard < 20);
       }
-      // 2b) HeyReach LinkedIn engagement (best effort; lead-status fields read defensively)
+      // 2b) HeyReach LinkedIn engagement. Real lead fields (verified against live API
+      // 2026-08-27 — the previous version read `status`/`leadStatus`/`state`, none of which
+      // exist on the actual object, so accepted/replied silently evaluated false always):
+      // leadConnectionStatus: 'None' | 'ConnectionSent' | 'ConnectionAccepted'
+      // leadMessageStatus: 'None' | 'MessageSent'  (no read-receipt state — see reply note below)
       const li = {};
       const HK = HEYREACH();
       if (HK) {
         try {
           const hrq = (p, body) => fetch(`https://api.heyreach.io/api/public${p}`, { method: 'POST', headers: { 'X-API-KEY': HK, 'content-type': 'application/json' }, body: JSON.stringify(body) });
-          const cs = (await (await hrq('/campaign/GetAll', { offset: 0, limit: 100 })).json())?.items || [];
-          for (const camp of cs) {
+          // Scan only the real vertical+owner campaigns (heyreach-real-campaigns.json), not
+          // every campaign GetAll returns — the account also holds old test/demo campaigns
+          // (Volcano LI TEST, Volcano DEMO, "Volcano LI - Sina v2", etc.) that can contain the
+          // SAME contact with blank/stale status data. Scanning everything and unconditionally
+          // overwriting `li[key]` per campaign let a later stale record clobber a real
+          // ConnectionAccepted status with an empty one — confirmed live 2026-08-27 (0 rows
+          // showed any engagement even though the real campaigns had 10 accepted connections).
+          const realCamps = Object.values(JSON.parse(fs.readFileSync(path.join(__dirname, 'heyreach-real-campaigns.json'), 'utf8')));
+          for (const camp of realCamps) {
             let offset = 0, guard = 0;
             while (guard++ < 20) {
-              const b = await (await hrq('/campaign/GetLeadsFromCampaign', { campaignId: camp.id, offset, limit: 100 })).json();
+              const b = await (await hrq('/campaign/GetLeadsFromCampaign', { campaignId: camp.campaignId, offset, limit: 100 })).json();
               const items = b?.items || [];
               items.forEach(it => {
                 const prof = it.linkedInUserProfile || {};
-                const status = String(it.status || it.leadStatus || it.state || '');
-                const rec = { inCampaign: true, status, accepted: /accept|connected/i.test(status), replied: /repl/i.test(status) };
+                const accepted = it.leadConnectionStatus === 'ConnectionAccepted';
+                const messaged = it.leadMessageStatus === 'MessageSent';
+                const rec = { inCampaign: true, status: it.leadConnectionStatus || '', accepted, messaged, replied: false };
                 const em = (prof.emailAddress || it.emailAddress || '').toLowerCase();
                 if (em) li[em] = rec;
                 if (prof.profileUrl) li[prof.profileUrl.replace(/\/+$/, '').toLowerCase()] = rec;
@@ -409,7 +441,48 @@ const server = http.createServer(async (req, res) => {
               offset += 100;
             }
           }
+          // Replies aren't on the campaign-leads endpoint at all — LinkedIn doesn't expose true
+          // read-receipts to third-party tools, but an actual reply shows up as a real message
+          // in the inbox, via the separate /inbox/GetConversationsV2 endpoint (found + verified
+          // live 2026-08-27). lastMessageSender === 'CORRESPONDENT' means THEY sent the last
+          // message in the thread, i.e. a genuine reply (not just an accepted connection).
+          let offset = 0, guard = 0;
+          while (guard++ < 20) {
+            const b = await (await hrq('/inbox/GetConversationsV2', { offset, limit: 100 })).json();
+            const items = b?.items || [];
+            items.forEach(c => {
+              if (c.lastMessageSender !== 'CORRESPONDENT') return;
+              const prof = c.correspondentProfile || {};
+              const key1 = (prof.emailAddress || '').toLowerCase();
+              const key2 = (prof.profileUrl || '').replace(/\/+$/, '').toLowerCase();
+              if (key1 && li[key1]) li[key1].replied = true;
+              if (key2 && li[key2]) li[key2].replied = true;
+              // Conversation can exist for a lead that isn't in our `li` map yet (e.g. joined
+              // straight from LinkedIn's UI, not via a campaign push) — still record the reply
+              // so it isn't silently dropped, keyed by whichever identifier we have.
+              if (key1 && !li[key1]) li[key1] = { inCampaign: false, status: '', accepted: true, messaged: true, replied: true };
+              if (key2 && !li[key2]) li[key2] = { inCampaign: false, status: '', accepted: true, messaged: true, replied: true };
+            });
+            if (items.length < 100 || offset + items.length >= (b.totalCount || 0)) break;
+            offset += 100;
+          }
         } catch (e) { /* LinkedIn engagement is additive; ignore failures */ }
+      }
+      // 2c) Union in anyone actually pushed to a real campaign but missing from list `LIST` —
+      // confirmed live 2026-08-27 that list 3698 does NOT contain every real, actively-engaging
+      // lead (every contact who'd accepted a LinkedIn connection or replied was outside it
+      // entirely), which would otherwise make this dashboard silently under-report the real
+      // funnel. profileUrl-only li keys have no email to look up by, so they're left as-is —
+      // still counted correctly wherever a HubSpot contact does match on linkedinUrl.
+      const knownEmails = new Set(contacts.map(c => c.email).filter(Boolean));
+      const missingEmails = [...new Set([...Object.keys(eng), ...Object.keys(li).filter(k => k.includes('@'))])].filter(em => em && !knownEmails.has(em));
+      if (missingEmails.length) {
+        for (let i = 0; i < missingEmails.length; i += 100) {
+          const batch = missingEmails.slice(i, i + 100);
+          const r = await hs('/crm/v3/objects/contacts/search', { method: 'POST', body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'email', operator: 'IN', values: batch }] }], properties: props, limit: 100 }) });
+          const found = (await r.json())?.results || [];
+          found.forEach(c => { const p = c.properties; contacts.push({ id: c.id, firstName: cleanFirst(p.firstname), lastName: p.lastname || '', jobtitle: p.jobtitle || '', company: cleanCompany(p.company), email: (p.email || '').toLowerCase(), vertical: p.volcano_icp_vertical || '', owner: p.hubspot_owner_id || '', hasAssets: !!(p.volcano_thumb_url || p.volcano_heygen_video_url), hsScore: +(p.volcano_lead_score || 0), linkedin: !!p.hs_linkedin_url, linkedinUrl: p.hs_linkedin_url || '', offList: true }); });
+        }
       }
       // 3) join + rank
       const rows = contacts.map(c => {
@@ -417,9 +490,44 @@ const server = http.createServer(async (req, res) => {
         const hubEng = e.opens * 2 + e.clicks * 10 + e.replies * 30;
         const l = li[c.email] || li[(c.linkedinUrl || '').replace(/\/+$/, '').toLowerCase()] || null;
         const liEng = l ? (l.accepted ? 8 : 0) + (l.replied ? 30 : 0) : 0;
-        return { ...c, opens: e.opens, clicks: e.clicks, replies: e.replies, emailLive: !!eng[c.email], hubEng, liIn: !!l, liStatus: l ? l.status : '', liEng, total: hubEng + liEng + c.hsScore };
+        const emailLive = !!eng[c.email];
+        const liIn = !!l;
+        // Gap = has a generated video/thumb (so it's push-ready) but isn't actually seeded
+        // in that channel yet — surfaces exactly what 2026-08-27's manual audit had to find
+        // by hand, as a standing view instead of a one-off script.
+        const emailGap = c.hasAssets && !emailLive;
+        const liGap = c.hasAssets && c.linkedin && !liIn;
+        return { ...c, opens: e.opens, clicks: e.clicks, replies: e.replies, emailLive, hubEng, liIn, liStatus: l ? l.status : '', liEng, emailGap, liGap, total: hubEng + liEng + c.hsScore };
       }).sort((a, b) => b.total - a.total);
-      return json(res, 200, { count: rows.length, emailLive: rows.filter(r => r.emailLive).length, liLive: rows.filter(r => r.liIn).length, rows });
+      const summary = {
+        count: rows.length,
+        emailLive: rows.filter(r => r.emailLive).length,
+        liLive: rows.filter(r => r.liIn).length,
+        hot: rows.filter(r => r.total >= 65).length,
+        emailGaps: rows.filter(r => r.emailGap).length,
+        liGaps: rows.filter(r => r.liGap).length,
+        offList: rows.filter(r => r.offList).length,
+        totalOpens: rows.reduce((s, r) => s + (r.opens || 0), 0),
+        totalClicks: rows.reduce((s, r) => s + (r.clicks || 0), 0),
+        totalReplies: rows.reduce((s, r) => s + (r.replies || 0), 0),
+      };
+      // Daily snapshot for trend history — overwritten on every load of that same local
+      // day, so "today" always reflects the latest pull while past days stay frozen.
+      try {
+        const dir = path.join(__dirname, 'logs');
+        fs.mkdirSync(dir, { recursive: true });
+        const d = new Date();
+        const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        fs.writeFileSync(path.join(dir, `dashboard-${date}.json`), JSON.stringify({ date, ...summary }, null, 2));
+      } catch (e) { /* history is additive; a failed snapshot write shouldn't break the live view */ }
+      return json(res, 200, { ...summary, rows });
+    }
+
+    if (u.pathname === '/api/dashboard/history') {
+      const dir = path.join(__dirname, 'logs');
+      const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^dashboard-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort() : [];
+      const days = files.map(f => { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { return null; } }).filter(Boolean);
+      return json(res, 200, { days });
     }
 
     if (u.pathname === '/api/avatars') {
@@ -481,7 +589,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const K = INSTANTLY();
         if (K) {
-          const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json())?.items || []).filter(x => /pimple|volcano/i.test(x.name));
+          const camps = (await allInstantlyCampaigns()).filter(x => /pimple|volcano/i.test(x.name));
           const inInst = {};
           for (const camp of camps) {
             let starting, guard = 0;
@@ -681,9 +789,7 @@ const server = http.createServer(async (req, res) => {
 
     // --- Instantly: list campaigns ---
     if (u.pathname === '/api/instantly/campaigns') {
-      const r = await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${INSTANTLY()}` } });
-      const b = await r.json();
-      const campaigns = (b.items || b.data || []).map(c => ({ id: c.id, name: c.name }));
+      const campaigns = (await allInstantlyCampaigns()).map(c => ({ id: c.id, name: c.name }));
       return json(res, 200, { campaigns });
     }
 
@@ -705,19 +811,25 @@ const server = http.createServer(async (req, res) => {
       const blobLogoMatch = (blob || '').match(/logo=([^&]+)/);
       const logo = c.logo || (blobLogoMatch ? decodeURIComponent(blobLogoMatch[1]) : '');
       const K = INSTANTLY();
-      const cr = await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } });
-      const camps = (await cr.json())?.items || [];
       const IMAP = ['architecture', 'engineering', 'consulting', 'creative', 'construction', 'civil'];
       const word = IMAP.find(x => (c.vertical || '').toLowerCase().includes(x)) || '';
-      // explicit campaign override from the dispatch module wins; otherwise vertical -> "Pimple - {vertical}"
-      const camp = c.campaignId
-        ? camps.find(x => String(x.id) === String(c.campaignId))
-        : camps.find(x => /pimple/i.test(x.name) && word && x.name.toLowerCase().includes(word));
-      if (!camp) return json(res, 200, { ok: false, error: c.campaignId ? `campaign ${c.campaignId} not found` : `no Pimple campaign for vertical "${c.vertical || '?'}"` });
-      const body = { campaign: camp.id, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
+      const ownerWord = (c.presenter || '').toLowerCase().includes('denzel') ? 'denzel' : 'sina';
+      // Route via the ID map we own (instantly-real-campaigns.json) rather than searching
+      // live campaign names — names get renamed in Instantly's own UI independent of us
+      // (confirmed 2026-08-26: our "Pimple - X - Y" campaigns got renamed to "Volcano MVP -
+      // X - Y" by someone else, silently breaking name-pattern matching), and the live list
+      // endpoint also paginates below the /api/v2/campaigns?limit=100 param's promise, so a
+      // full-list scan can miss campaigns outright. An explicit campaignId still overrides.
+      let campId = c.campaignId;
+      if (!campId) {
+        const instCamps = JSON.parse(fs.readFileSync(path.join(__dirname, 'instantly-real-campaigns.json'), 'utf8'));
+        campId = instCamps[word]?.[ownerWord];
+      }
+      if (!campId) return json(res, 200, { ok: false, error: c.campaignId ? `campaign ${c.campaignId} not found` : `no Instantly campaign mapped for vertical "${c.vertical || '?'}" + owner "${ownerWord}"` });
+      const body = { campaign: campId, email: c.email, first_name: c.firstName || '', company_name: c.company || '', custom_variables: { volcano_blob: blob || '', industry: word, video: video || '', thumb: thumb || '', demo_thumb: demoThumb || '', logo, brand_color: brand || '#0A2F28', presenter: c.presenter || 'Sina Zarei', presenter_title: c.presenter_title || 'Account Executive', booking: c.booking || '' } };
       const r = await fetch('https://api.instantly.ai/api/v2/leads', { method: 'POST', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const rb = await r.json().catch(() => null);
-      return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaign: camp.name, campaignId: camp.id, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
+      return json(res, r.status < 300 ? 200 : r.status, { ok: r.status < 300, campaignId: campId, leadId: rb?.id || null, error: r.status >= 300 ? rb : null });
     }
 
     // --- Instantly: refresh an EXISTING lead's merge vars (after a blob/thumbnail rebuild).
@@ -743,7 +855,7 @@ const server = http.createServer(async (req, res) => {
       // Match both real ("Pimple - X") and known-contacts test ("Volcano TEST...") campaigns —
       // narrowing to /pimple/i alone missed already-enrolled test leads entirely (found 2026-07-10
       // rebuilding Denzel's thumbnails: a Volcano TEST lead came back notFound even though it existed).
-      const camps = ((await (await fetch('https://api.instantly.ai/api/v2/campaigns?limit=100', { headers: { authorization: `Bearer ${K}` } })).json())?.items || []).filter(x => /pimple|volcano/i.test(x.name));
+      const camps = (await allInstantlyCampaigns()).filter(x => /pimple|volcano/i.test(x.name));
       let lead = null, leadCamp = null;
       for (const camp of camps) {
         let starting, guard = 0;
@@ -886,11 +998,15 @@ const server = http.createServer(async (req, res) => {
 
     if (u.pathname === '/api/copy/instantly' && req.method === 'GET') {
       const vertical = u.searchParams.get('vertical');
-      const campaignId = readJson(INST_CAMPAIGNS_PATH)[vertical];
-      if (!campaignId) return json(res, 200, { ok: false, error: `no live Instantly campaign for vertical "${vertical}"` });
+      const owners = readJson(INST_CAMPAIGNS_PATH)[vertical];
+      if (!owners) return json(res, 200, { ok: false, error: `no live Instantly campaign for vertical "${vertical}"` });
       const copy = readJson(COPY_INST_PATH)[vertical];
-      const camp = await (await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}`, { headers: { authorization: `Bearer ${INSTANTLY()}` } })).json().catch(() => null);
-      return json(res, 200, { ok: true, copy, campaignId, status: camp?.status });
+      const campaigns = [];
+      for (const [owner, id] of Object.entries(owners)) {
+        const camp = await (await fetch(`https://api.instantly.ai/api/v2/campaigns/${id}`, { headers: { authorization: `Bearer ${INSTANTLY()}` } })).json().catch(() => null);
+        campaigns.push({ owner, campaignId: id, status: camp?.status });
+      }
+      return json(res, 200, { ok: true, copy, campaigns });
     }
 
     if (u.pathname === '/api/copy/heyreach/save' && req.method === 'POST') {
@@ -937,32 +1053,43 @@ const server = http.createServer(async (req, res) => {
 
     if (u.pathname === '/api/copy/instantly/save' && req.method === 'POST') {
       const { vertical, copy } = await readBody(req); // copy: [{subject, body}, ...7], delay untouched
-      const campaignId = readJson(INST_CAMPAIGNS_PATH)[vertical];
-      if (!campaignId) return json(res, 200, { ok: false, error: `no live Instantly campaign for vertical "${vertical}"` });
+      const owners = readJson(INST_CAMPAIGNS_PATH)[vertical];
+      if (!owners) return json(res, 200, { ok: false, error: `no live Instantly campaign for vertical "${vertical}"` });
       const K = INSTANTLY();
-      const campR = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}`, { headers: { authorization: `Bearer ${K}` } });
-      const camp = await campR.json();
-      const steps = camp.sequences[0].steps;
-      if (steps.length !== copy.length) return json(res, 200, { ok: false, error: `step count mismatch: live has ${steps.length}, copy has ${copy.length}` });
-      // Only touch subject/body; delay/delay_unit/pre_delay_unit/type all come from the
-      // live fetch untouched — same preserve-everything-else pattern already proven
-      // fixing Engineering's delays this session (server.mjs history, 2026-07-09).
-      steps.forEach((s, i) => { s.variants[0].subject = copy[i].subject; s.variants[0].body = copy[i].body; });
-      // Instantly status: 0 draft, 1 active, 2 paused (confirmed live 2026-07-09).
-      // Active must be paused before editing; resuming can reset in-flight lead
-      // progress, so we leave it paused per Sina's call rather than auto-resuming.
-      let pausedForEdit = false;
-      if (camp.status === 1) {
-        await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/pause`, { method: 'POST', headers: { authorization: `Bearer ${K}` } });
-        pausedForEdit = true;
+      // Sina's and Denzel's campaigns for this vertical are duplicates that share identical
+      // copy (only their email_list sending-account pool differs), so an edit here must push
+      // to BOTH or they'd silently drift out of sync.
+      const results = [];
+      let lastSteps = null;
+      for (const [owner, campaignId] of Object.entries(owners)) {
+        const campR = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}`, { headers: { authorization: `Bearer ${K}` } });
+        const camp = await campR.json();
+        const steps = camp.sequences[0].steps;
+        if (steps.length !== copy.length) { results.push({ owner, ok: false, error: `step count mismatch: live has ${steps.length}, copy has ${copy.length}` }); continue; }
+        // Only touch subject/body; delay/delay_unit/pre_delay_unit/type all come from the
+        // live fetch untouched — same preserve-everything-else pattern already proven
+        // fixing Engineering's delays this session (server.mjs history, 2026-07-09).
+        steps.forEach((s, i) => { s.variants[0].subject = copy[i].subject; s.variants[0].body = copy[i].body; });
+        // Instantly status: 0 draft, 1 active, 2 paused (confirmed live 2026-07-09).
+        // Active must be paused before editing; resuming can reset in-flight lead
+        // progress, so we leave it paused per Sina's call rather than auto-resuming.
+        let pausedForEdit = false;
+        if (camp.status === 1) {
+          await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/pause`, { method: 'POST', headers: { authorization: `Bearer ${K}` } });
+          pausedForEdit = true;
+        }
+        const bodyStr = JSON.stringify({ sequences: camp.sequences });
+        const patchR = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}`, { method: 'PATCH', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json; charset=utf-8' }, body: Buffer.from(bodyStr, 'utf8') });
+        results.push({ owner, ok: patchR.status < 300, pausedForEdit, error: patchR.status >= 300 ? (await patchR.text()).slice(0, 200) : null });
+        lastSteps = steps;
       }
-      const bodyStr = JSON.stringify({ sequences: camp.sequences });
-      const patchR = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}`, { method: 'PATCH', headers: { authorization: `Bearer ${K}`, 'content-type': 'application/json; charset=utf-8' }, body: Buffer.from(bodyStr, 'utf8') });
-      if (patchR.status >= 300) return json(res, 200, { ok: false, error: `Instantly PATCH ${patchR.status}: ${(await patchR.text()).slice(0, 300)}` });
-      const allInstCopy = readJson(COPY_INST_PATH);
-      allInstCopy[vertical] = steps.map((s, i) => ({ subject: s.variants[0].subject, body: s.variants[0].body, delay: s.delay }));
-      writeJson(COPY_INST_PATH, allInstCopy);
-      return json(res, 200, { ok: true, pausedForEdit, note: pausedForEdit ? 'campaign was not draft, paused before editing and left paused — resume manually when ready' : null });
+      if (results.every(r => !r.ok)) return json(res, 200, { ok: false, results });
+      if (lastSteps) {
+        const allInstCopy = readJson(COPY_INST_PATH);
+        allInstCopy[vertical] = lastSteps.map((s, i) => ({ subject: s.variants[0].subject, body: s.variants[0].body, delay: s.delay }));
+        writeJson(COPY_INST_PATH, allInstCopy);
+      }
+      return json(res, 200, { ok: results.every(r => r.ok), results });
     }
 
     // --- Known-contacts TEST campaign copy (single shared copy, not per-vertical —

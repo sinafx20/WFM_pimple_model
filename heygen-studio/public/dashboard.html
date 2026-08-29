@@ -30,6 +30,19 @@
   .b-cold{background:#eceff1;color:#607d8b}.b-warm{background:#fff3e0;color:#b4540e}.b-hot{background:#ffe0e0;color:#c62828}.b-erupt{background:#0A2F28;color:#63DB94}
   .muted{color:var(--muted)} .rank{color:#9AA3A0;font-weight:700}
   .note{font-size:12px;color:var(--muted);margin:0 0 12px}
+  .gapstat{cursor:pointer;border-radius:6px;padding:2px 6px;margin:-2px -6px}
+  .gapstat.on{background:rgba(255,255,255,.14)}
+  .gapstat b{color:#ffd8a8}
+  .emlbtn{background:#0D8D5C;color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:0;cursor:pointer}
+  .emlbtn:disabled{opacity:.45;cursor:default}
+  .gaprow td{background:#fff8ee}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .panel h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .trend{display:flex;gap:22px;align-items:flex-end}
+  .trend-chart{flex:1;min-width:0}
+  .trend-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:6px}
+  .trend-legend span{display:flex;align-items:center;gap:5px}
+  .trend-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
 </style>
 </head>
 <body>
@@ -40,24 +53,41 @@
   <span class="stat"><b id="s-total">–</b> contacts</span>
   <span class="stat"><b id="s-email">–</b> in email</span>
   <span class="stat"><b id="s-hot">–</b> hot+</span>
+  <span class="stat gapstat" id="s-emailgap-wrap" title="Has assets built but never pushed to email — click to filter"><b id="s-emailgap">–</b> email gaps</span>
+  <span class="stat gapstat" id="s-ligap-wrap" title="Has assets + LinkedIn but never pushed to LinkedIn — click to filter"><b id="s-ligap">–</b> LI gaps</span>
+  <span class="stat" title="Actually pushed to a real campaign but missing from this HubSpot list — found and included anyway"><b id="s-offlist">–</b> off-list</span>
   <select id="hr-camp" title="HeyReach campaign for LinkedIn pushes"><option value="">LinkedIn: checking…</option></select>
   <button id="sync" title="Write each contact's engagement (email + LinkedIn) to the volcano_engagement_score property in HubSpot">Sync scores &rarr; HS</button>
   <button id="refresh">Refresh</button>
 </header>
 <div class="wrap">
-  <p class="note">Ranked by total engagement (HubSpot volcano score + live email engagement). Email opens/clicks/replies polled from Instantly. LinkedIn: pick a HeyReach campaign (top right), then push contacts with a LinkedIn URL — each lead carries intro_link / health_check_link / thumb / booking / industry as custom fields for DM templates. Bands: Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+.</p>
+  <div class="panel">
+    <h3>Trend — last 30 snapshots</h3>
+    <div class="trend">
+      <canvas class="trend-chart" id="trendCanvas" height="70"></canvas>
+    </div>
+    <div class="trend-legend">
+      <span><i style="background:#0D8D5C"></i>Opens</span>
+      <span><i style="background:#63DB94"></i>Clicks</span>
+      <span><i style="background:#0A66C2"></i>Replies</span>
+      <span><i style="background:#c62828"></i>Hot+</span>
+    </div>
+  </div>
+  <p class="note">Ranked by total engagement (HubSpot volcano score + live email engagement). Email opens/clicks/replies polled from Instantly. LinkedIn: pick a HeyReach campaign (top right), then push contacts with a LinkedIn URL — each lead carries intro_link / health_check_link / thumb / booking / industry as custom fields for DM templates. Bands: Cold 0–24 · Warm 25–64 · Hot 65–99 · Eruption 100+. Click a gap stat above to filter to just those rows.</p>
   <table id="tbl"><thead><tr>
     <th>#</th><th data-k="company">Contact</th><th data-k="vertical">Vertical</th><th data-k="owner">Owner</th>
     <th class="num">Assets</th><th class="num">Email</th><th class="num">LI</th>
     <th class="num" data-k="opens">Opens</th><th class="num" data-k="clicks">Clicks</th><th class="num" data-k="replies">Replies</th>
     <th class="num" data-k="liEng">LI eng</th>
-    <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th><th class="num">LI push</th>
-  </tr></thead><tbody id="rows"><tr><td colspan="16" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
+    <th class="num" data-k="hubEng">Eng</th><th class="num" data-k="hsScore">HS score</th><th class="num" data-k="total">Total</th><th>Band</th><th class="num">Email push</th><th class="num">LI push</th>
+  </tr></thead><tbody id="rows"><tr><td colspan="17" class="muted" style="padding:16px">Loading…</td></tr></tbody></table>
 </div>
 <script>
-let ROWS=[], sortK='total', sortDir=-1;
+let ROWS=[], sortK='total', sortDir=-1, gapFilter=null; // gapFilter: null | 'email' | 'li'
 const band=s=> s>=100?['Eruption','b-erupt']: s>=65?['Hot','b-hot']: s>=25?['Warm','b-warm']:['Cold','b-cold'];
 const model=v=>/construction|civil/i.test(v)?'prj':'svc';
+const PRESENTER={'80406430':{key:'sina',name:'Sina Zarei',booking:'https://meetings.hubspot.com/szarei'},'80127259':{key:'denzel',name:'Denzel Kereama',booking:'https://meetings.hubspot.com/denzel-kereama'}};
+const presenterFor=owner=>PRESENTER[owner]||PRESENTER['80406430'];
 async function load(){
   document.getElementById('refresh').disabled=true;
   const list=new URLSearchParams(location.search).get('list')||'3698';
@@ -65,31 +95,82 @@ async function load(){
   ROWS=d.rows||[];
   document.getElementById('s-total').textContent=d.count;
   document.getElementById('s-email').textContent=d.emailLive;
-  document.getElementById('s-hot').textContent=ROWS.filter(r=>r.total>=65).length;
+  document.getElementById('s-hot').textContent=d.hot;
+  document.getElementById('s-emailgap').textContent=d.emailGaps;
+  document.getElementById('s-ligap').textContent=d.liGaps;
+  document.getElementById('s-offlist').textContent=d.offList;
   document.getElementById('refresh').disabled=false;
   render();
+  loadTrend();
 }
 function render(){
-  const rows=[...ROWS].sort((a,b)=>{const x=a[sortK],y=b[sortK];return (typeof x==='number'?x-y:(''+x).localeCompare(''+y))*sortDir;});
+  document.getElementById('s-emailgap-wrap').classList.toggle('on', gapFilter==='email');
+  document.getElementById('s-ligap-wrap').classList.toggle('on', gapFilter==='li');
+  let rows=[...ROWS];
+  if(gapFilter==='email') rows=rows.filter(r=>r.emailGap);
+  if(gapFilter==='li') rows=rows.filter(r=>r.liGap);
+  rows.sort((a,b)=>{const x=a[sortK],y=b[sortK];return (typeof x==='number'?x-y:(''+x).localeCompare(''+y))*sortDir;});
   document.getElementById('rows').innerHTML=rows.map((r,i)=>{
     const [bn,bc]=band(r.total);
-    return `<tr class="${r.total>=65?'hot':''}">
+    const isGapRow = r.emailGap || r.liGap;
+    return `<tr class="${r.total>=65?'hot':''} ${isGapRow?'gaprow':''}">
       <td class="rank">${i+1}</td>
-      <td><b>${r.firstName||'(no name)'}</b><br><span class="muted">${r.company||''}</span></td>
+      <td><b>${r.firstName||'(no name)'}</b>${r.offList?' <span class="pill" style="background:#fff3e0;color:#b4540e" title="Pushed to a real campaign but not a member of this HubSpot list">off-list</span>':''}<br><span class="muted">${r.company||''}</span></td>
       <td><span class="pill ${model(r.vertical)}">${r.vertical||'?'}</span></td>
       <td class="muted">${r.owner||'-'}</td>
       <td class="num"><span class="dot ${r.hasAssets?'y':'n'}"></span></td>
       <td class="num"><span class="dot ${r.emailLive?'y':'n'}"></span></td>
       <td class="num"><span class="dot ${r.linkedin?'y':'n'}"></span></td>
       <td class="num">${r.opens||0}</td><td class="num">${r.clicks||0}</td><td class="num">${r.replies||0}</td>
-      <td class="num" title="${(r.liStatus||'').replace(/"/g,'&quot;')}">${r.liEng||0}</td>
+      <td class="num" title="${((r.liStatus||'no LinkedIn activity yet')+(r.liEng>=30?' + replied':'')).replace(/"/g,'&quot;')}">${r.liEng||0}</td>
       <td class="num">${r.hubEng||0}</td><td class="num">${r.hsScore||0}</td>
       <td class="num score">${r.total||0}</td>
       <td><span class="band ${bc}">${bn}</span></td>
+      <td class="num" id="eml-${r.id}">${r.emailLive?'<span class="li-ok">in seq</span>':r.emailGap?`<button class="emlbtn" onclick="pushEmail('${r.id}')">&rarr; Email</button>`:'<span class="muted">–</span>'}</td>
       <td class="num" id="li-${r.id}">${r.liIn?'<span class="li-ok">in seq</span>':r.linkedin?`<button class="libtn" onclick="pushLI('${r.id}')" ${HR_READY?'':'disabled'}>&rarr; LI</button>`:'<span class="muted">–</span>'}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="16" class="muted" style="padding:16px">No contacts.</td></tr>';
+  }).join('') || '<tr><td colspan="17" class="muted" style="padding:16px">No contacts match.</td></tr>';
 }
+document.getElementById('s-emailgap-wrap').onclick=()=>{ gapFilter = gapFilter==='email'?null:'email'; render(); };
+document.getElementById('s-ligap-wrap').onclick=()=>{ gapFilter = gapFilter==='li'?null:'li'; render(); };
+async function pushEmail(id){
+  const row=ROWS.find(r=>r.id===id); if(!row) return;
+  const cell=document.getElementById('eml-'+id);
+  cell.innerHTML='<span class="muted">…</span>';
+  const pr=presenterFor(row.owner);
+  const body={contactId:id, email:row.email, firstName:row.firstName, company:row.company, vertical:row.vertical, presenter:pr.name, presenter_title:'Account Executive', booking:pr.booking};
+  const r=await fetch('/api/instantly/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  if(r.ok){ row.emailLive=true; row.emailGap=false; }
+  cell.innerHTML=r.ok?'<span class="li-ok">&#10003; queued</span>':`<span class="li-err" title="${(JSON.stringify(r.error)||'failed').replace(/"/g,'&quot;')}">&#10007;</span>`;
+}
+async function loadTrend(){
+  const d=await fetch('/api/dashboard/history').then(r=>r.json()).catch(()=>({days:[]}));
+  drawTrend((d.days||[]).slice(-30));
+}
+function drawTrend(days){
+  const cv=document.getElementById('trendCanvas');
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth||600, h=70;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  if(days.length<2){ ctx.fillStyle='#8a9691'; ctx.font='11px sans-serif'; ctx.fillText('Not enough history yet — check back after a few daily refreshes.',6,h/2); return; }
+  const series=[{k:'totalOpens',c:'#0D8D5C'},{k:'totalClicks',c:'#63DB94'},{k:'totalReplies',c:'#0A66C2'},{k:'hot',c:'#c62828'}];
+  const maxV=Math.max(1,...series.flatMap(s=>days.map(d=>d[s.k]||0)));
+  const pad=6, plotW=w-pad*2, plotH=h-pad*2;
+  const x=i=>pad+(i/(days.length-1))*plotW;
+  const y=v=>pad+plotH-(v/maxV)*plotH;
+  series.forEach(s=>{
+    ctx.beginPath(); ctx.strokeStyle=s.c; ctx.lineWidth=1.6;
+    days.forEach((d,i)=>{ const px=x(i), py=y(d[s.k]||0); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    ctx.stroke();
+  });
+  ctx.fillStyle='#8a9691'; ctx.font='9px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(days[0].date, pad, h-1);
+  ctx.textAlign='right';
+  ctx.fillText(days[days.length-1].date, w-pad, h-1);
+}
+window.addEventListener('resize', ()=>{ if(ROWS.length) loadTrend(); });
 let HR_READY=false;
 async function loadHeyReach(){
   const sel=document.getElementById('hr-camp');

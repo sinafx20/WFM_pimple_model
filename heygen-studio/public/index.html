@@ -248,7 +248,7 @@ const $=s=>document.querySelector(s);
 // silently defaulted EVERY contact to Sina until someone manually opened the Casting
 // modal. Hardcode the known real owner ids as the built-in default so presenter is
 // correct out of the box; localStorage (set via the Casting modal) still overrides it.
-const KNOWN_OWNERS={'80127259':'sina','80406430':'denzel'};
+const KNOWN_OWNERS={'80127259':'denzel','80406430':'sina'}; // verified 2026-08-29 via email senders
 const presenterFor=ownerId=>casting[ownerId]||KNOWN_OWNERS[ownerId]||'sina';
 let CONTACTS=[], AVATARS=[], VOICES=[], casting=JSON.parse(localStorage.getItem('casting')||'{}');
 const PREVIEW_BASE='https://lp.workflowmax.com/app'; // live pages; use http://localhost:4321/app while testing the dev server
@@ -718,7 +718,7 @@ async function loadCopyVertical(vertical){
   if(inst.ok){ CP_INST_LEN=inst.copy.length; $('#instCopyFields').innerHTML=inst.copy.map((s,i)=>instStepCard(s,i)).join(''); wirePreviewButtons(); }
   else { $('#instCopyFields').innerHTML=`<div class="muted">${inst.error||'failed to load'}</div>`; }
   const hrStatus=(hr.campaigns||[]).map(c=>`${c.owner} ${c.campaignId} (${c.status})`).join(' · ');
-  const instStatus=inst.ok?`Instantly ${inst.campaignId} (${['DRAFT','ACTIVE','PAUSED'][inst.status]||inst.status})`:'';
+  const instStatus=(inst.campaigns||[]).map(c=>`${c.owner} Instantly (${['DRAFT','ACTIVE','PAUSED'][c.status]||c.status})`).join(' · ');
   $('#copyStatus').textContent=[hrStatus,instStatus].filter(Boolean).join('  |  ');
 }
 async function loadCopyTest(vertical){
@@ -777,7 +777,7 @@ $('#instCopySave').onclick=async()=>{
   const vertical = CP_MODE==='real' ? CP_CURRENT : CP_TEST_VERTICAL;
   const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vertical,copy})}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
   $('#instCopySave').disabled=false;
-  const pausedAny = CP_MODE==='real' ? r.pausedForEdit : (r.results||[]).some(x=>x.pausedForEdit);
+  const pausedAny = (r.results||[]).some(x=>x.pausedForEdit);
   $('#copySaveResult').innerHTML=r.ok
     ? `Instantly: saved and pushed live.${pausedAny?' <span style="color:#b4540e">A campaign was active — paused before editing, left paused. Resume manually when ready.</span>':''}`
     : `<span style="color:#b42318">Instantly save failed: ${r.error||JSON.stringify(r.results||'?')}</span>`;
