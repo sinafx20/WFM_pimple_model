@@ -68,9 +68,17 @@ No Delete endpoint. StartCampaign?campaignId= activates (needs sequence + active
 - **The LinkedIn "blocker" never existed**: the HubSpot property is `hs_linkedin_url` (standard), NOT
   `linkedin_url` (which doesn't exist — batch-read silently ignores unknown props). **334/335 contacts
   on list 3698 HAVE LinkedIn URLs.** All code switched to hs_linkedin_url.
+- **AE owner ids — CORRECTED 2026-08-29.** `80406430` = **Sina Zarei**, `80127259` = **Denzel
+  Kereama**. An earlier note here claimed the opposite ("owner 80127259 (=Sina; verified via Sina's
+  own contact record)") and that claim was wrong. It propagated into every code file and sent 153
+  contacts the wrong AE's video, booking link, mailbox and LinkedIn seat before it was caught.
+  The owners API is out of token scope, so verify the only way that actually works: read
+  `hs_email_from_email` on logged emails per owner id (100/100 for 80127259 are denzel.kereama@,
+  99/100 for 80406430 are sina.zarei@). Do not re-derive this from a contact record.
+- **Contacts are assigned by HubSpot owner, not vertical.** Both AEs hold contacts in every
+  vertical; vertical only picks the copy variant and campaign, never whose contact it is.
 - **Ryan Kagan test contact**: id 126495762477, ryan.kagan@workflowmax.com, BlueRock (website
-  bluerock.com.au drives logo), Consulting, owner 80127259 (=Sina; verified via Sina's own contact
-  record — owners API is out of token scope; Denzel=80406430). Added to DYNAMIC list 3698 by adding his
+  bluerock.com.au drives logo), Consulting. Added to DYNAMIC list 3698 by adding his
   email to the test-email OR-branch via `/crm/v3/lists/3698/update-list-filters` (write shape: root OR →
   nested AND branches only; list = OR of lists 3693-3697 + email IN [volcano-test-lead@example.com, ryan]).
 - **Studio UI = 4 workflow modules + KANBAN PIPELINE (commit 9afe748)**: modules 1 List / 2 HeyGen studio

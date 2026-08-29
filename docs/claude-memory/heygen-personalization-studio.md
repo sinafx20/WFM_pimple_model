@@ -25,8 +25,9 @@ WFM_pimple_model repo; see [[pimple-model-project]]). Gitignored `.env` holds
   back; `--no-writeback` = preview only. `compare-voices.mjs` = A/B voices on one script.
 
 **HubSpot:** list **3698** = "Volcano Model MVP_all targets" (334 contacts). Owners on it:
-**80127259 (178 contacts)** and **80406430 (154)** — names not resolvable via the token,
-so map them to Sina/Denzel in the studio's casting UI. `volcano_icp_vertical` (text) already
+**80127259 = Denzel Kereama** and **80406430 = Sina Zarei** (VERIFIED 2026-08-29 via
+`hs_email_from_email` on logged emails; the owners API is out of token scope). These were
+mapped the wrong way round in code until then, so do not swap them back. `volcano_icp_vertical` (text) already
 exists + populated (Architecture / Consulting / Engineering / Creative Agency / Construction;
 **no Civil on this list**) → drives services-vs-project script. `volcano_heygen_video_url`
 was created via REST (token can write schema).

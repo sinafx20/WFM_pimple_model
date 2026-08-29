@@ -34,7 +34,7 @@ Cloned live Pimple bodies. **Instantly create API:** POST /api/v2/campaigns {nam
 Both a branded AND a truly-plain-text seed email (same mailbox sina.zarei@teamworkflowmax.com → s.zarei2001@gmail.com) **sent cleanly, 0 bounce, but NEVER landed** at Gmail (not inbox/spam/promo/all-mail). Cause = **sending domains too new** (warming only since 2026-07-01). warmup_score 100 is misleading — it only reflects Instantly's warmup pool, not real Gmail deliverability. Content is NOT the issue (plain text also vanished). Cold domains need ~2-4 weeks warmup + slow ramp.
 
 ## Seeds (staged)
-- Email: s.zarei2001@gmail.com = HubSpot contact **109443572599** (set to BlueRock/bluerock.com/consulting/owner Sina 80127259); enrolled in Instantly Sina·Consulting test — **custom vars VERIFIED correct** (blob encoded; thumb/logo/booking raw; brand_color #00315a hex).
+- Email: s.zarei2001@gmail.com = HubSpot contact **109443572599** (set to BlueRock/bluerock.com/consulting/owner 80127259, which is DENZEL not Sina — see gtm-hub.md, the ids were inverted in earlier notes); enrolled in Instantly Sina·Consulting test — **custom vars VERIFIED correct** (blob encoded; thumb/logo/booking raw; brand_color #00315a hex).
 - LinkedIn: **Jo Buckley** = contact **233783253287**, linkedin jo-buckley-712ba8320, in HeyReach test list/demo.
 - Both used a PLACEHOLDER video (reused bluerock mp4, Denzel avatar) — regenerate a real Sina video for a true-look test.
 

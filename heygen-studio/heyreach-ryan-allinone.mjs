@@ -31,7 +31,7 @@ const hr = (p, body, method = 'POST') => fetch(`https://api.heyreach.io/api/publ
   ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
 });
 
-const SEAT_SINA = 221310; // Ryan's HubSpot owner is Sina (80127259)
+const SEAT_SINA = 221310; // Sina's HeyReach seat. NB 80127259 is Denzel, not Sina (fixed 2026-08-29)
 const RYAN_HUBSPOT_ID = '126495762477';
 const STATE_PATH = path.join(__dirname, 'heyreach-ryan-allinone.json');
 

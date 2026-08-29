@@ -10,9 +10,22 @@ Job management SaaS for professional services firms. Covers the full job lifecyc
 
 ## Campaign Structure
 
-6 touchpoints over 18 days per contact. 250 contacts staggered at 50/day across week 1. Two AEs splitting verticals:
-- Sina: Management & Business Consulting, Creative & Marketing, Civil & Infrastructure
-- Denzel: Architecture & Design, Engineering Consultancy, Construction & Trades
+6 touchpoints over 18 days per contact. 250 contacts staggered at 50/day across week 1.
+
+**Contacts are assigned by HubSpot owner, not by vertical** (confirmed 2026-08-29). The
+original plan split verticals between the AEs, but in practice whoever owns the contact in
+HubSpot is the AE who presents it, and both AEs hold contacts across every vertical. Vertical
+still matters, but only for choosing which copy variant and which campaign a contact enters,
+never for deciding whose contact it is.
+
+**HubSpot owner ids (verified against the sender on logged emails, do not swap these):**
+- `80406430` = Sina Zarei
+- `80127259` = Denzel Kereama
+
+These were inverted in code until 2026-08-29, which sent 153 contacts the wrong AE's video,
+booking link, mailbox and LinkedIn seat. HubSpot ownership was then realigned to match whoever
+actually presented. If you ever need to re-verify, read `hs_email_from_email` on real logged
+emails for each owner id rather than trusting any doc, including this one.
 
 Average ACV: $20K. Campaign launch: June 8, 2026. Total budget: under $350 USD.
 
@@ -185,7 +198,7 @@ public/
 ## Key Collaborators
 
 - Leo: GTM Engineer, owns Clay enrichment, HubSpot workflows, integrations. He will receive these components for Webflow deployment.
-- Denzel: Other AE, owns Architecture, Engineering, Construction verticals.
+- Denzel: Other AE (HubSpot owner id 80127259). Holds contacts across all verticals, not a fixed vertical set; assignment follows HubSpot ownership.
 - Ryan: CRO, leadership approver.
 
 ## What "Done" Looks Like
