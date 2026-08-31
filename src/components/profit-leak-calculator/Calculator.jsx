@@ -5,6 +5,7 @@ import BrandSidebar from "../shared/BrandSidebar.jsx";
 import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import { getFirm, getAe } from "../../lib/personalize.js";
+import { noteInteraction, trackMilestone } from "../../lib/track.js";
 import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
@@ -512,7 +513,7 @@ export default function ProfitLeakCalculator() {
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 20px" }}>This determines which profit leak model we use.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {VERTICALS.map((vert) => (
-                <button key={vert.id} onClick={() => { setVerticalId(vert.id); setDir("fwd"); go(() => setScreen("firmInputs")); }}
+                <button key={vert.id} onClick={(e) => { noteInteraction(e); trackMilestone("calculator", "started"); setVerticalId(vert.id); setDir("fwd"); go(() => setScreen("firmInputs")); }}
                   style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit", textAlign: "left" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#0D8D5C"; e.currentTarget.style.background = "#f0fdf4"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F9FAFB"; }}>
@@ -655,12 +656,12 @@ export default function ProfitLeakCalculator() {
               {/* Next button */}
               <div style={{ marginTop: 20 }}>
                 {leakStep < leaks.length - 1 ? (
-                  <button onClick={() => { setDir("fwd"); go(() => setLeakStep((s) => s + 1)); }} style={ctaBtn(true)}
+                  <button onClick={(e) => { noteInteraction(e); trackMilestone("calculator", "engaged"); setDir("fwd"); go(() => setLeakStep((s) => s + 1)); }} style={ctaBtn(true)}
                     onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                     Next leak →
                   </button>
                 ) : (
-                  <button onClick={() => { setDir("fwd"); go(() => { setScreen("results"); scrollTop(); }); }} style={ctaBtn(true)}
+                  <button onClick={(e) => { noteInteraction(e); trackMilestone("calculator", "completed"); setDir("fwd"); go(() => { setScreen("results"); scrollTop(); }); }} style={ctaBtn(true)}
                     onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                     See the full picture
                   </button>
@@ -790,7 +791,7 @@ export default function ProfitLeakCalculator() {
               <p style={{ fontSize: 14, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                 No pressure to book. Explore at your own pace and one of our {v.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.
               </p>
-              <button onClick={() => goTo(bookingUrl(v.id))} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
+              <button onClick={(e) => { noteInteraction(e); trackMilestone("calculator", "booking"); goTo(bookingUrl(v.id)); }} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                 Book a time
               </button>
             </div>

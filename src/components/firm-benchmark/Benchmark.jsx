@@ -6,6 +6,7 @@ import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
 import { getFirm, getAe } from "../../lib/personalize.js";
+import { noteInteraction, trackMilestone } from "../../lib/track.js";
 import { getRevenueBands, COUNT_BANDS, nearestBand, BandSlider } from "../shared/bands.jsx";
 import { CURRENCIES, CURRENCY_ORDER, detectCurrency, fx, fmtCurrency } from "../../lib/currency.js";
 
@@ -367,7 +368,12 @@ export default function FirmBenchmark() {
     setPlacements({});
   };
 
-  const setPlacement = (key, val) => setPlacements((p) => ({ ...p, [key]: val }));
+  const setPlacement = (key, val, e) => {
+    // Self-placement on a metric is a considered choice, not a click-through.
+    noteInteraction(e);
+    trackMilestone("benchmark", Object.keys(placements).length + 1 >= 2 ? "engaged" : "started");
+    setPlacements((p) => ({ ...p, [key]: val }));
+  };
 
   // Calculate gap costs. Each metric's gap only counts once the user has
   // placed themselves; until then it is shown as "pending" so the running
@@ -688,7 +694,7 @@ export default function FirmBenchmark() {
                   {PLACEMENT_OPTIONS.map((opt) => {
                     const sel = placed && m.placement === opt.id;
                     return (
-                      <button key={opt.id} onClick={() => setPlacement(m.key, opt.id)}
+                      <button key={opt.id} onClick={(e) => setPlacement(m.key, opt.id, e)}
                         style={{
                           flex: "1 1 calc(50% - 3px)", minWidth: 0, padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
                           background: sel ? "#0A2F28" : "#F9FAFB", color: sel ? "#fff" : "#384250",
@@ -722,12 +728,12 @@ export default function FirmBenchmark() {
                   {/* Next */}
                   <div style={{ marginTop: 20 }}>
                     {metricStep < data.items.length - 1 ? (
-                      <button onClick={() => { setDir("fwd"); go(() => setMetricStep((s) => s + 1)); }} style={ctaBtn(true)}
+                      <button onClick={(e) => { noteInteraction(e); trackMilestone("benchmark", "engaged"); setDir("fwd"); go(() => setMetricStep((s) => s + 1)); }} style={ctaBtn(true)}
                         onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                         Next metric →
                       </button>
                     ) : (
-                      <button onClick={() => { setDir("fwd"); go(() => { setScreen("results"); scrollTop(); }); }} style={ctaBtn(true)}
+                      <button onClick={(e) => { noteInteraction(e); trackMilestone("benchmark", "completed"); setDir("fwd"); go(() => { setScreen("results"); scrollTop(); }); }} style={ctaBtn(true)}
                         onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                         See the full picture
                       </button>
@@ -866,7 +872,7 @@ export default function FirmBenchmark() {
                 <p style={{ fontSize: 13, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                   No pressure to book. Explore at your own pace and one of our {v.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.
                 </p>
-                <button onClick={() => goTo(bookingUrl(v.id))} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
+                <button onClick={(e) => { noteInteraction(e); trackMilestone("benchmark", "booking"); goTo(bookingUrl(v.id)); }} style={{ ...ctaBtn(true) }} onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                   Book a time
                 </button>
               </div>

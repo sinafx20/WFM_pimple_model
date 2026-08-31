@@ -5,6 +5,7 @@ import FirmBadge from "../shared/FirmBadge.jsx";
 import AllResourcesLink from "../shared/AllResourcesLink.jsx";
 import PersonalBridge from "../shared/PersonalBridge.jsx";
 import { getFirm, getAe } from "../../lib/personalize.js";
+import { noteInteraction, trackMilestone } from "../../lib/track.js";
 
 /* ─────────────────────────────────────
    VERTICALS
@@ -404,12 +405,16 @@ export default function WorkflowHealthCheck() {
 
   const scrollTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  const pick = (qId, opt) => {
+  const pick = (qId, opt, e) => {
+    // Every answer is a deliberate choice, which is the whole basis of the human
+    // verdict. Depth climbs from started to engaged once several are in sequence.
+    noteInteraction(e);
+    trackMilestone("health-check", Object.keys(answers).length + 1 >= 3 ? "engaged" : "started");
     setAnswers((p) => ({ ...p, [qId]: opt }));
     if (currentQ < QUESTIONS.length - 1) {
       setDir("fwd"); go(() => setCurrentQ((c) => c + 1));
     } else {
-      setDir("fwd"); go(() => { setScreen("results"); scrollTop(); });
+      setDir("fwd"); go(() => { setScreen("results"); trackMilestone("health-check", "completed"); scrollTop(); });
     }
   };
 
@@ -692,7 +697,7 @@ export default function WorkflowHealthCheck() {
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 20px" }}>This tailors benchmarks and recommendations to your sector.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {VERTICALS.map((v) => (
-                <button key={v.id} onClick={() => { setVertical(v); setDir("fwd"); go(() => setScreen("size")); }}
+                <button key={v.id} onClick={(e) => { noteInteraction(e); setVertical(v); setDir("fwd"); go(() => setScreen("size")); }}
                   style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit", textAlign: "left" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#0D8D5C"; e.currentTarget.style.background = "#f0fdf4"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F9FAFB"; }}>
@@ -718,7 +723,7 @@ export default function WorkflowHealthCheck() {
             <p style={{ fontSize: 14, color: "#6C737F", margin: "0 0 20px" }}>This helps us compare your results to firms your size.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {FIRM_SIZES.map((s) => (
-                <button key={s.id} onClick={() => { setFirmSize(s.id); setDir("fwd"); go(() => setScreen("question")); }}
+                <button key={s.id} onClick={(e) => { noteInteraction(e); setFirmSize(s.id); setDir("fwd"); go(() => setScreen("question")); }}
                   style={{ padding: "18px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit", fontSize: 16, fontWeight: 600, color: "#0A2F28", textAlign: "center" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#0D8D5C"; e.currentTarget.style.background = "#f0fdf4"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F9FAFB"; }}>
@@ -749,7 +754,7 @@ export default function WorkflowHealthCheck() {
               {QUESTIONS[currentQ].options.map((opt, i) => {
                 const sel = answers[QUESTIONS[currentQ].id]?.label === opt.label;
                 return (
-                  <button key={i} onClick={() => pick(QUESTIONS[currentQ].id, opt)} style={pill(sel)}
+                  <button key={i} onClick={(e) => pick(QUESTIONS[currentQ].id, opt, e)} style={pill(sel)}
                     onMouseEnter={(e) => { if (!sel) { e.currentTarget.style.borderColor = "#0D8D5C"; e.currentTarget.style.background = "#f0fdf4"; } }}
                     onMouseLeave={(e) => { if (!sel) { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F9FAFB"; } }}>
                     {opt.label}
@@ -885,7 +890,7 @@ export default function WorkflowHealthCheck() {
               <p style={{ fontSize: 14, color: "#9DA4AE", margin: "0 0 14px", lineHeight: 1.5 }}>
                 No pressure to book. Explore at your own pace and one of our {vertical.label.toLowerCase()} specialists may reach out — or grab a time now if you'd rather not wait.
               </p>
-              <button onClick={() => goTo(bookingUrl(vertical.id))} style={{ ...ctaBtn(true), background: "#63DB94" }}
+              <button onClick={(e) => { noteInteraction(e); trackMilestone("health-check", "booking"); goTo(bookingUrl(vertical.id)); }} style={{ ...ctaBtn(true), background: "#63DB94" }}
                 onMouseEnter={(e) => (e.target.style.background = "#45c97e")} onMouseLeave={(e) => (e.target.style.background = "#63DB94")}>
                 Book a time
               </button>
