@@ -67,7 +67,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_icp_vertical', 'volcano_interaction_log', 'volcano_interaction_depth',
   'wfm_completed_health_check', 'wfm_completed_calculator', 'wfm_completed_benchmark',
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
-  'volcano_genuine_reply', 'volcano_verified_visits'];
+  'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks'];
 const contacts = [];
 for (let after = 0; ;) {
   const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
@@ -224,12 +224,14 @@ for (let i = 0; i < contacts.length; i++) {
   // Repeat visits add less and cap, so one person browsing repeatedly cannot outrank the
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
+  const clicks = clicksIn(c.volcano_interaction_log);
   const heat = isInternal(email) ? 0
-    : clicksIn(c.volcano_interaction_log) * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
+    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
   heatById[c.id] = heat;
 
   const next = {
     volcano_heat: String(heat),
+    volcano_email_clicks: String(clicks),
     volcano_verified_visits: String(vv),
     volcano_genuine_reply: gr > 0 ? 'true' : 'false',
     ...(stage ? { volcano_li_stage: stage } : {}),

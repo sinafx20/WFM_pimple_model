@@ -58,6 +58,15 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_email_clicks',
+    label: 'Volcano email clicks',
+    description: 'Verified link clicks from the campaign email, reported by the Instantly webhook. '
+      + 'Link tracking went on across all 10 campaigns on 2026-08-31, so unlike a short-link fetch '
+      + 'this is a real click by a real person. Opens are deliberately not tracked here: measured '
+      + 'across 107 openers, none of them clicked anything, which is prefetching rather than reading.',
+    type: 'number', fieldType: 'number',
+  },
+  {
     name: 'volcano_heat',
     label: 'Volcano heat',
     description: 'Engagement score driving the Cold 0-24 / Warm 25-64 / Hot 65-99 / Eruption 100+ '
