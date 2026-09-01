@@ -20,7 +20,9 @@ import { spawn, execFileSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE = 'http://localhost:5178';
-const BATCH_SIZE = 50;
+// Overridable so a part-run can be topped up to the intended daily volume without
+// exceeding it: BATCH_SIZE=32 node daily-batch.mjs after 18 already went out today.
+const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 50;
 const CONCURRENCY = 3; // same "3 at a time" empirical rate used by the Kanban board's pool()
 const LIST_ID = '3698';
 export const QUEUE_PATH = path.join(__dirname, 'daily-batch-queue.json');
@@ -175,8 +177,33 @@ async function pool(items, n, fn) {
   return results;
 }
 
+// Only one batch may run at a time. The 7am trigger is StartWhenAvailable, so a machine
+// that was asleep can fire the missed run at an unpredictable later time — which can
+// collide with a manually started catch-up run. Two processes on one queue file would
+// double-process contacts, burn HeyGen credits twice and double-push to live campaigns.
+const LOCK_PATH = path.join(__dirname, '.batch.lock');
+function pidAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+function acquireLock() {
+  if (fs.existsSync(LOCK_PATH)) {
+    const prev = parseInt(fs.readFileSync(LOCK_PATH, 'utf8').trim(), 10);
+    if (prev && prev !== process.pid && pidAlive(prev)) return { ok: false, prev };
+    fs.rmSync(LOCK_PATH, { force: true });   // stale lock from a killed run
+  }
+  fs.writeFileSync(LOCK_PATH, String(process.pid));
+  return { ok: true };
+}
+const releaseLock = () => { try { fs.rmSync(LOCK_PATH, { force: true }); } catch {} };
+
 async function main() {
   fs.mkdirSync(LOG_DIR, { recursive: true });
+  const lock = acquireLock();
+  if (!lock.ok) {
+    log(`another batch is already running (pid ${lock.prev}) — exiting without touching the queue`);
+    return;
+  }
+  process.on('exit', releaseLock);
   await ensureServerUp();
   await buildQueueIfMissing();
   const queue = JSON.parse(fs.readFileSync(QUEUE_PATH, 'utf8'));
@@ -225,6 +252,7 @@ if (path.resolve(process.argv[1] || '') === path.resolve(fileURLToPath(import.me
 main().catch((e) => {
   log('FATAL: ' + (e.stack || e));
   try { fs.mkdirSync(LOG_DIR, { recursive: true }); fs.writeFileSync(path.join(LOG_DIR, `${localDate()}-FATAL.json`), JSON.stringify({ error: String(e.stack || e), log: LOG_LINES }, null, 2)); } catch {}
+  releaseLock();
   toast('WFM GTM Pipeline — ERROR', 'Daily batch crashed: ' + String(e.message || e).slice(0, 140));
   process.exit(1);
 });

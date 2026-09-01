@@ -1,7 +1,22 @@
 {
-  "architecture": "65f56814-27ae-4b22-97b8-802ea722e871",
-  "consulting": "d3bcef91-0ae9-4f14-a1f5-56d15bc84aca",
-  "construction": "dcc77ae6-7ded-4b4e-93c5-cb27c0e7ec6b",
-  "creative": "4c0e9a53-26a7-4d61-8806-4f5bf9ce5a72",
-  "engineering": "f912a6a3-6c3c-4d09-aa81-bfe8340f1674"
+  "architecture": {
+    "sina": "0b5e3547-8d1b-4366-85d5-af9a14638e76",
+    "denzel": "fa3e7591-734e-4afc-b73e-aa1de4d06f64"
+  },
+  "engineering": {
+    "sina": "0c9b9727-5c10-4b24-ad75-b76f5780d3fd",
+    "denzel": "592ec354-570f-4211-aaa5-640fefd224fa"
+  },
+  "consulting": {
+    "sina": "daf00323-da01-428b-85a2-b5b000ff9989",
+    "denzel": "e623d78a-b3ef-452d-a0c1-654580f3ee9f"
+  },
+  "construction": {
+    "sina": "fe4daa0f-23a7-446d-9f9d-ea8a4f452a54",
+    "denzel": "d8a34f04-44db-4360-954f-40ad7f31ab41"
+  },
+  "creative": {
+    "sina": "bd4874c8-4e85-491d-a875-72064f9ac8d7",
+    "denzel": "188f4f4a-33b7-4f85-b59f-9777a1c5f4f0"
+  }
 }

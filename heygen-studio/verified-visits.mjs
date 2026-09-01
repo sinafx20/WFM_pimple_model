@@ -38,12 +38,16 @@ const p = (f) => path.join(__dirname, f);
 const CUTOFF = '2026-08-26';
 
 // Individual events after the cutoff that we know were internal, confirmed by Sina.
-// The cutoff alone cannot catch these: the Neoscape health check was completed on
-// Thursday 2026-08-27 by our own team reviewing the tool, not by Mark Nathan. His visit
-// on 2026-08-31 is genuine and still counts. Keyed by email, values are dates to ignore.
-const INTERNAL_EVENTS = {
-  'mnathan@neoscape.com.au': ['2026-08-27'],
-};
+// The cutoff alone cannot catch these: a prospect's tool completion can turn out to be
+// our own team reviewing the tool on their record, while a later visit by the actual
+// person is genuine and must still count.
+//
+// Kept in a local, gitignored file rather than inline because it is keyed by prospect
+// email and this repo is public. Shape: { "someone@firm.com": ["2026-08-27"] } —
+// dates to ignore per contact. Missing file just means no exclusions.
+const INTERNAL_EVENTS = fs.existsSync(p('_internal-events.json'))
+  ? JSON.parse(fs.readFileSync(p('_internal-events.json'), 'utf8'))
+  : {};
 const COMPLETION_PROPS = ['wfm_completed_health_check', 'wfm_completed_calculator', 'wfm_completed_benchmark'];
 
 const viz = JSON.parse(fs.readFileSync(p('_viz.json'), 'utf8'));

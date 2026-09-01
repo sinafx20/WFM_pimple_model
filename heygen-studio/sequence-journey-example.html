@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sequence Journey — Example Prospect</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap">
+<style>
+  @page { size: A4; margin: 14mm 15mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', -apple-system, 'Segoe UI', sans-serif;
+    color: #14201d;
+    font-size: 9.6px;
+    line-height: 1.45;
+  }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---- header ---- */
+  .doc-header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid #0A2F28; padding-bottom: 9px; margin-bottom: 14px; }
+  .doc-header .brand { font-size: 11px; font-weight: 800; letter-spacing: .02em; color: #0A2F28; }
+  .doc-header .brand span { color: #0D8D5C; }
+  .doc-header .doctitle { font-size: 19px; font-weight: 800; color: #0A2F28; margin: 3px 0 0; letter-spacing: -.01em; }
+  .doc-header .docsub { font-size: 9.5px; color: #5b6b66; margin-top: 2px; }
+  .doc-header .pagemark { font-size: 8.5px; color: #8a9691; text-align: right; }
+
+  .example-strip { display: flex; align-items: center; gap: 9px; background: #f2f6f4; border: 1px solid #dde6e2; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: #0A2F28; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+  .example-strip .who { font-weight: 700; font-size: 10.5px; color: #0A2F28; }
+  .example-strip .what { font-size: 9px; color: #5b6b66; }
+  .tagset { margin-left: auto; display: flex; gap: 5px; }
+  .tag { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; background: #0A2F28; color: #fff; border-radius: 100px; padding: 3px 9px; }
+  .tag.alt { background: #63DB94; color: #0A2F28; }
+
+  h2.section { font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: #0A2F28; font-weight: 800; margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid #dde6e2; }
+
+  /* ---- timeline tracks ---- */
+  .tracks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .track-label { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; color: #0A2F28; margin-bottom: 8px; }
+  .chip { width: 16px; height: 16px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; font-weight: 800; }
+  .chip.email { background: #0D8D5C; }
+  .chip.li { background: #0A66C2; }
+  .row { display: grid; grid-template-columns: 30px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #e4e9e7; }
+  .row:last-child { border-bottom: none; }
+  .day { font-size: 8.5px; font-weight: 800; color: #0D8D5C; padding-top: 1px; }
+  .day.li { color: #0A66C2; }
+  .touchname { font-size: 9.5px; font-weight: 700; color: #0A2F28; }
+  .gist { font-size: 8.6px; color: #5b6b66; margin-top: 1px; }
+  .link { font-size: 8.3px; color: #0D8D5C; font-weight: 600; margin-top: 2px; word-break: break-all; }
+
+  .note { font-size: 8.3px; color: #8a9691; font-style: italic; margin-top: 4px; }
+
+  .links-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .links-table th { text-align: left; font-size: 8px; text-transform: uppercase; letter-spacing: .04em; color: #8a9691; font-weight: 700; padding: 4px 8px; border-bottom: 1px solid #dde6e2; }
+  .links-table td { font-size: 8.8px; padding: 5px 8px; border-bottom: 1px solid #eef2f0; }
+  .links-table tr:last-child td { border-bottom: none; }
+  .links-table .toolname { font-weight: 700; color: #0A2F28; }
+  .links-table .lk { color: #0D8D5C; font-weight: 600; }
+
+  /* ---- page 2: message samples ---- */
+  .full-msg { background: #f8faf9; border: 1px solid #dde6e2; border-left: 3px solid #0A2F28; border-radius: 6px; padding: 9px 11px; margin-bottom: 9px; }
+  .full-msg.li-msg { border-left-color: #0A66C2; }
+  .full-msg .lbl { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .full-msg .lbl .name { font-size: 9px; font-weight: 800; color: #0A2F28; text-transform: uppercase; letter-spacing: .03em; }
+  .full-msg .lbl .name.li { color: #0A66C2; }
+  .full-msg .lbl .meta { font-size: 8px; color: #8a9691; }
+  .full-msg .subj { font-size: 9px; font-style: italic; color: #3d5951; margin-bottom: 4px; }
+  .full-msg .body { font-size: 9px; line-height: 1.5; color: #2a3733; }
+  .full-msg .body .lk { color: #0D8D5C; font-weight: 700; }
+
+  .compact-table { width: 100%; border-collapse: collapse; }
+  .compact-table th { text-align: left; font-size: 7.6px; text-transform: uppercase; letter-spacing: .04em; color: #8a9691; font-weight: 700; padding: 4px 7px; border-bottom: 1px solid #dde6e2; }
+  .compact-table td { font-size: 8.3px; padding: 4.5px 7px; border-bottom: 1px solid #eef2f0; vertical-align: top; }
+  .compact-table tr:last-child td { border-bottom: none; }
+  .compact-table .ch { font-weight: 800; font-size: 7.6px; text-transform: uppercase; }
+  .compact-table .ch.email { color: #0D8D5C; }
+  .compact-table .ch.li { color: #0A66C2; }
+  .compact-table .tname { font-weight: 700; color: #0A2F28; white-space: nowrap; }
+  .compact-table .excerpt { color: #5b6b66; }
+  .compact-table .excerpt b { color: #2a3733; font-weight: 600; }
+
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+  .footer-note { margin-top: 12px; font-size: 8px; color: #8a9691; border-top: 1px solid #dde6e2; padding-top: 7px; }
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+<div class="page">
+  <div class="doc-header">
+    <div>
+      <div class="brand">Workflow<span>MAX</span> &nbsp;·&nbsp; GTM Outbound</div>
+      <div class="doctitle">Sequence Journey — Example Prospect</div>
+      <div class="docsub">What one contact actually receives across the full 18-day, two-channel sequence</div>
+    </div>
+    <div class="pagemark">Page 1 of 2</div>
+  </div>
+
+  <div class="example-strip">
+    <div class="avatar">CM</div>
+    <div>
+      <div class="who">Caroline Mills · Managing Director, Allegra Consulting</div>
+      <div class="what">Real, currently-live contact — not a mock-up</div>
+    </div>
+    <div class="tagset">
+      <span class="tag">Consulting</span>
+      <span class="tag alt">AE: Denzel Kereama</span>
+    </div>
+  </div>
+
+  <h2 class="section">The Journey — Two Channels Running in Parallel</h2>
+  <div class="tracks">
+    <div>
+      <div class="track-label"><span class="chip email">E</span> Email (Instantly)</div>
+      <div class="row"><div class="day">Day 3</div><div><div class="touchname">1 · Intro video + Health Check</div><div class="gist">60-sec AI video, opens the utilisation gap</div></div></div>
+      <div class="row"><div class="day">Day 7</div><div><div class="touchname">2 · Health Check follow-up</div><div class="gist">Where the leak actually hides</div></div></div>
+      <div class="row"><div class="day">Day 10</div><div><div class="touchname">3 · Profit Leak Calculator</div><div class="gist">Puts a real dollar figure on it</div></div></div>
+      <div class="row"><div class="day">Day 14</div><div><div class="touchname">4 · Firm Benchmark</div><div class="gist">How Allegra compares to peers</div></div></div>
+      <div class="row"><div class="day">Day 17</div><div><div class="touchname">5 · Demo walkthrough</div><div class="gist">No-calendar, watch-anytime product tour</div></div></div>
+      <div class="row"><div class="day">Day 21</div><div><div class="touchname">6 · Firms Like Yours</div><div class="gist">Peer case studies, social proof</div></div></div>
+      <div class="row"><div class="day">Day 22</div><div><div class="touchname">7 · Resource hub wrap-up</div><div class="gist">Everything in one link, soft close</div></div></div>
+    </div>
+    <div>
+      <div class="track-label"><span class="chip li">Li</span> LinkedIn (HeyReach)</div>
+      <div class="row"><div class="day li">Day 1</div><div><div class="touchname">Connection request</div><div class="gist">Short note, links the intro video</div></div></div>
+      <div class="row"><div class="day li">Day ~4</div><div><div class="touchname">DM 1 · Intro (if connected)</div><div class="gist">Same beat as Email 1</div></div></div>
+      <div class="row"><div class="day li">Day ~8</div><div><div class="touchname">DM 2 · Health Check</div><div class="gist">Two variants: cold DM vs. just-accepted</div></div></div>
+      <div class="row"><div class="day li">Day ~11</div><div><div class="touchname">DM 3 · Calculator</div><div class="gist">Frames the dollar value for leadership</div></div></div>
+      <div class="row"><div class="day li">Day ~15</div><div><div class="touchname">DM 4 · Benchmark</div><div class="gist">Instant peer comparison</div></div></div>
+      <div class="row"><div class="day li">Day ~18</div><div><div class="touchname">DM 5 · Demo</div><div class="gist">Completes the loop, low pressure</div></div></div>
+      <div class="row"><div class="day li">Day ~22</div><div><div class="touchname">DM 6 · Firms Like Yours</div><div class="gist">Peer proof, LinkedIn-native tone</div></div></div>
+      <div class="row"><div class="day li">Day ~23</div><div><div class="touchname">DM 7 · Wrap-up</div><div class="gist">Resource hub + direct booking link</div></div></div>
+      <div class="row"><div class="day li">parallel</div><div><div class="touchname">InMail 1 / 2 / 3</div><div class="gist">Fallback track if never connects — 3 InMails covering intro, health check + calculator, and wrap-up</div></div></div>
+    </div>
+  </div>
+  <div class="note">LinkedIn timing is connection-paced (DMs fire once accepted; InMails substitute if not) — day numbers above are typical, not fixed.</div>
+
+  <h2 class="section" style="margin-top:16px">The 7 Resource Links Caroline Actually Receives</h2>
+  <table class="links-table">
+    <tr><th>Tool</th><th>Personalised landing page</th><th style="width:150px">Shortened link sent</th></tr>
+    <tr><td class="toolname">Intro video</td><td>AI video, Caroline's name + Allegra Consulting spoken on-screen</td><td class="lk">wfmax.info/y9ubevrh</td></tr>
+    <tr><td class="toolname">Workflow Health Check</td><td>8-question maturity assessment, results-card thumbnail</td><td class="lk">wfmax.info/8w84ramm</td></tr>
+    <tr><td class="toolname">Profit Leak Calculator</td><td>Revenue + headcount → real $ figure, results-card thumbnail</td><td class="lk">wfmax.info/yvwxpkzs</td></tr>
+    <tr><td class="toolname">Firm Benchmark</td><td>4-metric peer comparison, results-card thumbnail</td><td class="lk">wfmax.info/2vzmb222</td></tr>
+    <tr><td class="toolname">Demo walkthrough</td><td>YouTube product tour, video-style thumbnail</td><td class="lk">wfmax.info/2rvfez83</td></tr>
+    <tr><td class="toolname">Firms Like Yours</td><td>Consulting-vertical case studies, video-style thumbnail</td><td class="lk">wfmax.info/2p9cpuwv</td></tr>
+    <tr><td class="toolname">Resource hub</td><td>All of the above in one page, final touch</td><td class="lk">wfmax.info/53kbne34</td></tr>
+  </table>
+  <div class="footer-note">Every link is personalised per contact (name, company, video, brand-matched thumbnail) and routed through a branded TinyURL short link for LinkedIn/email. Booking link throughout: meetings.hubspot.com/denzel-kereama</div>
+</div>
+
+<!-- ================= PAGE 2 ================= -->
+<div class="page">
+  <div class="doc-header">
+    <div>
+      <div class="brand">Workflow<span>MAX</span> &nbsp;·&nbsp; GTM Outbound</div>
+      <div class="doctitle">Message Copy — Representative Samples</div>
+      <div class="docsub">Full text for 3 touches, condensed for the rest — actual copy, tokens filled with Caroline's real data</div>
+    </div>
+    <div class="pagemark">Page 2 of 2</div>
+  </div>
+
+  <div class="cols2">
+    <div>
+      <div class="full-msg li-msg">
+        <div class="lbl"><span class="name li">LinkedIn · Connection request</span><span class="meta">Day 1</span></div>
+        <div class="body">Hi Caroline, noticed Allegra Consulting does similar work to a few consulting firms I have been chatting with. Recorded a quick video on it, thought it was worth connecting first: <span class="lk">wfmax.info/y9ubevrh</span></div>
+      </div>
+      <div class="full-msg">
+        <div class="lbl"><span class="name">Email 1 · Intro</span><span class="meta">Day 3</span></div>
+        <div class="subj">"Allegra Consulting's real utilisation | Caroline, target vs actual"</div>
+        <div class="body">Hi Caroline, do you know Allegra Consulting's real utilisation last month? Not the target on the wall — the actual hours that turned into revenue. For most consulting firms it's less than they'd guess, and it's the easiest margin to win back. So I recorded you a 60-second video on where it hides, with a 2-minute health check to see your own number.</div>
+      </div>
+    </div>
+    <div>
+      <div class="full-msg li-msg">
+        <div class="lbl"><span class="name li">LinkedIn InMail 1 · Cold fallback</span><span class="meta">if not connected</span></div>
+        <div class="subj">"a 2-minute video for Allegra Consulting"</div>
+        <div class="body">Hi Caroline, we are not connected yet so I will keep this short. I noticed Allegra Consulting does similar work to a few other consulting firms I have been talking to lately. I am sure you have systems in place to help you understand the health and profitability of each job, but I recorded this quick video anyway, appreciate you taking a look: <span class="lk">wfmax.info/y9ubevrh</span>. There is a short series of tools behind it if it is useful.<br><br>Denzel</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section" style="margin-top:6px">Every Other Touch, Condensed</h2>
+  <table class="compact-table">
+    <tr><th style="width:34px">Ch.</th><th style="width:130px">Touch</th><th>Subject / opening line</th></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 1 · Intro</td><td class="excerpt">"Hey Caroline, I noticed Allegra Consulting does similar work to a few other consulting firms I have been talking to lately..."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 2 · Health Check</td><td class="excerpt">"Not sure if you got the chance to look at the video above... here is a health check to help assess that."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 3 · Calculator</td><td class="excerpt">"...the priority really comes down to whether leadership sees a dollar value against what it costs to operate as-is."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 4 · Benchmark</td><td class="excerpt">"Thought you might want to see how Allegra Consulting stacks up against similar firms."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 5 · Demo</td><td class="excerpt">"I do not want to flood your DMs, but thought I would complete the loop on what we actually offer."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 6 · Firms Like Yours</td><td class="excerpt">"A couple of firms like Allegra Consulting have worked through this same time problem already."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">DM 7 · Wrap-up</td><td class="excerpt">"To wrap it all up, here is everything in one place... my calendar is here too."</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">InMail 2 · Cold follow-up</td><td class="excerpt"><b>"the number most firms like Allegra Consulting cannot name"</b> — health check + calculator, both in one message</td></tr>
+    <tr><td class="ch li">LI</td><td class="tname">InMail 3 · Cold wrap-up</td><td class="excerpt"><b>"everything in one place for Allegra Consulting"</b> — resource hub, final ask</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 2 · Health Check</td><td class="excerpt"><b>"Caroline, where's the time actually going? | the leak, found in 60 seconds"</b> — the leak hides in a different place for every firm</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 3 · Calculator</td><td class="excerpt"><b>"the number most firms flinch at | what unbilled time costs Allegra Consulting"</b> — turns utilisation gap into a dollar figure</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 4 · Benchmark</td><td class="excerpt"><b>"is Allegra Consulting ahead or behind? | how consulting firms really compare"</b> — 4 metrics vs. peers</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 5 · Demo</td><td class="excerpt"><b>"Caroline, the 6-minute version of the fix | how firms close the gap"</b> — no calendar, watch-anytime walkthrough</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 6 · Firms Like Yours</td><td class="excerpt"><b>"firms like Allegra Consulting, same leak | what changed for them"</b> — peer proof, no sales deck</td></tr>
+    <tr><td class="ch email">E</td><td class="tname">Email 7 · Wrap-up</td><td class="excerpt"><b>"everything in one place, Caroline | I'll leave you with this"</b> — resource hub, soft close, booking link</td></tr>
+  </table>
+
+  <div class="footer-note">Source of truth: heygen-studio/copy-heyreach.json &amp; copy-instantly.json (Consulting vertical). Every touch is a real, currently-live message with tokens filled from Caroline's actual HubSpot record — this is not a mock-up. Generated 27 August 2026 for internal review.</div>
+</div>
+
+</body>
+</html>

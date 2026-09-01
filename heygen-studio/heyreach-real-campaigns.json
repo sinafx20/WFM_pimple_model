@@ -54,5 +54,19 @@
     "vertical": "engineering",
     "owner": "sina",
     "hubspotListId": 3695
+  },
+  "creative-sina": {
+    "campaignId": 575393,
+    "listId": 898077,
+    "vertical": "creative",
+    "owner": "sina",
+    "hubspotListId": 3697
+  },
+  "engineering-denzel": {
+    "campaignId": 575394,
+    "listId": 898078,
+    "vertical": "engineering",
+    "owner": "denzel",
+    "hubspotListId": 3695
   }
 }

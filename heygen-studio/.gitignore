@@ -4,3 +4,20 @@ node_modules/
 output/
 *.cache.json
 known-contacts-test-snapshot.json
+
+# ---- Prospect data: NEVER commit. This repo is public. ----
+# These hold real names, emails, job titles, companies and LinkedIn URLs for the
+# live campaign audience, plus their individual engagement history. They are
+# regenerated from HubSpot/Instantly/HeyReach on demand, so nothing is lost by
+# keeping them local.
+daily-batch-queue*.json
+instantly-hubspot-ledger.json
+ae-activity-weekly.json
+tinyurl-cache.json
+tinyurl-clicks*.json
+logs/
+
+# Ad-hoc probes and their dumps. Written to answer one question and then kept
+# only until the answer lands in a real script. Underscore prefix = throwaway.
+_*.json
+_*.mjs
