@@ -12,7 +12,7 @@
 #
 # SECRETS REQUIRED (repo Settings > Secrets and variables > Actions):
 #   HEYREACH_API_KEY, HUBSPOT_TOKEN
-name: HeyReach to HubSpot
+name: Volcano sync (HeyReach to HubSpot, then engagement rollup)
 
 on:
   schedule:
@@ -35,3 +35,15 @@ jobs:
           HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
         run: node heyreach-to-hubspot.mjs --commit
+
+      # Runs second because it reads what the step above just wrote. This is what keeps the
+      # cockpit live and what gives the routing workflows something to fire on: without it,
+      # volcano_heat never moves and a contact can engage without anyone being told.
+      # It still runs if the LinkedIn sync failed, since the other signals are independent.
+      - name: Roll engagement up onto contacts
+        if: always()
+        working-directory: heygen-studio
+        env:
+          HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+        run: node volcano-rollup.mjs --commit
