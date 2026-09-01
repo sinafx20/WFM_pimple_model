@@ -48,7 +48,8 @@ const ownerFor = (addr) => {
 function normalise(e) {
   const src = e || {};
   const type = String(src.event_type || src.eventType || src.type || src.event || "").toLowerCase();
-  const from = src.from_address_email || src.from_email || src.eaccount || src.from || "";
+  const from = src.from_address_email || src.from_email || src.email_account || src.eaccount
+    || src.sending_account || src.account_email || src.from || "";
   const to = src.lead_email || src.lead || src.to_address_email_list || src.to_email || src.email || "";
   const bodyRaw = src.body;
   const body = typeof bodyRaw === "string" ? bodyRaw : (bodyRaw && (bodyRaw.text || bodyRaw.html)) || src.email_body || "";
@@ -58,7 +59,10 @@ function normalise(e) {
     to: String(to).split(",")[0].trim(),
     subject: src.subject || src.email_subject || "",
     body,
-    messageId: src.message_id || src.messageId || src.id || src.email_id || "",
+    // The webhook sends a bare uuid while the backfill stored <uuid@domain>. Reduce both
+    // to the uuid so a message logged by one is recognised by the other.
+    messageId: String(src.message_id || src.messageId || src.id || src.email_id || "")
+      .replace(/^</, "").replace(/@.*$/, "").replace(/>$/, ""),
     timestamp: src.timestamp_email || src.timestamp || src.timestamp_created || new Date().toISOString(),
     campaignId: src.campaign_id || src.campaignId || src.campaign || "",
   };
@@ -98,7 +102,7 @@ export async function POST({ request, locals }) {
     method: "POST", headers: H,
     body: JSON.stringify({
       filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: e.to }] }],
-      properties: ["email", "volcano_interaction_depth"], limit: 1,
+      properties: ["email", "volcano_interaction_depth", "hubspot_owner_id"], limit: 1,
     }),
   })).json();
   const contact = found && found.results && found.results[0];
@@ -139,8 +143,16 @@ export async function POST({ request, locals }) {
     }
   }
 
-  const outbound = OURS.test(e.from);
-  const owner = outbound ? ownerFor(e.from) : ownerFor(e.to);
+  // Direction comes from the event, not the sender address. The first live deliveries
+  // carried no sender under any name we tried, so the domain test said "not ours" and
+  // logged our own campaign sends as INCOMING_EMAIL. The event type cannot be ambiguous:
+  // email_sent is us, reply_received is them. The address test only breaks a tie.
+  const outbound = isSent(e.type) ? true : isReply(e.type) ? false : OURS.test(e.from);
+  // Fall back to whoever owns the contact. The sending address is the better source
+  // because owner must equal presenter must equal sender, but the payload does not always
+  // carry it, and an engagement with no owner is invisible in AE activity reporting.
+  const owner = (outbound ? ownerFor(e.from) : ownerFor(e.to))
+    || (contact.properties && contact.properties.hubspot_owner_id) || null;
   const props = {
     hs_timestamp: new Date(e.timestamp).toISOString(),
     hs_email_direction: outbound ? "EMAIL" : "INCOMING_EMAIL",
