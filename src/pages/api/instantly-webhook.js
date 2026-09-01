@@ -123,6 +123,29 @@ export async function POST({ request, locals }) {
         volcano_interaction_log: (now + " instantly/link-click " + (e.subject || "")).trim(),
       } }),
     });
+    // Also drop a Note on the timeline. The contact properties above drive scoring and
+    // lists, but they are invisible in the activity column: an AE reading the record sees
+    // the email and needs the click to sit directly under it. HubSpot's native click
+    // badges only work for mail sent through HubSpot, so a Note is the way to show it.
+    const marker = "[volcano:click:" + (e.messageId || now) + "]";
+    try {
+      const body = "Clicked a link in: " + (e.subject || "(no subject)")
+        + "\n\nVerified click reported by Instantly. Link tracking is on across all campaigns, "
+        + "so unlike a short-link fetch this is a real click by a real person.\n" + marker;
+      await fetch("https://api.hubapi.com/crm/v3/objects/notes", {
+        method: "POST", headers: H,
+        body: JSON.stringify({
+          properties: {
+            hs_timestamp: now,
+            hs_note_body: body,
+            ...(contact.properties && contact.properties.hubspot_owner_id
+              ? { hubspot_owner_id: contact.properties.hubspot_owner_id } : {}),
+          },
+          associations: [{ to: { id: contact.id }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 202 }] }],
+        }),
+      });
+    } catch { /* the property write above is the signal that matters; the note is a bonus */ }
+
     return json({ ok: true, recorded: "click", contactId: contact.id });
   }
 

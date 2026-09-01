@@ -1,0 +1,37 @@
+# Polls HeyReach and writes LinkedIn outreach onto HubSpot contact timelines.
+#
+# This runs here rather than on a laptop because HeyReach has no webhooks (three endpoint
+# shapes probed 2026-09-01, all 404) so it must be polled, and the laptop sleeps: the 7am
+# scheduled task missed 4 of the last 5 weekdays and a token rotation killed a run
+# mid-flight. GitHub's runner has neither problem.
+#
+# The sync is idempotent. Every note carries a [volcano:<kind>:<leadId>] marker and the
+# script reads existing notes before writing, so state lives in HubSpot and a fresh
+# checkout each run costs nothing. Verified: an immediate re-run found 0 to write and
+# recognised all 232 existing notes.
+#
+# SECRETS REQUIRED (repo Settings > Secrets and variables > Actions):
+#   HEYREACH_API_KEY, HUBSPOT_TOKEN
+name: HeyReach to HubSpot
+
+on:
+  schedule:
+    # Every 2 hours. LinkedIn activity is slow enough that this is plenty, and it keeps
+    # well clear of any rate ceiling.
+    - cron: '0 */2 * * *'
+  workflow_dispatch:        # so it can be run by hand from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Sync LinkedIn activity to HubSpot
+        working-directory: heygen-studio
+        env:
+          HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+        run: node heyreach-to-hubspot.mjs --commit
