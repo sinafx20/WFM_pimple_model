@@ -101,6 +101,21 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_emails_sent',
+    label: 'Volcano campaign emails sent',
+    description: 'Outbound campaign emails on this contact timeline since the 2026-08-26 cutoff. '
+      + 'Counted from the engagements the Instantly webhook writes, so it reflects what actually '
+      + 'reached HubSpot rather than what the sequence intended to send.',
+    type: 'number', fieldType: 'number',
+  },
+  {
+    name: 'volcano_li_messages',
+    label: 'Volcano LinkedIn messages sent',
+    description: 'Outbound LinkedIn messages sent to this prospect, counted from the HeyReach inbox. '
+      + 'Separate from the connection request, which is not a message.',
+    type: 'number', fieldType: 'number',
+  },
+  {
     name: 'volcano_email_opens',
     label: 'Volcano email opens (all)',
     description: 'Every open Instantly reports, machines included. Kept alongside the genuine count '

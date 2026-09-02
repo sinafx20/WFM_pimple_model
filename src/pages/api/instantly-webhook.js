@@ -123,8 +123,7 @@ export async function POST({ request, locals }) {
     body: JSON.stringify({
       filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: e.to }] }],
       properties: ["email", "volcano_interaction_depth", "hubspot_owner_id",
-        "volcano_last_send_at", "volcano_last_open_at", "volcano_genuine_opens",
-        "volcano_email_opens"], limit: 1,
+        "volcano_last_send_at", "volcano_last_open_at", "volcano_genuine_opens"], limit: 1,
     }),
   })).json();
   const contact = found && found.results && found.results[0];
@@ -146,12 +145,11 @@ export async function POST({ request, locals }) {
     const day = isNaN(openAt.getTime()) ? "" : openAt.toISOString().slice(0, 10);
     const lastDay = String(cp.volcano_last_open_at || "").slice(0, 10);
 
-    // Every open is counted raw, including the ones we are about to reject. Keeping both
-    // numbers is what lets the dashboard show the difference rather than assert it: the raw
-    // count is the figure most tools would report, and the gap to the genuine count is the
-    // whole argument for not scoring opens.
-    const total = (Number(cp.volcano_email_opens) || 0) + 1;
-    const write = { volcano_email_opens: String(total) };
+    // Only the genuine count is written here. The raw total belongs to volcano-rollup.mjs,
+    // which takes it from Instantly's own email_open_count: that covers the campaign's whole
+    // history, whereas this endpoint has only been seeing opens since 2026-09-02 and would
+    // report a fraction of the real number while looking authoritative.
+    const write = {};
 
     // No known send means no way to judge the delay, so it cannot count as genuine. Silence
     // is the right default: the alternative is crediting an open we cannot explain.
@@ -167,12 +165,14 @@ export async function POST({ request, locals }) {
       write.volcano_last_open_at = openAt.toISOString();
     }
 
-    const up = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/" + contact.id, {
-      method: "PATCH", headers: H, body: JSON.stringify({ properties: write }),
-    });
-    if (!up.ok) return json({ ok: false, error: "hubspot " + up.status }, 502);
-    return json({ ok: true, recorded: reason ? "open" : "genuine-open", reason: reason,
-      opens: total, genuineOpens: genuine, delayMs: delayMs, contactId: contact.id });
+    if (Object.keys(write).length) {
+      const up = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/" + contact.id, {
+        method: "PATCH", headers: H, body: JSON.stringify({ properties: write }),
+      });
+      if (!up.ok) return json({ ok: false, error: "hubspot " + up.status }, 502);
+    }
+    if (!Object.keys(write).length) return json({ ok: true, recorded: false, reason: reason, delayMs: delayMs });
+    return json({ ok: true, recorded: "genuine-open", genuineOpens: genuine, delayMs: delayMs, contactId: contact.id });
   }
 
   // A click is a verified human action, so it feeds the same properties the on-page

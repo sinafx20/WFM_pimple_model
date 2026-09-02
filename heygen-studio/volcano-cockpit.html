@@ -417,13 +417,14 @@
         <span class="sn">Email</span><span class="via">Instantly</span></div>
       <div class="rows">
         <div class="r"><span id="em-seq" class="rv">&mdash;</span><span class="rl">in sequence</span></div>
+        <div class="r"><span id="em-sent" class="rv" style="color:var(--stage-1)">&mdash;</span><span class="rl">emails sent</span></div>
         <div class="r"><span id="em-open" class="rv" style="color:var(--stage-2)">&mdash;</span><span class="rl">opens<em id="em-open-note"></em></span></div>
         <div class="r"><span id="em-click" class="rv" style="color:var(--stage-3)">&mdash;</span><span class="rl">link clicks</span></div>
         <div class="r"><span id="em-reply" class="rv" style="color:var(--stage-4)">&mdash;</span><span class="rl">replies<em>genuine, auto-replies excluded</em></span></div>
       </div>
-      <p class="flag">Opens are counted but barely scored: <b>+2</b> each, five at most, and only more than
-        30 minutes after the send. Of 107 openers measured, 84% opened within five minutes and none
-        clicked, which is prefetching rather than reading. Link tracking went on 31 Aug, so clicks can
+      <p class="flag">Opens are shown, never scored, and never move an ember. Of 107 openers measured, 84% opened
+        within five minutes of delivery and not one clicked anything, which is prefetching rather than
+        reading. The bracketed figure is the share arriving late enough to plausibly be a person. Link tracking went on 31 Aug, so clicks can
         only register on sends after that.</p>
     </div>
 
@@ -432,6 +433,7 @@
         <span class="sn">LinkedIn</span><span class="via">HeyReach</span></div>
       <div class="rows">
         <div class="r"><span id="li-sent" class="rv">&mdash;</span><span class="rl">requests sent</span></div>
+        <div class="r"><span id="li-msg" class="rv" style="color:var(--stage-1)">&mdash;</span><span class="rl">messages sent</span></div>
         <div class="r"><span id="li-acc" class="rv" style="color:var(--stage-2)">&mdash;</span><span class="rl">accepted<em id="li-rate"></em></span></div>
         <div class="r"><span id="li-rep" class="rv" style="color:var(--stage-4)">&mdash;</span><span class="rl">replied</span></div>
         <div class="r"><span id="im-sent" class="rv" style="color:var(--stage-3)">&mdash;</span><span class="rl">InMails sent<em id="im-note"></em></span></div>
@@ -1117,6 +1119,8 @@ function toRow(r) {
     heat: num(p.volcano_heat),
     op: num(p.volcano_email_opens),
     opGenuine: num(p.volcano_genuine_opens),
+    emSent: num(p.volcano_emails_sent),
+    liMsg: num(p.volcano_li_messages),
     inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
     inmailSent: num(p.volcano_inmail_sent),
     // Seen by HubSpot, but only before the campaign cutoff: that is our own testing, and
@@ -1135,7 +1139,8 @@ const HS_INPUT = (offset) => ({
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
     'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
-    'volcano_email_opens', 'hs_analytics_last_timestamp',
+    'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
+    'hs_analytics_last_timestamp',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
@@ -1189,10 +1194,9 @@ function renderSources() {
   // with the surviving share beside it rather than in a footnote, so the gap is the headline.
   const opens = sum((c) => c.op), genuine = sum((c) => c.opGenuine);
   set('em-seq', n((c) => c.em));
+  set('em-sent', sum((c) => c.emSent));
   set('em-open', opens);
-  set('em-open-note', opens
-    ? 'only ' + genuine + ' estimated genuine'
-    : 'counting since 2 Sep, when the subscription was added');
+  set('em-open-note', opens ? 'only ' + genuine + ' seem to be real' : 'none reported yet');
   set('em-click', sum((c) => c.cl));
   set('em-reply', n((c) => c.gr > 0));
 
@@ -1200,6 +1204,7 @@ function renderSources() {
   // have reached out; accepted and replied are stages within that.
   const sent = n((c) => c.lin), acc = n((c) => c.ls === 'ConnectionAccepted');
   set('li-sent', sent);
+  set('li-msg', sum((c) => c.liMsg));
   set('li-acc', acc);
   set('li-rate', sent ? Math.round((acc / sent) * 100) + '% of requests' : '');
   set('li-rep', n((c) => c.li >= 30));

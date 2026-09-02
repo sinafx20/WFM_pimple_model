@@ -73,7 +73,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
   'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks', 'volcano_genuine_opens',
   'volcano_inmail_track', 'volcano_inmail_sent',
-  'volcano_email_opens',
+  'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -101,6 +101,7 @@ const liStage = {};
 // reports, the difference being leads that accepted after the aggregate window.
 const inmailTrack = {};
 const inmailSent = {};
+const liMessages = {};
 const RANK = { sent: 1, accepted: 2, replied: 3 };
 if (HK) {
   const map = JSON.parse(fs.readFileSync(p('heyreach-real-campaigns.json'), 'utf8'));
@@ -154,12 +155,51 @@ if (HK) {
     if (!em) continue;
     const n = (c.messages || []).filter((m) => m.sender === 'ME' && m.isInMail).length;
     if (n) inmailSent[em] = (inmailSent[em] || 0) + n;
+    // Every outbound message, InMail or not. The connection request is not a message and is
+    // not counted here; it has its own stage.
+    const out = (c.messages || []).filter((m) => m.sender === 'ME').length;
+    if (out) liMessages[em] = (liMessages[em] || 0) + out;
   }
   console.log(`heyreach: ${leads} leads with an email, ${Object.keys(liStage).length} distinct`
     + `, ${Object.keys(inmailTrack).length} on the InMail track, `
     + `${Object.values(inmailSent).reduce((a, b) => a + b, 0)} InMails actually delivered`);
 } else {
   console.log('heyreach: no HEYREACH_API_KEY, skipping LinkedIn stage');
+}
+
+// ---------------------------------------------------------------- Instantly open counts
+// The raw open total has to come from Instantly, because HubSpot never sees an open: the
+// webhook only started counting them on 2026-09-02 and would under-report the campaign's
+// whole history. Instantly's per-lead email_open_count is the number its own dashboard
+// shows, which is exactly the figure the cockpit needs to put a genuine count beside.
+const openTotals = {};
+const IK = g('INSTANTLY_API_KEY');
+if (IK) {
+  const camps = JSON.parse(fs.readFileSync(p('instantly-real-campaigns.json'), 'utf8'));
+  const ids = [...new Set(Object.values(camps).flatMap((v) => typeof v === 'string' ? [v] : Object.values(v)))];
+  let seen = 0;
+  for (const cid of ids) {
+    for (let cursor = null; ;) {
+      const r = await fetch('https://api.instantly.ai/api/v2/leads/list', {
+        method: 'POST', headers: { authorization: 'Bearer ' + IK, 'content-type': 'application/json' },
+        body: JSON.stringify({ campaign: cid, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }),
+      });
+      if (!r.ok) { console.error('instantly campaign ' + cid + ': HTTP ' + r.status); break; }
+      const b = await r.json();
+      const items = b.items || [];
+      for (const l of items) {
+        const em = String(l.email || '').toLowerCase();
+        if (!em) continue;
+        seen++;
+        openTotals[em] = (openTotals[em] || 0) + (Number(l.email_open_count) || 0);
+      }
+      cursor = b.next_starting_after;
+      if (!cursor || !items.length) break;
+    }
+  }
+  console.log(`instantly: ${seen} leads, ${Object.values(openTotals).reduce((a, b) => a + b, 0)} opens reported`);
+} else {
+  console.log('instantly: no INSTANTLY_API_KEY, skipping raw open counts');
 }
 
 // ---------------------------------------------------------------- genuine replies
@@ -200,8 +240,8 @@ console.log(`completions: ${flagged.length} contacts flagged, ${completedAfterCu
 const replies = await pool(contacts, 4, async (c) => {
   const a = await jget(`https://api.hubapi.com/crm/v4/objects/contacts/${c.id}/associations/emails`);
   const eids = (a.results || []).map((x) => x.toObjectId);
-  if (!eids.length) return 0;
-  let genuine = 0;
+  if (!eids.length) return { genuine: 0, sent: 0 };
+  let genuine = 0, sent = 0;
   for (let i = 0; i < eids.length; i += 100) {
     const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/emails/batch/read', {
       method: 'POST', headers: H,
@@ -212,14 +252,17 @@ const replies = await pool(contacts, 4, async (c) => {
       // Walking a contact's whole association list reaches back years, so the campaign
       // window matters as much as the auto-reply test does: one prospect's February
       // "not interested" to a manual email briefly looked like the campaign's first reply.
+      // The same walk answers "how many did we send", so count it here rather than paying
+      // for a second pass over every contact's associations.
+      if (pr.hs_email_direction === 'EMAIL' && String(pr.hs_timestamp || '') >= CUTOFF) sent++;
       if (pr.hs_email_direction !== 'INCOMING_EMAIL') return;
       if (String(pr.hs_timestamp || '') < CUTOFF) return;
       if (!isAuto(pr.hs_email_subject)) genuine++;
     });
   }
-  return genuine;
+  return { genuine, sent };
 });
-console.log(`replies: ${replies.filter(Boolean).length} contacts with at least one genuine reply`);
+console.log(`replies: ${replies.filter((r) => r && r.genuine).length} contacts with a genuine reply`, `| campaign emails on timelines: ${replies.reduce((a, r) => a + ((r && r.sent) || 0), 0)}`);
 
 // ---------------------------------------------------------------- heat
 // The interaction log is written live by the on-page beacon (src/pages/api/track.js) and by
@@ -259,19 +302,13 @@ const clicksIn = (log) => (String(log || '').match(/instantly\/link-click/g) || 
 // in the campaign performance panel and on the contact timeline, which is where it belongs.
 const LI_HEAT = { sent: 0, accepted: 15, replied: 30 };
 
-// Genuine opens: 2 each, at most 5 counted, so 10 points maximum.
-//
-// Opens as a class score nothing, and that has not changed. What is scored here is the
-// narrow subset the webhook keeps: an open more than 30 minutes after the send, once per
-// day. The delivery burst, which is where 84% of resolvable opens landed and where not one
-// of 107 openers went on to click, never reaches this number.
-//
-// The cap is the point. 10 sits below the Warm threshold of 25, so a contact who only ever
-// opens can never raise an alert on its own no matter how many times they open. It can only
-// tip someone already showing another signal. That is deliberate: late opens are a
-// hypothesis we can now measure, not a proven signal, and this weight is small enough to be
-// wrong without sending an AE anywhere.
-const OPEN_HEAT_EACH = 2, OPEN_HEAT_MAX_COUNTED = 5;
+// Opens score NOTHING, genuine or otherwise. They are counted and displayed, because the
+// gap between the raw total and the plausible ones is worth seeing, but they never move an
+// ember. An open is not an action a prospect chose to take in any way we can verify: 84% of
+// resolvable opens fired within five minutes of delivery and not one of 107 openers clicked
+// anything. Letting even a capped +2 through would rank contacts on pixel fetches, which is
+// the exact failure this model was built to avoid.
+
 
 const changes = [];
 const heatById = {};
@@ -279,7 +316,8 @@ for (let i = 0; i < contacts.length; i++) {
   const c = contacts[i];
   const email = (c.email || '').toLowerCase();
   const stage = liStage[email] || null;
-  const gr = replies[i] || 0;
+  const gr = (replies[i] && replies[i].genuine) || 0;
+  const emailsSent = (replies[i] && replies[i].sent) || 0;
   const vv = visitDays(c);
   const completed = completedAfterCutoff.has(c.id);
   // The first verified visit is worth more than an unverified click and lands the contact in
@@ -288,15 +326,17 @@ for (let i = 0; i < contacts.length; i++) {
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
   const clicks = clicksIn(c.volcano_interaction_log);
-  const opens = Math.min(OPEN_HEAT_MAX_COUNTED, Number(c.volcano_genuine_opens) || 0) * OPEN_HEAT_EACH;
   const heat = isInternal(c) ? 0
-    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat + opens;
+    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
   heatById[c.id] = heat;
 
   const next = {
     volcano_heat: String(heat),
     volcano_inmail_track: inmailTrack[email] ? 'true' : 'false',
     volcano_inmail_sent: String(inmailSent[email] || 0),
+    volcano_li_messages: String(liMessages[email] || 0),
+    volcano_emails_sent: String(emailsSent),
+    volcano_email_opens: String(openTotals[email] || 0),
     volcano_email_clicks: String(clicks),
     volcano_verified_visits: String(vv),
     volcano_genuine_reply: gr > 0 ? 'true' : 'false',
