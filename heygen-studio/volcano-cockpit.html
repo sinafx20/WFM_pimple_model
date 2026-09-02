@@ -902,7 +902,9 @@ renderActivity();
 // script and far too many for a page someone is waiting on.
 //
 // WHAT VOLCANO CAN AND CANNOT COUNT. LinkedIn outreach is countable because every note the
-// HeyReach sync writes carries a [volcano:...] marker. Campaign email is not: it lands as
+// HeyReach sync writes carries a [volcano:li-sent:] or [volcano:li-accepted:] marker. The
+// filter is deliberately li- rather than the broader [volcano: prefix: the Instantly click
+// webhook writes [volcano:click:] notes, and a prospect clicking a link is not AE outreach. Campaign email is not: it lands as
 // ordinary EMAIL engagements owned by the AE, and HubSpot refuses to filter EMAIL by the
 // associated contact ("object type EMAIL cannot be used in the report because it is
 // hidden"), so there is no way to tell a campaign send from an AE's own email. It is
@@ -919,7 +921,7 @@ const ACTIVITY_QUERIES = [
   { series: 'tasks',    sql: "SELECT hubspot_owner_id, DATE_TRUNC(hs_timestamp, 'WEEK'), COUNT(*) FROM TASK" },
   { series: 'notes',    sql: "SELECT hubspot_owner_id, DATE_TRUNC(hs_timestamp, 'WEEK'), COUNT(*) FROM NOTE" },
   { series: 'volcano',  sql: "SELECT hubspot_owner_id, DATE_TRUNC(hs_timestamp, 'WEEK'), COUNT(*) FROM NOTE",
-    extra: " AND hs_note_body LIKE '%[volcano:%'" },
+    extra: " AND hs_note_body LIKE '%[volcano:li-%'" },
 ];
 const sqlFor = (q) => q.sql
   + " WHERE hs_timestamp BETWEEN '" + WEEK_FROM + "' AND '" + WEEK_TO + "'"
