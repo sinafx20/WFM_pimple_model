@@ -71,7 +71,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_icp_vertical', 'volcano_interaction_log', 'volcano_interaction_depth',
   'wfm_completed_health_check', 'wfm_completed_calculator', 'wfm_completed_benchmark',
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
-  'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks',
+  'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks', 'volcano_genuine_opens',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -222,6 +222,20 @@ const clicksIn = (log) => (String(log || '').match(/instantly\/link-click/g) || 
 // in the campaign performance panel and on the contact timeline, which is where it belongs.
 const LI_HEAT = { sent: 0, accepted: 15, replied: 30 };
 
+// Genuine opens: 2 each, at most 5 counted, so 10 points maximum.
+//
+// Opens as a class score nothing, and that has not changed. What is scored here is the
+// narrow subset the webhook keeps: an open more than 30 minutes after the send, once per
+// day. The delivery burst, which is where 84% of resolvable opens landed and where not one
+// of 107 openers went on to click, never reaches this number.
+//
+// The cap is the point. 10 sits below the Warm threshold of 25, so a contact who only ever
+// opens can never raise an alert on its own no matter how many times they open. It can only
+// tip someone already showing another signal. That is deliberate: late opens are a
+// hypothesis we can now measure, not a proven signal, and this weight is small enough to be
+// wrong without sending an AE anywhere.
+const OPEN_HEAT_EACH = 2, OPEN_HEAT_MAX_COUNTED = 5;
+
 const changes = [];
 const heatById = {};
 for (let i = 0; i < contacts.length; i++) {
@@ -237,8 +251,9 @@ for (let i = 0; i < contacts.length; i++) {
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
   const clicks = clicksIn(c.volcano_interaction_log);
+  const opens = Math.min(OPEN_HEAT_MAX_COUNTED, Number(c.volcano_genuine_opens) || 0) * OPEN_HEAT_EACH;
   const heat = isInternal(c) ? 0
-    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
+    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat + opens;
   heatById[c.id] = heat;
 
   const next = {

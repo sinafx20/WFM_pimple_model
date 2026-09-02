@@ -80,6 +80,29 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_genuine_opens',
+    label: 'Volcano genuine opens',
+    description: 'Opens that arrived more than 30 minutes after the send, counted at most once '
+      + 'per day. Opens inside the delivery burst are excluded: measured across 107 openers, 84% '
+      + 'of resolvable opens fired within five minutes and none of them clicked anything, which is '
+      + 'image prefetching and scanning rather than reading.',
+    type: 'number', fieldType: 'number',
+  },
+  {
+    name: 'volcano_last_send_at',
+    label: 'Volcano last campaign send',
+    description: 'When the most recent campaign email went out. Exists so a later open can be '
+      + 'measured against it; without a known send there is no way to tell a person from a proxy.',
+    type: 'datetime', fieldType: 'date',
+  },
+  {
+    name: 'volcano_last_open_at',
+    label: 'Volcano last counted open',
+    description: 'Timestamp of the most recent open that counted, used to keep it to one per day '
+      + 'so one person re-opening a thread cannot inflate the score.',
+    type: 'datetime', fieldType: 'date',
+  },
+  {
     name: 'volcano_heat',
     label: 'Volcano heat',
     description: 'Engagement score driving the Cold 0-24 / Warm 25-64 / Hot 65-99 / Eruption 100+ '

@@ -11,8 +11,10 @@
 //                 outbound makes it look like we emailed ourselves)
 //   link click -> a verified interaction, because link tracking is now on across all
 //                 10 campaigns and an Instantly click is a real human click
-//   open       -> deliberately ignored. Opens are inflated by image proxies and would
-//                 bury the timeline in noise for no decision value.
+//   open       -> judged, not logged. An open more than 30 minutes after the send counts
+//                 once per day toward volcano_genuine_opens and never reaches the
+//                 timeline, because the delivery burst is machines and the timeline would
+//                 drown in it. See OPEN_GENUINE_AFTER_MS below for the reasoning.
 //
 // SECURITY: this endpoint is public and writes to the CRM, so it requires a shared
 // secret (INSTANTLY_WEBHOOK_SECRET) supplied as ?key= or an x-webhook-secret header.
@@ -71,6 +73,24 @@ function normalise(e) {
 const isReply = (t) => t.includes("reply") || t.includes("replied");
 const isClick = (t) => t.includes("click");
 const isSent = (t) => t.includes("sent");
+const isOpen = (t) => t.includes("open");
+
+/* How long after a send an open has to arrive before we treat it as a person.
+ *
+ * Opens as a class carry no signal: measured on 2026-09-01 across 107 openers, 84% of the
+ * opens whose timing could be resolved fired within five minutes of delivery, and not one
+ * of the 107 clicked anything. That is Apple Mail prefetching, Gmail proxying images and
+ * security appliances fetching during a scan.
+ *
+ * What that measurement does NOT say is that every open is a machine. It says the burst at
+ * delivery is. So instead of scoring opens or ignoring them, we keep only the ones that
+ * fall well outside that burst. Thirty minutes is deliberately stricter than the five the
+ * data showed, so we are not just catching its tail.
+ *
+ * This is a hypothesis, not a proven signal, which is why the weight in volcano-rollup.mjs
+ * is capped below the Warm threshold: a contact who only ever opens can never raise an
+ * alert on its own, it can only tip someone who has done something else as well. */
+const OPEN_GENUINE_AFTER_MS = 30 * 60 * 1000;
 
 export async function POST({ request, locals }) {
   const env = locals.runtime?.env || {};
@@ -92,7 +112,7 @@ export async function POST({ request, locals }) {
   if (!e.to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.to)) {
     return json({ ok: true, ignored: "no usable lead email", type: e.type });
   }
-  if (!isSent(e.type) && !isReply(e.type) && !isClick(e.type)) {
+  if (!isSent(e.type) && !isReply(e.type) && !isClick(e.type) && !isOpen(e.type)) {
     return json({ ok: true, ignored: "event type not handled", type: e.type });
   }
 
@@ -102,11 +122,43 @@ export async function POST({ request, locals }) {
     method: "POST", headers: H,
     body: JSON.stringify({
       filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: e.to }] }],
-      properties: ["email", "volcano_interaction_depth", "hubspot_owner_id"], limit: 1,
+      properties: ["email", "volcano_interaction_depth", "hubspot_owner_id",
+        "volcano_last_send_at", "volcano_last_open_at", "volcano_genuine_opens"], limit: 1,
     }),
   })).json();
   const contact = found && found.results && found.results[0];
   if (!contact) return json({ ok: false, error: "contact not found", email: e.to }, 404);
+
+  // An open is judged, not recorded. Only the ones arriving well after the send are kept,
+  // and at most one per day, so a single person re-opening cannot inflate the count.
+  //
+  // Note what this deliberately does NOT write: volcano_interaction_log and
+  // volcano_verified_interaction. Those drive verified visits, which are worth 25 and land a
+  // contact in Warm on their own. An open is not a visit, and quietly feeding one into the
+  // other would put every opener in front of an AE.
+  if (isOpen(e.type)) {
+    const cp = contact.properties || {};
+    const openAt = new Date(e.timestamp);
+    const sentAt = cp.volcano_last_send_at ? new Date(cp.volcano_last_send_at) : null;
+    const known = sentAt && !isNaN(sentAt.getTime()) && !isNaN(openAt.getTime());
+    const delayMs = known ? openAt.getTime() - sentAt.getTime() : null;
+    const day = isNaN(openAt.getTime()) ? "" : openAt.toISOString().slice(0, 10);
+    const lastDay = String(cp.volcano_last_open_at || "").slice(0, 10);
+
+    // No known send means no way to judge the delay, so it does not count. Silence is the
+    // right default: the alternative is crediting an open we cannot explain.
+    if (delayMs === null) return json({ ok: true, recorded: false, reason: "no known send to compare against" });
+    if (delayMs < OPEN_GENUINE_AFTER_MS) return json({ ok: true, recorded: false, reason: "within the delivery burst", delayMs: delayMs });
+    if (day && day === lastDay) return json({ ok: true, recorded: false, reason: "already counted an open today" });
+
+    const n = (Number(cp.volcano_genuine_opens) || 0) + 1;
+    const up = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/" + contact.id, {
+      method: "PATCH", headers: H,
+      body: JSON.stringify({ properties: { volcano_genuine_opens: String(n), volcano_last_open_at: openAt.toISOString() } }),
+    });
+    if (!up.ok) return json({ ok: false, error: "hubspot " + up.status }, 502);
+    return json({ ok: true, recorded: "genuine-open", opens: n, delayMs: delayMs, contactId: contact.id });
+  }
 
   // A click is a verified human action, so it feeds the same properties the on-page
   // beacon writes. Link tracking went on across all 10 campaigns on 2026-08-31, so
@@ -196,6 +248,16 @@ export async function POST({ request, locals }) {
     }),
   });
   if (!r.ok) return json({ ok: false, error: "hubspot " + r.status, detail: (await r.text()).slice(0, 200) }, 502);
+  // The send time is what makes a later open judgeable at all. Written after the engagement
+  // so that a failed email log never leaves a send time pointing at nothing.
+  if (outbound && isSent(e.type)) {
+    try {
+      await fetch("https://api.hubapi.com/crm/v3/objects/contacts/" + contact.id, {
+        method: "PATCH", headers: H,
+        body: JSON.stringify({ properties: { volcano_last_send_at: props.hs_timestamp } }),
+      });
+    } catch { /* the engagement is the record that matters; this only sharpens open scoring */ }
+  }
   const created = await r.json();
   return json({ ok: true, recorded: outbound ? "sent" : "reply", emailId: created.id, contactId: contact.id });
 }
