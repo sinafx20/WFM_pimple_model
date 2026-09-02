@@ -1,5 +1,10 @@
 // Writes LinkedIn outreach onto the HubSpot contact timeline as Notes.
 //
+// COVERS: connection requests sent, connections accepted, and the messages themselves in
+// both directions. The messages were invisible for a while because the campaign endpoint
+// only reports a leadMessageStatus flag; the actual conversation lives behind
+// /inbox/GetConversationsV2, which returns each message with its own timestamp and body.
+//
 // WHY: HubSpot only ever saw the accepted connections, and only then because a reply
 // created something to look at. An AE opening a record could not tell whether we had
 // even approached someone on LinkedIn. Connection requests sent are the majority of the
@@ -73,9 +78,79 @@ for (const l of leads) {
   if (!email) continue;
   for (const e of EVENTS) if (e.when(l)) wanted.push({ email, leadId: l.id, kind: e.kind, text: e.text(l), at: l.lastActionTime, owner: l.owner, campaign: l.key, profile: l.linkedInUserProfile?.profileUrl });
 }
+// --- LinkedIn messages, from the inbox rather than the campaign ---
+// The campaign endpoint only says leadMessageStatus: 'MessageSent', one flag per lead no
+// matter how many messages went out, and with no timestamp or text. The inbox has the real
+// thing. 218 outbound messages and 24 inbound replies existed before this ran, none of them
+// on any timeline: an AE opening a record could see we connected and nothing we then said.
+//
+// The inbox is the SEAT's inbox, not the campaign's, so it also holds the AE's own personal
+// LinkedIn conversations. Those must never be written onto a prospect record, which is why
+// a conversation only counts when its profile URL matches a lead in one of our campaigns.
+// About a third do not match, and that is the safeguard working, not a failure.
+const SEATS = { 221310: 'sina', 223029: 'denzel' };
+const emailByProfile = {};
+for (const l of leads) {
+  const pr = l.linkedInUserProfile || {};
+  const em = (pr.emailAddress || pr.enrichedEmailAddress || '').toLowerCase();
+  if (em && pr.profileUrl) emailByProfile[pr.profileUrl] = em;
+}
+
+const conversations = [];
+for (let offset = 0; ;) {
+  const r = await fetch('https://api.heyreach.io/api/public/inbox/GetConversationsV2', {
+    method: 'POST', headers: { 'X-API-KEY': HK, accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ filters: {}, offset, limit: 50 }),
+  });
+  if (!r.ok) { console.error('inbox: HTTP ' + r.status + ' - messages will be missing from this run'); break; }
+  const b = await r.json();
+  const items = b.items || [];
+  conversations.push(...items);
+  offset += items.length;
+  if (items.length < 50 || offset >= (b.totalCount || 0)) break;
+}
+
+let convMatched = 0, convSkipped = 0;
+for (const c of conversations) {
+  const pr = c.correspondentProfile || {};
+  const email = emailByProfile[pr.profileUrl];
+  if (!email) { convSkipped++; continue; }
+  convMatched++;
+  const owner = SEATS[c.linkedInAccountId] || null;
+  for (const m of c.messages || []) {
+    const at = m.createdAt;
+    const ms = new Date(at).getTime();
+    if (!Number.isFinite(ms)) continue;
+    const mine = m.sender === 'ME';
+    const text = String(m.body || '').replace(/\s+/g, ' ').trim();
+    const excerpt = text.length > 600 ? text.slice(0, 600) + '...' : text;
+    // Outbound stays under the li- prefix, which is what the cockpit's activity chart counts
+    // as our LinkedIn outreach. An inbound reply is the prospect acting, not AE activity, so
+    // it is deliberately named differently and stays out of that series.
+    wanted.push({
+      email,
+      leadId: ms,
+      kind: mine ? 'li-msg' : 'in-reply',
+      text: mine
+        ? (m.isInMail ? 'InMail sent' : 'LinkedIn message sent')
+          + ' by ' + (c.linkedInAccount?.firstName ? c.linkedInAccount.firstName + ' ' + (c.linkedInAccount.lastName || '') : 'the AE').trim()
+          + '.' + (m.subject ? '\nSubject: ' + m.subject : '') + (excerpt ? '\n\n' + excerpt : '')
+        : 'LinkedIn reply received.' + (excerpt ? '\n\n' + excerpt : ''),
+      at,
+      owner,
+      campaign: 'linkedin-inbox',
+      profile: pr.profileUrl,
+    });
+  }
+}
+console.log('conversations:', conversations.length, '| matched to campaign leads:', convMatched,
+  '| skipped as not ours:', convSkipped);
+
 console.log('timeline-worthy events:', wanted.length,
   '| requests sent:', wanted.filter(w => w.kind === 'li-sent').length,
-  '| accepted:', wanted.filter(w => w.kind === 'li-accepted').length);
+  '| accepted:', wanted.filter(w => w.kind === 'li-accepted').length,
+  '| messages out:', wanted.filter(w => w.kind === 'li-msg').length,
+  '| replies in:', wanted.filter(w => w.kind === 'in-reply').length);
 
 // --- resolve contacts ---
 const emails = [...new Set(wanted.map(w => w.email))];
