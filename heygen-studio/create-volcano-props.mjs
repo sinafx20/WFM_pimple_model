@@ -58,6 +58,19 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_internal',
+    label: 'Volcano internal tester',
+    description: 'Set by hand for teammates and internal testers who sit in the campaign audience '
+      + 'but must never be treated as prospects. Deliberately curated rather than derived: some '
+      + 'testers used partner or personal domains that look exactly like a real firm, so no rule '
+      + 'catches them. Only ever set to true; a contact without it is a prospect.',
+    type: 'bool', fieldType: 'booleancheckbox',
+    options: [
+      { label: 'Yes', value: 'true',  displayOrder: 0 },
+      { label: 'No',  value: 'false', displayOrder: 1 },
+    ],
+  },
+  {
     name: 'volcano_email_clicks',
     label: 'Volcano email clicks',
     description: 'Verified link clicks from the campaign email, reported by the Instantly webhook. '

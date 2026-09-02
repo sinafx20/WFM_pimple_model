@@ -48,8 +48,12 @@ const INTERNAL_EMAILS = new Set(
     ? JSON.parse(fs.readFileSync(p('_internal-contacts.json'), 'utf8'))
     : []).map((e) => String(e).toLowerCase())
 );
-const isInternal = (email) => {
-  const e = String(email || '').toLowerCase();
+// volcano_internal is the authority, because some testers used partner or personal domains
+// that no rule can tell apart from a real firm. The domain list and the local file stay as
+// a safety net for records nobody has flagged yet.
+const isInternal = (c) => {
+  if (String(c.volcano_internal || '').toLowerCase() === 'true') return true;
+  const e = String(c.email || '').toLowerCase();
   return INTERNAL_EMAILS.has(e) || INTERNAL_DOMAINS.some((d) => e.endsWith('@' + d));
 };
 
@@ -67,7 +71,8 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_icp_vertical', 'volcano_interaction_log', 'volcano_interaction_depth',
   'wfm_completed_health_check', 'wfm_completed_calculator', 'wfm_completed_benchmark',
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
-  'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks'];
+  'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks',
+  'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
   const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
@@ -225,7 +230,7 @@ for (let i = 0; i < contacts.length; i++) {
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
   const clicks = clicksIn(c.volcano_interaction_log);
-  const heat = isInternal(email) ? 0
+  const heat = isInternal(c) ? 0
     : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
   heatById[c.id] = heat;
 

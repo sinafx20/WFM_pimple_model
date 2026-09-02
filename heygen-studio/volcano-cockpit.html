@@ -928,7 +928,14 @@ const HS_INPUT = (offset) => ({
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
     'volcano_last_interaction_at'],
-  filterGroups: [{ filters: [{ propertyName: 'volcano_icp_vertical', operator: 'HAS_PROPERTY' }] }],
+  // volcano_internal excludes teammates and internal testers outright rather than
+  // zeroing their heat: a colleague sitting in the Cold band still makes the audience
+  // look bigger than it is and still turns up in the campaign bars. It is only ever set
+  // to true, so absence of the property is what marks a prospect.
+  filterGroups: [{ filters: [
+    { propertyName: 'volcano_icp_vertical', operator: 'HAS_PROPERTY' },
+    { propertyName: 'volcano_internal', operator: 'NOT_HAS_PROPERTY' },
+  ] }],
   sorts: [{ propertyName: 'volcano_heat', direction: 'DESCENDING' }],
   chatInsights: { userIntent: 'Show live campaign engagement on the Volcano cockpit', satisfaction: 'NEUTRAL' },
 });
