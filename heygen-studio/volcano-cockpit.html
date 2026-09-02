@@ -287,10 +287,6 @@
         <p class="psub">Every open, click, reply and LinkedIn connection adds heat. Contacts climb as they warm.</p>
       </div>
       <span class="grow"></span>
-      <div class="metric-toggle" id="mt">
-        <button data-m="campaign" class="on">Campaign-earned</button>
-        <button data-m="total">Incl. HubSpot score</button>
-      </div>
     </div>
 
     <div class="volcano-wrap vhost">
@@ -511,7 +507,7 @@ const BANDS = [
   {k:'warm',  n:'Warm',     range:'25–64', min:25,  max:64,  y0:290, y1:192, col:'#ECC069'},
   {k:'cold',  n:'Cold',     range:'0–24',  min:0,   max:24,  y0:470, y1:290, col:'#5E8377'},
 ];
-let METRIC = 'campaign', OPEN = null;
+let OPEN = null;
 
 // Link fetches are deliberately NOT scored. They were briefly folded in at +15 per
 // resource on the theory that they were prospect clicks, but the distribution says
@@ -545,8 +541,11 @@ const visitHeat = c => (c.vv > 0 ? 25 + Math.min(50, (c.vv - 1) * 10) : 0) + (c.
 // campaign's recorded replies were auto-responders, which put Kim Stoddart at the top of
 // the volcano on heat 32 made of a +30 out-of-office and a +2 prefetch. Genuine replies
 // are classified separately and only those score.
-const campaignHeat = c => c.cl*10 + c.gr*30 + c.li + visitHeat(c);
-const heatOf = c => METRIC === 'campaign' ? campaignHeat(c) : campaignHeat(c) + c.hs;
+// Heat is READ, never recomputed here. It is written to volcano_heat by
+// heygen-studio/volcano-rollup.mjs every two hours, and that same property is what the
+// HubSpot workflows alert an AE on. A second copy of the rule living in this page would
+// drift from it silently: the page would say a contact is Warm while no alert had fired.
+const heatOf = c => c.heat;
 // internal addresses never contribute heat — they're teammates and test records
 const effHeat = c => c.int ? 0 : heatOf(c);
 const bandOf = h => BANDS.find(b => h >= b.min && h <= b.max) || BANDS[3];
@@ -886,12 +885,6 @@ function renderCampaignPerf(){
 }
 
 
-document.querySelectorAll('#mt button').forEach(b => b.onclick = () => {
-  METRIC = b.dataset.m;
-  document.querySelectorAll('#mt button').forEach(x => x.classList.toggle('on', x===b));
-  OPEN = null; document.getElementById('drill').classList.remove('open');
-  renderVolcano();
-});
 
 renderSky();
 renderActivity();

@@ -213,7 +213,14 @@ const clicksIn = (log) => (String(log || '').match(/instantly\/link-click/g) || 
 // The LinkedIn numbers below are ours to choose. A reply is set at 30 so it matches an email
 // reply and lands a contact in Warm on its own; a connection is worth noticing but not
 // chasing. Change them here, not in the dashboard, so every consumer agrees.
-const LI_HEAT = { sent: 5, accepted: 15, replied: 30 };
+// "Request sent" scores nothing, because it is OUR action, not the prospect's. It is us
+// clicking connect, which is the same category as an email open or a short-link fetch, and
+// both of those are already zero for exactly this reason: they are not evidence a person
+// chose anything. Scoring it put 187 of 348 contacts on heat 5 for something they never
+// did, which made Cold look textured when it is flat. Accepted and replied stay, because
+// in both cases the prospect decided to act. Our own outbound volume is still fully visible
+// in the campaign performance panel and on the contact timeline, which is where it belongs.
+const LI_HEAT = { sent: 0, accepted: 15, replied: 30 };
 
 const changes = [];
 const heatById = {};
