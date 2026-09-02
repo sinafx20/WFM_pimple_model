@@ -415,12 +415,12 @@
       <div class="sh"><span class="ic" style="background:rgba(25,158,112,.2);color:#4FD1A0">&#10003;</span>
         <span class="sn">Resource visits</span></div>
       <div class="rows">
-        <div class="r"><span class="rv" style="color:#4FD1A0">2</span><span class="rl">confirmed visitors</span></div>
-        <div class="r"><span class="rv" style="color:var(--warm)">2</span><span class="rl">visits</span></div>
-        <div class="r"><span class="rv" style="color:var(--faint)">2</span><span class="rl">excluded as pre-cutoff testing</span></div>
-        <div class="r"><span class="rv" style="color:var(--hot)">0</span><span class="rl">completed a tool</span></div>
+        <div class="r"><span id="rv-people" class="rv" style="color:#4FD1A0">&mdash;</span><span class="rl">confirmed visitors</span></div>
+        <div class="r"><span id="rv-visits" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">visits</span></div>
+        <div class="r"><span id="rv-excl" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">excluded as pre-cutoff testing</span></div>
+        <div class="r"><span id="rv-done" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">completed a tool</span></div>
       </div>
-      <div class="flag">These <b style="color:#4FD1A0">are</b> counted as clicks and add heat. A page view needs JavaScript to run and carries the email of the contact, so HubSpot ties it to a named person; the scanners behind the fetch counts produce none. Only activity from <b>2026-08-26</b> counts, because everything earlier was our own testing. First visit <b>+25</b>, each repeat <b>+10</b> to a cap of <b>+50</b>, completing a tool <b>+30</b>.</div>
+      <div class="flag">These <b style="color:#4FD1A0">are</b> counted as clicks and add heat. A visit needs JavaScript to run and carries the contact&rsquo;s email, so it resolves to a named person, which the scanners behind the fetch counts never do. Counted from our own on-page beacon, plus HubSpot&rsquo;s last-seen stamp as a single extra day. It is deliberately not HubSpot&rsquo;s page-view history: that counter is lifetime and undated, and per-view timestamps need a scope that still returns 403, so a repeat visit before 2026-08-31 cannot be evidenced and is not claimed. Only activity from <b>2026-08-26</b> counts, because everything earlier was our own testing. First visit <b>+25</b>, each repeat <b>+10</b> to a cap of <b>+50</b>, completing a tool <b>+30</b>.</div>
     </div>
   </div>
 
@@ -1032,7 +1032,11 @@ function toRow(r) {
     op: num(p.volcano_genuine_opens),
     inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
     inmailSent: num(p.volcano_inmail_sent),
-    lc: 0, lct: {}, ld: 0, tainted: 0, vw: 0, vx: 0, ar: 0,
+    // Seen by HubSpot, but only before the campaign cutoff: that is our own testing, and
+    // counting it once crowned a July test session as the hottest lead in the pipeline.
+    vx: (String(p.hs_analytics_last_timestamp || '').slice(0, 10) || '9999') < '2026-08-26'
+      && !!p.hs_analytics_last_timestamp && num(p.volcano_verified_visits) === 0 ? 1 : 0,
+    lc: 0, lct: {}, ld: 0, tainted: 0, vw: 0, ar: 0,
   };
 }
 
@@ -1044,6 +1048,7 @@ const HS_INPUT = (offset) => ({
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
     'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
+    'hs_analytics_last_timestamp',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
@@ -1100,6 +1105,10 @@ function renderSources() {
   set('im-track', n((c) => c.inmailTrack));
   set('im-sent', C.reduce((s, c) => s + (c.inmailSent || 0), 0));
   set('im-rep', 0);   // no InMail has been delivered, so a reply to one cannot exist yet
+  set('rv-people', n((c) => c.vv > 0));
+  set('rv-visits', C.reduce((s, c) => s + (c.vv || 0), 0));
+  set('rv-excl', n((c) => c.vx));
+  set('rv-done', n((c) => c.ct));
 }
 
 function merge() {
