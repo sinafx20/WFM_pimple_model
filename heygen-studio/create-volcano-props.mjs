@@ -80,6 +80,27 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_inmail_track',
+    label: 'Volcano on InMail track',
+    description: 'True when the sequence has moved this prospect onto the InMail fallback arc: the '
+      + 'connection request was sent, never accepted, and HeyReach reports messaging started. InMail '
+      + 'is the only way to reach someone who has not connected, so this is the cohort the fallback '
+      + 'exists for.',
+    type: 'bool', fieldType: 'booleancheckbox',
+    options: [
+      { label: 'Yes', value: 'true',  displayOrder: 0 },
+      { label: 'No',  value: 'false', displayOrder: 1 },
+    ],
+  },
+  {
+    name: 'volcano_inmail_sent',
+    label: 'Volcano InMails delivered',
+    description: 'Count of messages to this prospect that LinkedIn actually recorded as an InMail. '
+      + 'Separate from the track flag on purpose: being on the InMail arc is not the same as an '
+      + 'InMail having been delivered, and the gap between the two is the thing worth watching.',
+    type: 'number', fieldType: 'number',
+  },
+  {
     name: 'volcano_genuine_opens',
     label: 'Volcano genuine opens',
     description: 'Opens that arrived more than 30 minutes after the send, counted at most once '

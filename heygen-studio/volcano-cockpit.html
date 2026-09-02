@@ -350,7 +350,7 @@
     </div>
 
     <div class="basebar">
-      <span class="bignum">216</span>
+      <span class="bignum" id="basecount">&mdash;</span>
       <span class="lbl">contacts in sequence</span>
       <span class="note" id="basenote"></span>
     </div>
@@ -381,21 +381,21 @@
       <div class="sh"><span class="ic" style="background:rgba(99,219,148,.16);color:#63DB94">✉</span>
         <span class="sn">Email · Instantly</span></div>
       <div class="rows">
-        <div class="r"><span class="rv" style="color:#63DB94">214</span><span class="rl">in sequence</span></div>
-        <div class="r"><span class="rv" style="color:var(--faint)">134</span><span class="rl">opens <span style="color:var(--faint);font-size:10.5px">(not scored)</span></span></div>
-        <div class="r"><span class="rv" style="color:var(--warm)">0</span><span class="rl">link clicks <span style="color:var(--faint);font-size:10.5px">(now tracked)</span></span></div>
-        <div class="r"><span class="rv" style="color:var(--hot)">0</span><span class="rl">genuine replies <span style="color:var(--faint);font-size:10.5px">(1 auto)</span></span></div>
+        <div class="r"><span id="em-seq" class="rv" style="color:#63DB94">&mdash;</span><span class="rl">in sequence</span></div>
+        <div class="r"><span id="em-open" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">opens <span style="color:var(--faint);font-size:10.5px">(not scored)</span></span></div>
+        <div class="r"><span id="em-click" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">link clicks <span style="color:var(--faint);font-size:10.5px">(now tracked)</span></span></div>
+        <div class="r"><span id="em-reply" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">genuine replies <span style="color:var(--faint);font-size:10.5px">(1 auto)</span></span></div>
       </div>
-      <div class="flag"><b style="color:var(--warm)">Opens are shown but never scored.</b> Of 107 openers measured on 2026-09-01, 84% of resolvable opens fired within five minutes of delivery and none clicked anything: that is Apple Mail prefetching images and scanners fetching them, not people reading. <b style="color:var(--warm)">Auto-replies are excluded too</b>, both of the campaign&rsquo;s recorded replies were out-of-office. <b style="color:#4FD1A0">Link tracking is now on across all 10 campaigns</b> (verified 2026-08-31), and a click scores <b>+10</b> into heat like any other. It still reads 0 because Instantly rewrites links at send time: the 214 emails already delivered carried untracked links, so only sends from here can register a click. Every lead in all 10 campaigns was scanned to confirm the 0 is real and not a missing field.</div>
+      <div class="flag"><b style="color:var(--warm)">Only late opens count, and lightly.</b> An open scores <b>+2</b>, at most five of them, and only when it lands more than 30 minutes after the send. The cap sits below the Warm threshold on purpose, so opening alone can never raise an alert. Of 107 openers measured on 2026-09-01, 84% of resolvable opens fired within five minutes of delivery and none clicked anything: that is Apple Mail prefetching images and scanners fetching them, not people reading. <b style="color:var(--warm)">Auto-replies are excluded too</b>, both of the campaign&rsquo;s recorded replies were out-of-office. <b style="color:#4FD1A0">Link tracking is now on across all 10 campaigns</b> (verified 2026-08-31), and a click scores <b>+10</b> into heat like any other. It still reads 0 because Instantly rewrites links at send time: the 214 emails already delivered carried untracked links, so only sends from here can register a click. Every lead in all 10 campaigns was scanned to confirm the 0 is real and not a missing field.</div>
     </div>
 
     <div class="panel src">
       <div class="sh"><span class="ic" style="background:rgba(83,168,248,.16);color:#8FD9FF">in</span>
         <span class="sn">LinkedIn DM · HeyReach</span></div>
       <div class="rows">
-        <div class="r"><span class="rv" style="color:#8FD9FF">214</span><span class="rl">in sequence</span></div>
-        <div class="r"><span class="rv" style="color:var(--warm)">22</span><span class="rl">connections accepted</span></div>
-        <div class="r"><span class="rv" style="color:var(--hot)">0</span><span class="rl">replied</span></div>
+        <div class="r"><span id="li-seq" class="rv" style="color:#8FD9FF">&mdash;</span><span class="rl">in sequence</span></div>
+        <div class="r"><span id="li-acc" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">connections accepted</span></div>
+        <div class="r"><span id="li-rep" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">replied</span></div>
       </div>
       <div class="flag">No read receipts exist for third-party tools, so accepted and replied are the only confirmed signals. Short-link fetches are shown in brackets but counted as zero clicks: every contact with an open thread shows a near-uniform 3&ndash;7 fetches and none show zero, which looks like the conversation being rendered rather than people choosing to click. Verified visits are now tracked separately, in the card to the right.</div>
     </div>
@@ -404,10 +404,11 @@
       <div class="sh"><span class="ic" style="background:rgba(236,192,105,.16);color:var(--warm)">✦</span>
         <span class="sn">InMail · fallback track</span></div>
       <div class="rows">
-        <div class="r"><span class="rv" style="color:var(--faint)">0</span><span class="rl">sent</span></div>
-        <div class="r"><span class="rv" style="color:var(--faint)">0</span><span class="rl">replies</span></div>
+        <div class="r"><span id="im-sent" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">sent</span></div>
+        <div class="r"><span id="im-rep" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">replies</span></div>
+        <div class="r"><span id="im-track" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">on the track</span></div>
       </div>
-      <div class="flag">Wired and ready, nothing fired yet. InMail only triggers for prospects who never accept the connection request, and those are still pending.</div>
+      <div class="flag">InMail is the only way to reach someone who never accepted the connection request, and that is the cohort here: request sent, never accepted, messaging started. <b style="color:var(--warm)">The track is running and delivering nothing.</b> HeyReach reports the same split from its own side, 27 InMail chains started against 0 InMail messages sent, and not one message in the whole inbox carries LinkedIn&rsquo;s InMail flag. Worth checking whether the seat has InMail credits and whether these prospects are open profiles, since free InMail needs one or the other.</div>
     </div>
 
     <div class="panel src">
@@ -1016,9 +1017,6 @@ function toRow(r) {
     n: p.firstname || '', ln: p.lastname || '', t: p.jobtitle || '', c: p.company || '',
     v: VERT[p.volcano_icp_vertical] || 'consulting',
     o: OWNER_AE[p.hubspot_owner_id] || 'sina',
-    // op stays 0: HubSpot has no record of an Instantly open, and the model would not
-    // score it if it did. Keeping the field means the renderers need no special case.
-    op: 0,
     cl: num(p.volcano_email_clicks),
     rp: replied ? 1 : 0, gr: replied ? 1 : 0,
     li: stage ? (replied ? 30 : LI_FROM_STAGE[stage] || 0) : 0,
@@ -1031,6 +1029,9 @@ function toRow(r) {
     vv: num(p.volcano_verified_visits),
     ct: num(p.volcano_interaction_depth) >= 3 ? 1 : 0,
     heat: num(p.volcano_heat),
+    op: num(p.volcano_genuine_opens),
+    inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
+    inmailSent: num(p.volcano_inmail_sent),
     lc: 0, lct: {}, ld: 0, tainted: 0, vw: 0, vx: 0, ar: 0,
   };
 }
@@ -1042,6 +1043,7 @@ const HS_INPUT = (offset) => ({
   properties: ['firstname', 'lastname', 'jobtitle', 'company', 'hubspot_owner_id',
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
+    'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
@@ -1082,12 +1084,31 @@ function stamp(cache) {
 
 const pageRows = {};
 let lastCache = null;
+// The source cards were a frozen snapshot until now, which is how the InMail card could
+// keep saying "nothing fired yet" while 28 prospects sat on the track waiting.
+function renderSources() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const n = (f) => C.filter(f).length;
+  set('basecount', C.length);
+  set('em-seq', n((c) => c.em));
+  set('em-open', C.reduce((s, c) => s + (c.op || 0), 0));
+  set('em-click', C.reduce((s, c) => s + (c.cl || 0), 0));
+  set('em-reply', n((c) => c.gr > 0));
+  set('li-seq', n((c) => c.lin));
+  set('li-acc', n((c) => c.ls === 'ConnectionAccepted'));
+  set('li-rep', n((c) => c.li >= 30));
+  set('im-track', n((c) => c.inmailTrack));
+  set('im-sent', C.reduce((s, c) => s + (c.inmailSent || 0), 0));
+  set('im-rep', 0);   // no InMail has been delivered, so a reply to one cannot exist yet
+}
+
 function merge() {
   const seen = new Set();
   C = Object.values(pageRows).flat().filter((r) => !seen.has(r.id) && seen.add(r.id));
   dim(false);
   renderVolcano();
   renderCampaignPerf();
+  renderSources();
   stamp(lastCache);
 }
 

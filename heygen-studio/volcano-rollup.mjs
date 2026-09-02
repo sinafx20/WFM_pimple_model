@@ -72,6 +72,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'wfm_completed_health_check', 'wfm_completed_calculator', 'wfm_completed_benchmark',
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
   'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks', 'volcano_genuine_opens',
+  'volcano_inmail_track', 'volcano_inmail_sent',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -92,6 +93,13 @@ console.log(`campaign audience: ${contacts.length} contacts`);
 // HeyReach has no webhooks (three endpoint shapes probed 2026-09-01, all 404), so the only
 // way to know a stage is to ask. A missing key is not fatal: the other signals still roll up.
 const liStage = {};
+// The InMail arc is where the sequence sends a prospect who never accepted the connection
+// request, because InMail is the only way to reach a non-connection. HeyReach has no
+// per-lead flag for it, but the combination is unambiguous: request sent, never accepted,
+// messaging started. That yields 29 leads against the 27 its own totalInmailStarted
+// reports, the difference being leads that accepted after the aggregate window.
+const inmailTrack = {};
+const inmailSent = {};
 const RANK = { sent: 1, accepted: 2, replied: 3 };
 if (HK) {
   const map = JSON.parse(fs.readFileSync(p('heyreach-real-campaigns.json'), 'utf8'));
@@ -100,6 +108,7 @@ if (HK) {
     body: JSON.stringify(body),
   });
   let leads = 0;
+  const emailByProfileUrl = {};
   for (const m of Object.values(map)) {
     for (let offset = 0; ;) {
       const r = await hr('/campaign/GetLeadsFromCampaign', { campaignId: m.campaignId, offset, limit: 100 });
@@ -110,17 +119,44 @@ if (HK) {
         const email = (l.linkedInUserProfile?.emailAddress || l.linkedInUserProfile?.enrichedEmailAddress || '').toLowerCase();
         if (!email) continue;
         leads++;
+        if (l.linkedInUserProfile?.profileUrl) emailByProfileUrl[l.linkedInUserProfile.profileUrl] = email;
         // Stage only ever climbs. The same person can appear in more than one campaign row,
         // and a later row still reading ConnectionSent must not demote someone who connected.
         const s = l.leadConnectionStatus === 'ConnectionAccepted' ? 'accepted'
           : l.leadConnectionStatus === 'ConnectionSent' ? 'sent' : null;
         if (s && (!liStage[email] || RANK[s] > RANK[liStage[email]])) liStage[email] = s;
+        if (l.leadConnectionStatus === 'ConnectionSent' && l.leadMessageStatus === 'MessageSent') inmailTrack[email] = true;
       }
       offset += items.length;
       if (items.length < 100 || offset >= (b.totalCount || 0)) break;
     }
   }
-  console.log(`heyreach: ${leads} leads with an email, ${Object.keys(liStage).length} distinct`);
+  // Being on the InMail arc is not the same as an InMail going out, and the gap between the
+  // two is the point: HeyReach reports 27 chains started and 0 InMail messages sent. Counting
+  // deliveries separately is what makes that visible instead of implying the track is idle.
+  const convs = [];
+  for (let offset = 0; ;) {
+    const r = await fetch('https://api.heyreach.io/api/public/inbox/GetConversationsV2', {
+      method: 'POST', headers: { 'X-API-KEY': HK, accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify({ filters: {}, offset, limit: 50 }),
+    });
+    if (!r.ok) { console.error('inbox: HTTP ' + r.status + ' - InMail delivery counts will be missing'); break; }
+    const b = await r.json();
+    const items = b.items || [];
+    convs.push(...items);
+    offset += items.length;
+    if (items.length < 50 || offset >= (b.totalCount || 0)) break;
+  }
+  for (const c of convs) {
+    const pr = c.correspondentProfile || {};
+    const em = (pr.emailAddress || pr.enrichedEmailAddress || '').toLowerCase() || emailByProfileUrl[pr.profileUrl];
+    if (!em) continue;
+    const n = (c.messages || []).filter((m) => m.sender === 'ME' && m.isInMail).length;
+    if (n) inmailSent[em] = (inmailSent[em] || 0) + n;
+  }
+  console.log(`heyreach: ${leads} leads with an email, ${Object.keys(liStage).length} distinct`
+    + `, ${Object.keys(inmailTrack).length} on the InMail track, `
+    + `${Object.values(inmailSent).reduce((a, b) => a + b, 0)} InMails actually delivered`);
 } else {
   console.log('heyreach: no HEYREACH_API_KEY, skipping LinkedIn stage');
 }
@@ -258,6 +294,8 @@ for (let i = 0; i < contacts.length; i++) {
 
   const next = {
     volcano_heat: String(heat),
+    volcano_inmail_track: inmailTrack[email] ? 'true' : 'false',
+    volcano_inmail_sent: String(inmailSent[email] || 0),
     volcano_email_clicks: String(clicks),
     volcano_verified_visits: String(vv),
     volcano_genuine_reply: gr > 0 ? 'true' : 'false',
