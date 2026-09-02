@@ -123,7 +123,8 @@ export async function POST({ request, locals }) {
     body: JSON.stringify({
       filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: e.to }] }],
       properties: ["email", "volcano_interaction_depth", "hubspot_owner_id",
-        "volcano_last_send_at", "volcano_last_open_at", "volcano_genuine_opens"], limit: 1,
+        "volcano_last_send_at", "volcano_last_open_at", "volcano_genuine_opens",
+        "volcano_email_opens"], limit: 1,
     }),
   })).json();
   const contact = found && found.results && found.results[0];
@@ -145,19 +146,33 @@ export async function POST({ request, locals }) {
     const day = isNaN(openAt.getTime()) ? "" : openAt.toISOString().slice(0, 10);
     const lastDay = String(cp.volcano_last_open_at || "").slice(0, 10);
 
-    // No known send means no way to judge the delay, so it does not count. Silence is the
-    // right default: the alternative is crediting an open we cannot explain.
-    if (delayMs === null) return json({ ok: true, recorded: false, reason: "no known send to compare against" });
-    if (delayMs < OPEN_GENUINE_AFTER_MS) return json({ ok: true, recorded: false, reason: "within the delivery burst", delayMs: delayMs });
-    if (day && day === lastDay) return json({ ok: true, recorded: false, reason: "already counted an open today" });
+    // Every open is counted raw, including the ones we are about to reject. Keeping both
+    // numbers is what lets the dashboard show the difference rather than assert it: the raw
+    // count is the figure most tools would report, and the gap to the genuine count is the
+    // whole argument for not scoring opens.
+    const total = (Number(cp.volcano_email_opens) || 0) + 1;
+    const write = { volcano_email_opens: String(total) };
 
-    const n = (Number(cp.volcano_genuine_opens) || 0) + 1;
+    // No known send means no way to judge the delay, so it cannot count as genuine. Silence
+    // is the right default: the alternative is crediting an open we cannot explain.
+    const reason = delayMs === null ? "no known send to compare against"
+      : delayMs < OPEN_GENUINE_AFTER_MS ? "within the delivery burst"
+      : (day && day === lastDay) ? "already counted an open today"
+      : null;
+
+    let genuine = Number(cp.volcano_genuine_opens) || 0;
+    if (!reason) {
+      genuine += 1;
+      write.volcano_genuine_opens = String(genuine);
+      write.volcano_last_open_at = openAt.toISOString();
+    }
+
     const up = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/" + contact.id, {
-      method: "PATCH", headers: H,
-      body: JSON.stringify({ properties: { volcano_genuine_opens: String(n), volcano_last_open_at: openAt.toISOString() } }),
+      method: "PATCH", headers: H, body: JSON.stringify({ properties: write }),
     });
     if (!up.ok) return json({ ok: false, error: "hubspot " + up.status }, 502);
-    return json({ ok: true, recorded: "genuine-open", opens: n, delayMs: delayMs, contactId: contact.id });
+    return json({ ok: true, recorded: reason ? "open" : "genuine-open", reason: reason,
+      opens: total, genuineOpens: genuine, delayMs: delayMs, contactId: contact.id });
   }
 
   // A click is a verified human action, so it feeds the same properties the on-page

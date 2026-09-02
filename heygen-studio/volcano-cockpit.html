@@ -37,6 +37,40 @@
   .state button{font:inherit;font-size:12px;font-weight:700;margin-top:10px;cursor:pointer;
     background:var(--money);color:var(--evergreen);border:0;border-radius:100px;padding:7px 16px}
   .dim{opacity:.35;pointer-events:none}
+  /* One stage ramp shared by the cards and both charts, weakest to strongest, so a colour
+     means the same thing everywhere on the page. */
+  :root{--stage-0:rgba(255,255,255,.09);--stage-1:#3F6E60;--stage-2:#53A8F8;--stage-3:#ECC069;--stage-4:#63DB94}
+  .sources .src{display:flex;flex-direction:column}
+  .src .sh{display:flex;align-items:center;gap:9px}
+  .src .via{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+    border:1px solid var(--line);border-radius:100px;padding:2px 8px;margin-left:auto}
+  .src .rows{display:flex;flex-direction:column;gap:2px;margin:16px 0 4px}
+  .src .r{display:flex;align-items:baseline;gap:13px;padding:7px 9px;border-radius:9px;position:relative}
+  .src .rv{font-family:'Bruna',Georgia,serif;font-weight:700;font-size:25px;line-height:1;
+    font-variant-numeric:tabular-nums;min-width:52px;text-align:right;color:var(--ink)}
+  .src .rows.big .rv{font-size:33px}
+  .src .rl{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+  .src .rl em{font-style:normal;font-size:10.5px;color:var(--faint);letter-spacing:.01em}
+  .src .r.hoverable{cursor:default;transition:background .14s}
+  .src .r.hoverable:hover,.src .r.hoverable:focus-visible{background:rgba(255,255,255,.05);outline:none}
+  .src .r.hoverable:focus-visible{box-shadow:0 0 0 1px rgba(99,219,148,.5)}
+  .peek{margin:2px 0 0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    background:rgba(4,16,12,.72);max-height:190px;overflow-y:auto}
+  .peek h6{margin:0 0 7px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:700}
+  .peek a{display:flex;align-items:baseline;gap:8px;padding:4px 0;color:var(--ink);text-decoration:none;
+    font-size:11.5px;border-bottom:1px solid var(--line-2)}
+  .peek a:last-child{border-bottom:0}
+  .peek a:hover,.peek a:focus-visible{color:var(--money);outline:none}
+  .peek a .co{color:var(--faint);font-size:10.5px;margin-left:auto;text-align:right;
+    max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .peek .none{font-size:11.5px;color:var(--faint)}
+  .src .flag{font-size:11px;line-height:1.5;color:var(--faint);margin:auto 0 0;padding-top:12px;
+    border-top:1px solid var(--line-2)}
+  .src .flag b{color:var(--muted)}
+  .chartbox{overflow-x:auto}
+  .chartbox svg{display:block;min-width:330px;width:100%;height:auto}
+  #cpnote{font-size:11px;color:var(--faint);line-height:1.5;margin:14px 0 2px;
+    padding-top:11px;border-top:1px solid var(--line-2)}
   .shell{max-width:1180px;margin:0 auto;padding:26px 22px 64px}
 
   /* ---- header ---- */
@@ -375,52 +409,52 @@
     </div>
   </section>
 
-  <!-- ================= HEAT SOURCES ================= -->
-  <div class="sources">
+  <!-- ================= CHANNELS ================= -->
+  <div class="sources live">
+
     <div class="panel src">
-      <div class="sh"><span class="ic" style="background:rgba(99,219,148,.16);color:#63DB94">✉</span>
-        <span class="sn">Email · Instantly</span></div>
+      <div class="sh"><span class="ic" style="background:rgba(99,219,148,.16);color:#63DB94">&#9993;</span>
+        <span class="sn">Email</span><span class="via">Instantly</span></div>
       <div class="rows">
-        <div class="r"><span id="em-seq" class="rv" style="color:#63DB94">&mdash;</span><span class="rl">in sequence</span></div>
-        <div class="r"><span id="em-open" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">opens <span style="color:var(--faint);font-size:10.5px">(not scored)</span></span></div>
-        <div class="r"><span id="em-click" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">link clicks <span style="color:var(--faint);font-size:10.5px">(now tracked)</span></span></div>
-        <div class="r"><span id="em-reply" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">genuine replies <span style="color:var(--faint);font-size:10.5px">(1 auto)</span></span></div>
+        <div class="r"><span id="em-seq" class="rv">&mdash;</span><span class="rl">in sequence</span></div>
+        <div class="r"><span id="em-open" class="rv" style="color:var(--stage-2)">&mdash;</span><span class="rl">opens<em id="em-open-note"></em></span></div>
+        <div class="r"><span id="em-click" class="rv" style="color:var(--stage-3)">&mdash;</span><span class="rl">link clicks</span></div>
+        <div class="r"><span id="em-reply" class="rv" style="color:var(--stage-4)">&mdash;</span><span class="rl">replies<em>genuine, auto-replies excluded</em></span></div>
       </div>
-      <div class="flag"><b style="color:var(--warm)">Only late opens count, and lightly.</b> An open scores <b>+2</b>, at most five of them, and only when it lands more than 30 minutes after the send. The cap sits below the Warm threshold on purpose, so opening alone can never raise an alert. Of 107 openers measured on 2026-09-01, 84% of resolvable opens fired within five minutes of delivery and none clicked anything: that is Apple Mail prefetching images and scanners fetching them, not people reading. <b style="color:var(--warm)">Auto-replies are excluded too</b>, both of the campaign&rsquo;s recorded replies were out-of-office. <b style="color:#4FD1A0">Link tracking is now on across all 10 campaigns</b> (verified 2026-08-31), and a click scores <b>+10</b> into heat like any other. It still reads 0 because Instantly rewrites links at send time: the 214 emails already delivered carried untracked links, so only sends from here can register a click. Every lead in all 10 campaigns was scanned to confirm the 0 is real and not a missing field.</div>
+      <p class="flag">Opens are counted but barely scored: <b>+2</b> each, five at most, and only more than
+        30 minutes after the send. Of 107 openers measured, 84% opened within five minutes and none
+        clicked, which is prefetching rather than reading. Link tracking went on 31 Aug, so clicks can
+        only register on sends after that.</p>
     </div>
 
     <div class="panel src">
-      <div class="sh"><span class="ic" style="background:rgba(83,168,248,.16);color:#8FD9FF">in</span>
-        <span class="sn">LinkedIn DM · HeyReach</span></div>
+      <div class="sh"><span class="ic" style="background:rgba(143,217,255,.16);color:#8FD9FF">in</span>
+        <span class="sn">LinkedIn</span><span class="via">HeyReach</span></div>
       <div class="rows">
-        <div class="r"><span id="li-seq" class="rv" style="color:#8FD9FF">&mdash;</span><span class="rl">in sequence</span></div>
-        <div class="r"><span id="li-acc" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">connections accepted</span></div>
-        <div class="r"><span id="li-rep" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">replied</span></div>
+        <div class="r"><span id="li-sent" class="rv">&mdash;</span><span class="rl">requests sent</span></div>
+        <div class="r"><span id="li-acc" class="rv" style="color:var(--stage-2)">&mdash;</span><span class="rl">accepted<em id="li-rate"></em></span></div>
+        <div class="r"><span id="li-rep" class="rv" style="color:var(--stage-4)">&mdash;</span><span class="rl">replied</span></div>
+        <div class="r"><span id="im-sent" class="rv" style="color:var(--stage-3)">&mdash;</span><span class="rl">InMails sent<em id="im-note"></em></span></div>
       </div>
-      <div class="flag">No read receipts exist for third-party tools, so accepted and replied are the only confirmed signals. Short-link fetches are shown in brackets but counted as zero clicks: every contact with an open thread shows a near-uniform 3&ndash;7 fetches and none show zero, which looks like the conversation being rendered rather than people choosing to click. Verified visits are now tracked separately, in the card to the right.</div>
+      <p class="flag">There are no read receipts for third-party tools, so accepting and replying are the
+        only confirmed signals. InMail is the fallback for prospects who never accept, and it is
+        running without delivering: HeyReach reports the same, 27 chains started against 0 sent. Worth
+        checking the seat&rsquo;s InMail credits and whether these are open profiles.</p>
     </div>
 
     <div class="panel src">
-      <div class="sh"><span class="ic" style="background:rgba(236,192,105,.16);color:var(--warm)">✦</span>
-        <span class="sn">InMail · fallback track</span></div>
-      <div class="rows">
-        <div class="r"><span id="im-sent" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">sent</span></div>
-        <div class="r"><span id="im-rep" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">replies</span></div>
-        <div class="r"><span id="im-track" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">on the track</span></div>
+      <div class="sh"><span class="ic" style="background:rgba(79,209,160,.16);color:#4FD1A0">&#10003;</span>
+        <span class="sn">Resource visits</span><span class="via">on-page beacon</span></div>
+      <div class="rows big">
+        <div class="r hoverable" data-list="visitors" tabindex="0"><span id="rv-people" class="rv" style="color:#4FD1A0">&mdash;</span><span class="rl">confirmed visitors<em>hover for names</em></span></div>
+        <div class="r hoverable" data-list="completers" tabindex="0"><span id="rv-done" class="rv" style="color:var(--stage-4)">&mdash;</span><span class="rl">completed a tool<em>hover for names</em></span></div>
       </div>
-      <div class="flag">InMail is the only way to reach someone who never accepted the connection request, and that is the cohort here: request sent, never accepted, messaging started. <b style="color:var(--warm)">The track is running and delivering nothing.</b> HeyReach reports the same split from its own side, 27 InMail chains started against 0 InMail messages sent, and not one message in the whole inbox carries LinkedIn&rsquo;s InMail flag. Worth checking whether the seat has InMail credits and whether these prospects are open profiles, since free InMail needs one or the other.</div>
-    </div>
-
-    <div class="panel src">
-      <div class="sh"><span class="ic" style="background:rgba(25,158,112,.2);color:#4FD1A0">&#10003;</span>
-        <span class="sn">Resource visits</span></div>
-      <div class="rows">
-        <div class="r"><span id="rv-people" class="rv" style="color:#4FD1A0">&mdash;</span><span class="rl">confirmed visitors</span></div>
-        <div class="r"><span id="rv-visits" class="rv" style="color:var(--warm)">&mdash;</span><span class="rl">visits</span></div>
-        <div class="r"><span id="rv-excl" class="rv" style="color:var(--faint)">&mdash;</span><span class="rl">excluded as pre-cutoff testing</span></div>
-        <div class="r"><span id="rv-done" class="rv" style="color:var(--hot)">&mdash;</span><span class="rl">completed a tool</span></div>
-      </div>
-      <div class="flag">These <b style="color:#4FD1A0">are</b> counted as clicks and add heat. A visit needs JavaScript to run and carries the contact&rsquo;s email, so it resolves to a named person, which the scanners behind the fetch counts never do. Counted from our own on-page beacon, plus HubSpot&rsquo;s last-seen stamp as a single extra day. It is deliberately not HubSpot&rsquo;s page-view history: that counter is lifetime and undated, and per-view timestamps need a scope that still returns 403, so a repeat visit before 2026-08-31 cannot be evidenced and is not claimed. Only activity from <b>2026-08-26</b> counts, because everything earlier was our own testing. First visit <b>+25</b>, each repeat <b>+10</b> to a cap of <b>+50</b>, completing a tool <b>+30</b>.</div>
+      <div class="peek" id="peek" hidden></div>
+      <p class="flag">The heaviest signal in the model: a first visit is <b>+25</b>, repeats <b>+10</b> to a
+        cap of <b>+50</b>, finishing a tool <b>+30</b>. A visit needs JavaScript and carries the
+        contact&rsquo;s email, so it resolves to a named person, which the scanners behind fetch counts
+        never do. Counted from our own beacon, live since 31 Aug, so earlier repeat visits cannot be
+        evidenced and are not claimed.</p>
     </div>
   </div>
 
@@ -446,7 +480,7 @@
     <div class="bd-head">
       <div>
         <p class="ptitle">Campaign performance</p>
-        <p class="psub">Every contact placed at the furthest stage they reached, per campaign</p>
+        <p class="psub">Each contact counted once, at the furthest stage they reached. Two bars per industry, Sina then Denzel</p>
       </div>
       <span class="grow"></span>
       <div class="legend" id="cplegend"></div>
@@ -454,23 +488,25 @@
     <div class="cpwrap">
       <div class="cpcol">
         <div class="cph"><span class="ic" style="background:rgba(99,219,148,.16);color:#63DB94">&#9993;</span>Email &middot; Instantly</div>
-        <div id="cpEmail"></div>
+        <div class="chartbox"><div id="cpEmail"></div></div>
       </div>
       <div class="cpcol">
         <div class="cph"><span class="ic" style="background:rgba(143,217,255,.16);color:#8FD9FF">in</span>LinkedIn &middot; HeyReach</div>
-        <div id="cpLi"></div>
+        <div class="chartbox"><div id="cpLi"></div></div>
       </div>
     </div>
-    <div class="flag" style="font-size:11px;color:var(--faint);line-height:1.45;margin:14px 0 4px;padding-top:11px;border-top:1px solid var(--line-2)" id="cpnote"></div>
+    <p class="flag" id="cpnote"></p>
   </section>
 
 
   <footer>
-    Heat model — email: verified click <b>+10</b>, genuine reply <b>+30</b>; LinkedIn: connection accepted <b>+8</b>, replied <b>+30</b>; verified visit <b>+25</b> first then <b>+10</b> each to a <b>+50</b> cap, completed a tool <b>+30</b>. Opens, auto-replies and unverified link fetches are shown but never scored.
-    Bands: Cold <b>0–24</b> · Warm <b>25–64</b> · Hot <b>65–99</b> · Eruption <b>100+</b>.
-    Internal WorkflowMAX addresses are tagged and excluded from heat by default.
-    Eight contacts whose links were fetched repeatedly during internal testing are excluded from every fetch figure here.
-    Read-only snapshot of live Instantly + HeyReach + HubSpot + TinyURL data — it does not refresh on its own.
+    Heat model. Email: verified click <b>+10</b>, genuine reply <b>+30</b>, late open <b>+2</b> to a <b>+10</b> cap.
+    LinkedIn: connection accepted <b>+15</b>, replied <b>+30</b>; a request we sent scores <b>nothing</b>, because it is our action and not the prospect&rsquo;s.
+    Resources: first verified visit <b>+25</b>, each repeat <b>+10</b> to a <b>+50</b> cap, completing a tool <b>+30</b>.
+    Auto-replies and unverified link fetches are shown but never scored.
+    Bands: Cold <b>0&ndash;24</b> &middot; Warm <b>25&ndash;64</b> &middot; Hot <b>65&ndash;99</b> &middot; Eruption <b>100+</b>.
+    Teammates and internal testers are flagged in HubSpot and left out of the audience entirely, not merely zeroed.
+    Live from HubSpot: contacts refresh every 5 minutes, weekly activity every 15, and heat itself is recomputed every 2 hours by the rollup.
   </footer>
 </div>
 
@@ -819,26 +855,34 @@ document.getElementById('dclose').onclick = () => { OPEN = null; document.getEle
 // count the same person and make the bars longer than the cohort. Placing each contact
 // once, at their deepest stage, keeps every bar summing to the campaign's real size.
 // Colours are the validated categorical slots 1-3 on the dark ramp, used in this order.
+// Stage order is weakest first so a stack reads bottom-up as progress, and the colours are
+// the page's shared ramp: the same hue means the same depth of engagement in the cards above
+// and in both charts.
 const EMAIL_STAGES = [
-  { k: 'rp', label: 'Replied',      col: '#199e70' },
-  { k: 'cl', label: 'Clicked',      col: '#d95926' },
-  { k: 'op', label: 'Opened',       col: '#3987e5' },
+  { k: 'none', label: 'No activity', col: 'var(--stage-0)' },
+  { k: 'op',   label: 'Opened',      col: 'var(--stage-2)' },
+  { k: 'cl',   label: 'Clicked',     col: 'var(--stage-3)' },
+  { k: 'rp',   label: 'Replied',     col: 'var(--stage-4)' },
 ];
 const LI_STAGES = [
-  { k: 'rp', label: 'Replied',      col: '#199e70' },
-  { k: 'ac', label: 'Connected',    col: '#d95926' },
-  { k: 'sn', label: 'Request sent', col: '#3987e5' },
+  { k: 'none', label: 'No activity',  col: 'var(--stage-0)' },
+  { k: 'sn',   label: 'Request sent', col: 'var(--stage-1)' },
+  { k: 'ac',   label: 'Connected',    col: 'var(--stage-2)' },
+  { k: 'rp',   label: 'Replied',      col: 'var(--stage-4)' },
 ];
 
-function emailStages(set){
-  const o = { rp:0, cl:0, op:0, none:0, n:0 };
-  set.filter(c => c.em).forEach(c => { o.n++;
-    if (c.rp > 0) o.rp++; else if (c.cl > 0) o.cl++; else if (c.op > 0) o.op++; else o.none++; });
+// Each contact is counted once, at the furthest stage they reached. Opens, clicks and replies
+// overlap on the same person, and stacking them raw would count that person three times and
+// make every bar taller than the campaign is.
+function emailStages(set) {
+  const o = { rp: 0, cl: 0, op: 0, none: 0, n: 0 };
+  set.filter((c) => c.em).forEach((c) => { o.n++;
+    if (c.gr > 0) o.rp++; else if (c.cl > 0) o.cl++; else if (c.opGenuine > 0) o.op++; else o.none++; });
   return o;
 }
-function liStages(set){
-  const o = { rp:0, ac:0, sn:0, none:0, n:0 };
-  set.filter(c => c.lin).forEach(c => { o.n++;
+function liStages(set) {
+  const o = { rp: 0, ac: 0, sn: 0, none: 0, n: 0 };
+  set.filter((c) => c.lin).forEach((c) => { o.n++;
     if (c.li >= 30) o.rp++;
     else if (c.ls === 'ConnectionAccepted') o.ac++;
     else if (c.ls === 'ConnectionSent') o.sn++;
@@ -846,46 +890,88 @@ function liStages(set){
   return o;
 }
 
-function bars(target, stages, getter){
-  const rows = VORDER.map(v => ({ v, sina: getter(C.filter(c => c.v===v && c.o==='sina')),
-                                     denzel: getter(C.filter(c => c.v===v && c.o==='denzel')) }))
-    .filter(r => r.sina.n || r.denzel.n);
-  // one shared scale so a bar's length means the same thing in every row
-  const max = Math.max(1, ...rows.flatMap(r => [r.sina.n, r.denzel.n]));
-  const row = (ae, d) => {
-    if (!d.n) return '<div class="cprow"><span class="cpae" style="color:var(--faint)">'+ae+'</span>'
-      + '<span class="cptrack"></span><span class="cpdet cpempty">no contacts</span></div>';
-    const segs = stages.filter(s => d[s.k] > 0).map(s =>
-      '<i class="cpseg" style="width:'+(d[s.k]/max*100)+'%;background:'+s.col+'" title="'+s.label+': '+d[s.k]+' of '+d.n+'"></i>').join('');
-    const rest = d.none > 0 ? '<i class="cpseg" style="width:'+(d.none/max*100)+'%;background:rgba(255,255,255,.09)" title="No activity yet: '+d.none+'"></i>' : '';
-    const det = stages.filter(s => d[s.k] > 0).map(s => '<b>'+d[s.k]+'</b> '+s.label.toLowerCase()).join(' · ') || 'none yet';
-    return '<div class="cprow"><span class="cpae">'+ae+'</span>'
-      + '<span class="cptrack">'+segs+rest+'</span>'
-      + '<span class="cpdet">'+det+' <span style="opacity:.5">/ '+d.n+'</span></span></div>';
-  };
-  document.getElementById(target).innerHTML = rows.map(r =>
-    '<div class="cpgrp"><div class="cpv">'+(VLABEL[r.v]||r.v)+'</div>'
-    + row('Sina', r.sina) + row('Denzel', r.denzel) + '</div>').join('');
-  return rows;
+const AE_ORDER = [['sina', 'Sina'], ['denzel', 'Denzel']];
+
+function stackChart(target, stages, getter) {
+  const groups = VORDER.map((v) => ({
+    v,
+    label: VLABEL[v] || v,
+    bars: AE_ORDER.map(([key, name]) => ({ name, d: getter(C.filter((c) => c.v === v && c.o === key)) })),
+  })).filter((g) => g.bars.some((b) => b.d.n));
+
+  const el = document.getElementById(target);
+  if (!groups.length) { el.innerHTML = '<p class="none" style="font-size:11.5px;color:var(--faint)">No contacts in this campaign yet.</p>'; return { groups: [] }; }
+
+  // One scale across every group and both charts, so a bar's height means the same thing
+  // wherever it appears. Without it, a small vertical would look as busy as a large one.
+  const max = Math.max(1, ...groups.flatMap((g) => g.bars.map((b) => b.d.n)));
+  const step = max > 80 ? 25 : max > 40 ? 20 : max > 16 ? 10 : 5;
+  const top = Math.ceil(max / step) * step || step;
+
+  const padL = 28, padR = 6, padT = 12, padB = 46, H = 250;
+  const groupW = 74, barW = 22, gap = 8;
+  const W = padL + padR + groups.length * groupW;
+  const plotH = H - padT - padB;
+  const yOf = (v) => padT + plotH - (v / top) * plotH;
+
+  let grid = '';
+  for (let v = 0; v <= top; v += step) {
+    grid += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yOf(v).toFixed(1) + '" y2="' + yOf(v).toFixed(1)
+      + '" stroke="rgba(255,255,255,.07)"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (yOf(v) + 3).toFixed(1) + '" text-anchor="end" font-size="8.5" fill="#6C8E82">' + v + '</text>';
+  }
+
+  let body = '';
+  groups.forEach((g, gi) => {
+    const gx = padL + gi * groupW;
+    g.bars.forEach((b, bi) => {
+      const x = gx + (groupW - (barW * 2 + gap)) / 2 + bi * (barW + gap);
+      if (!b.d.n) {
+        body += '<text x="' + (x + barW / 2) + '" y="' + (padT + plotH - 4) + '" text-anchor="middle" font-size="8" fill="#3E5C52">none</text>';
+      } else {
+        let acc = 0;
+        stages.forEach((s) => {
+          const val = b.d[s.k] || 0;
+          if (!val) return;
+          const y0 = yOf(acc + val), y1 = yOf(acc);
+          acc += val;
+          body += '<rect x="' + x + '" y="' + y0.toFixed(1) + '" width="' + barW + '" height="' + Math.max(1, y1 - y0).toFixed(1)
+            + '" fill="' + s.col + '" rx="1.5"><title>' + g.label + ' / ' + b.name + ' · ' + s.label + ': ' + val + ' of ' + b.d.n + '</title></rect>';
+        });
+        body += '<text x="' + (x + barW / 2) + '" y="' + (yOf(b.d.n) - 4).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="700" fill="#93B4A8">' + b.d.n + '</text>';
+      }
+      body += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 13) + '" text-anchor="middle" font-size="8.5" fill="#6C8E82">' + b.name + '</text>';
+    });
+    // Industry label under its own pair, wrapped rather than rotated: rotated axis labels
+    // are the usual fix and they are harder to read than two short lines.
+    const words = g.label.split(' ');
+    const lines = words.length > 1 && g.label.length > 11 ? [words[0], words.slice(1).join(' ')] : [g.label];
+    lines.forEach((ln, li) => {
+      body += '<text x="' + (gx + groupW / 2) + '" y="' + (H - padB + 28 + li * 10) + '" text-anchor="middle" font-size="9.5" fill="#EAF4F0">' + ln + '</text>';
+    });
+  });
+
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Stacked campaign stages by industry and AE">'
+    + grid + body + '</svg>';
+  return { groups };
 }
 
-function renderCampaignPerf(){
-  document.getElementById('cplegend').innerHTML =
-    EMAIL_STAGES.slice().reverse().map(s => '<span class="lg"><i style="background:'+s.col+'"></i>'+s.label+'</span>').join('')
-    + '<span class="lg"><i style="background:rgba(255,255,255,.14)"></i>No activity yet</span>';
-  bars('cpEmail', EMAIL_STAGES, emailStages);
-  bars('cpLi', LI_STAGES, liStages);
+function renderCampaignPerf() {
+  document.getElementById('cplegend').innerHTML = [...EMAIL_STAGES].reverse()
+    .concat([{ label: 'Request sent', col: 'var(--stage-1)' }])
+    .filter((s, i, a) => a.findIndex((x) => x.label === s.label) === i)
+    .map((s) => '<span class="lg"><i style="background:' + s.col + '"></i>' + s.label + '</span>').join('');
+  stackChart('cpEmail', EMAIL_STAGES, emailStages);
+  stackChart('cpLi', LI_STAGES, liStages);
 
   const e = emailStages(C), l = liStages(C);
   document.getElementById('cpnote').innerHTML =
-    'Each contact appears once, at the furthest stage they reached, so every bar sums to the real size of that campaign. Opens, clicks and replies overlap, and stacking them raw would count the same person several times. '
-    + 'Bars share one scale across both charts, so length is comparable between campaigns. '
-    + 'Opens are absent by design and not merely unsynced: measured across 107 openers, 84% of the resolvable opens fired within five minutes of delivery and none of those 107 clicked anything, which is prefetching and scanning rather than reading. '+ 'Across everything: email has <b style="color:var(--ink)">'+e.cl+' clicked, '+e.rp+' replied</b> of '+e.n+' in the audience; '
-    + 'LinkedIn has <b style="color:var(--ink)">'+l.sn+' pending, '+l.ac+' connected, '+l.rp+' replied</b> of '+l.n+'. '
-    + 'The LinkedIn stages read as a funnel because a request must be accepted before a reply is possible; the email stages do not, since anyone can reply without clicking.';
+    'Bars share one scale across both charts, so height is comparable everywhere. Across the whole audience, email has '
+    + '<b style="color:var(--ink)">' + e.op + ' opened, ' + e.cl + ' clicked, ' + e.rp + ' replied</b> of ' + e.n
+    + '; LinkedIn has <b style="color:var(--ink)">' + l.sn + ' pending, ' + l.ac + ' connected, ' + l.rp + ' replied</b> of ' + l.n + '. '
+    + 'LinkedIn reads as a true funnel because a request must be accepted before a reply is possible. Email does not: '
+    + 'anyone can reply without ever clicking, so the stages are furthest-reached, not sequential.';
 }
-
-
 
 renderSky();
 renderActivity();
@@ -1029,7 +1115,8 @@ function toRow(r) {
     vv: num(p.volcano_verified_visits),
     ct: num(p.volcano_interaction_depth) >= 3 ? 1 : 0,
     heat: num(p.volcano_heat),
-    op: num(p.volcano_genuine_opens),
+    op: num(p.volcano_email_opens),
+    opGenuine: num(p.volcano_genuine_opens),
     inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
     inmailSent: num(p.volcano_inmail_sent),
     // Seen by HubSpot, but only before the campaign cutoff: that is our own testing, and
@@ -1048,7 +1135,7 @@ const HS_INPUT = (offset) => ({
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
     'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
-    'hs_analytics_last_timestamp',
+    'volcano_email_opens', 'hs_analytics_last_timestamp',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
@@ -1094,22 +1181,65 @@ let lastCache = null;
 function renderSources() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const n = (f) => C.filter(f).length;
+  const sum = (f) => C.reduce((s, c) => s + (f(c) || 0), 0);
+
   set('basecount', C.length);
+
+  // Email. The raw open count is shown because it is the number most tools would report,
+  // with the surviving share beside it rather than in a footnote, so the gap is the headline.
+  const opens = sum((c) => c.op), genuine = sum((c) => c.opGenuine);
   set('em-seq', n((c) => c.em));
-  set('em-open', C.reduce((s, c) => s + (c.op || 0), 0));
-  set('em-click', C.reduce((s, c) => s + (c.cl || 0), 0));
+  set('em-open', opens);
+  set('em-open-note', opens
+    ? 'only ' + genuine + ' estimated genuine'
+    : 'counting since 2 Sep, when the subscription was added');
+  set('em-click', sum((c) => c.cl));
   set('em-reply', n((c) => c.gr > 0));
-  set('li-seq', n((c) => c.lin));
-  set('li-acc', n((c) => c.ls === 'ConnectionAccepted'));
+
+  // LinkedIn. Requests sent is everyone with a thread, since a thread only exists once we
+  // have reached out; accepted and replied are stages within that.
+  const sent = n((c) => c.lin), acc = n((c) => c.ls === 'ConnectionAccepted');
+  set('li-sent', sent);
+  set('li-acc', acc);
+  set('li-rate', sent ? Math.round((acc / sent) * 100) + '% of requests' : '');
   set('li-rep', n((c) => c.li >= 30));
-  set('im-track', n((c) => c.inmailTrack));
-  set('im-sent', C.reduce((s, c) => s + (c.inmailSent || 0), 0));
-  set('im-rep', 0);   // no InMail has been delivered, so a reply to one cannot exist yet
+  const imSent = sum((c) => c.inmailSent), imTrack = n((c) => c.inmailTrack);
+  set('im-sent', imSent);
+  set('im-note', imTrack
+    ? (imSent ? imTrack + ' on the track' : imTrack + ' on the track, none delivered')
+    : 'nobody on the track yet');
+
   set('rv-people', n((c) => c.vv > 0));
-  set('rv-visits', C.reduce((s, c) => s + (c.vv || 0), 0));
-  set('rv-excl', n((c) => c.vx));
   set('rv-done', n((c) => c.ct));
 }
+
+// Hovering a visits figure answers the only question worth asking of it: who. Names link
+// straight into HubSpot, because the next action after seeing a confirmed visitor is
+// opening their record, not counting them again.
+const PEEK = {
+  visitors: { title: 'Confirmed visitors', pick: (c) => c.vv > 0, empty: 'Nobody has been confirmed on a resource page yet.' },
+  completers: { title: 'Completed a tool', pick: (c) => c.ct, empty: 'No tool has been completed yet.' },
+};
+function showPeek(kind) {
+  const box = document.getElementById('peek');
+  const spec = PEEK[kind];
+  if (!box || !spec) return;
+  const rows = C.filter(spec.pick).sort((a, b) => (b.heat || 0) - (a.heat || 0));
+  box.hidden = false;
+  box.innerHTML = '<h6>' + spec.title + '</h6>' + (rows.length
+    ? rows.map((c) => '<a href="https://app.hubspot.com/contacts/' + PORTAL + '/record/0-1/' + c.id
+        + '" target="_blank" rel="noopener">' + esc(((c.n || '') + ' ' + (c.ln || '')).trim() || 'Unnamed contact')
+        + '<span class="co">' + esc(c.c || '') + '</span></a>').join('')
+    : '<p class="none">' + spec.empty + '</p>');
+}
+function hidePeek() { const box = document.getElementById('peek'); if (box) { box.hidden = true; box.innerHTML = ''; } }
+document.querySelectorAll('.src .r.hoverable').forEach((el) => {
+  const kind = el.dataset.list;
+  el.addEventListener('mouseenter', () => showPeek(kind));
+  el.addEventListener('focus', () => showPeek(kind));
+  el.addEventListener('mouseleave', hidePeek);
+  el.addEventListener('blur', hidePeek);
+});
 
 function merge() {
   const seen = new Set();

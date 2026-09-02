@@ -73,6 +73,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'hs_analytics_last_timestamp', 'volcano_heat', 'volcano_li_stage',
   'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks', 'volcano_genuine_opens',
   'volcano_inmail_track', 'volcano_inmail_sent',
+  'volcano_email_opens',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {

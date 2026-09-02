@@ -101,6 +101,14 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_email_opens',
+    label: 'Volcano email opens (all)',
+    description: 'Every open Instantly reports, machines included. Kept alongside the genuine count '
+      + 'so the dashboard can show what the raw number would have claimed next to what survives '
+      + 'scrutiny. Counting began 2026-09-02, when the email_opened subscription was added.',
+    type: 'number', fieldType: 'number',
+  },
+  {
     name: 'volcano_genuine_opens',
     label: 'Volcano genuine opens',
     description: 'Opens that arrived more than 30 minutes after the send, counted at most once '
