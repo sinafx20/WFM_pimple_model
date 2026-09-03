@@ -21,3 +21,6 @@ logs/
 # only until the answer lands in a real script. Underscore prefix = throwaway.
 _*.json
 _*.mjs
+
+# Offline cockpit snapshots: they bake in real prospect names and companies.
+_*.html
