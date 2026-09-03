@@ -51,6 +51,12 @@ const INTERNAL_EMAILS = new Set(
 // volcano_internal is the authority, because some testers used partner or personal domains
 // that no rule can tell apart from a real firm. The domain list and the local file stay as
 // a safety net for records nobody has flagged yet.
+// A ruled-out contact is not a cold prospect, it is a closed one. Zeroing the heat is not
+// enough on its own: a cold ember still reads as "not yet warmed up" and still sits in the
+// queue. These are removed from the volcano entirely and counted separately instead.
+const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
+const isRuledOut = (c) => RULED_OUT.includes(String(c.volcano_disposition || ''));
+
 const isInternal = (c) => {
   if (String(c.volcano_internal || '').toLowerCase() === 'true') return true;
   const e = String(c.email || '').toLowerCase();
@@ -74,6 +80,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_genuine_reply', 'volcano_verified_visits', 'volcano_email_clicks', 'volcano_genuine_opens',
   'volcano_inmail_track', 'volcano_inmail_sent',
   'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
+  'volcano_disposition', 'volcano_disposition_note',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -173,13 +180,14 @@ if (HK) {
 // whole history. Instantly's per-lead email_open_count is the number its own dashboard
 // shows, which is exactly the figure the cockpit needs to put a genuine count beside.
 const openTotals = {};
+const sentiment = {};
 const IK = g('INSTANTLY_API_KEY');
 if (IK) {
   const camps = JSON.parse(fs.readFileSync(p('instantly-real-campaigns.json'), 'utf8'));
   const ids = [...new Set(Object.values(camps).flatMap((v) => typeof v === 'string' ? [v] : Object.values(v)))];
   let seen = 0;
   for (const cid of ids) {
-    for (let cursor = null; ;) {
+  for (let cursor = null; ;) {
       const r = await fetch('https://api.instantly.ai/api/v2/leads/list', {
         method: 'POST', headers: { authorization: 'Bearer ' + IK, 'content-type': 'application/json' },
         body: JSON.stringify({ campaign: cid, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }),
@@ -198,6 +206,53 @@ if (IK) {
     }
   }
   console.log(`instantly: ${seen} leads, ${Object.values(openTotals).reduce((a, b) => a + b, 0)} opens reported`);
+
+  // Reply sentiment has to be read here rather than from HubSpot, because HubSpot's copy of a
+  // reply arrives with an empty body: the webhook writes whatever Instantly puts in the
+  // payload and that field is blank on these events. Subject alone cannot tell "Unsubscribe
+  // me" from a real conversation, and treating both as a genuine reply at +30 is what put
+  // someone who asked us to stop at the top of the volcano.
+  //
+  // Two independent inputs, and either is enough. Instantly's own ai_interest_value flags
+  // negative sentiment, and an explicit opt-out phrase is matched directly, because asking to
+  // be removed is a compliance obligation and far too important to leave to a model's score.
+  const IH = { authorization: 'Bearer ' + IK, 'content-type': 'application/json' };
+  let pages = 0;
+  const OPT_OUT = /\b(unsubscribe|opt[\s-]?out|remove me|take me off|stop (emailing|contacting)|do not (contact|email)|no longer wish)\b/i;
+  const NOT_INTERESTED = /\b(not interested|no thanks|no thank you|not for us|not a fit|we('| a)re (all )?(good|sorted|set))\b/i;
+  for (let cursor = null; ;) {
+    // 100 returns HTTP 500 from Instantly; 50 is the largest page it will serve.
+    const url = 'https://api.instantly.ai/api/v2/emails?limit=50&email_type=received'
+      + (cursor ? '&starting_after=' + encodeURIComponent(cursor) : '');
+    const r = await fetch(url, { headers: IH });
+    // Instantly 500s on some pages regardless of size. A truncated sweep would silently stop
+    // classifying older replies while still reporting a tidy sentiment count, so drop to a
+    // smaller page and retry before giving up, and say plainly how far it actually got.
+    let b;
+    if (!r.ok) {
+      const r2 = await fetch(url.replace('limit=50', 'limit=20'), { headers: IH });
+      if (!r2.ok) { console.error('instantly emails: HTTP ' + r.status + ' then ' + r2.status
+        + ' on retry, sentiment covers the ' + pages + ' page(s) read so far only'); break; }
+      b = await r2.json();
+    } else b = await r.json();
+    pages++;
+    const items = b.items || [];
+    for (const e of items) {
+      const em = String(e.from_address_email || '').toLowerCase();
+      if (!em) continue;
+      const body = String((e.body && (e.body.text || e.body.html)) || '').replace(/<[^>]+>/g, ' ');
+      // Only the prospect's own words count. A quoted copy of our email sits below the reply
+      // and would match anything, including the unsubscribe line in our own footer.
+      const own = body.split(/\r?\n\s*(?:On .{0,80}wrote:|-{2,}\s*Original Message|_{5,}|>)/)[0].slice(0, 1200);
+      if (OPT_OUT.test(own)) sentiment[em] = 'opted_out';
+      else if (sentiment[em] !== 'opted_out'
+        && (NOT_INTERESTED.test(own) || Number(e.ai_interest_value) < 0)) sentiment[em] = 'not_interested';
+    }
+    cursor = b.next_starting_after;
+    if (!cursor || !items.length) break;
+  }
+  const sc = Object.values(sentiment).reduce((a, v) => ((a[v] = (a[v] || 0) + 1), a), {});
+  console.log('instantly sentiment:', JSON.stringify(sc), '| pages read:', pages);
 } else {
   console.log('instantly: no INSTANTLY_API_KEY, skipping raw open counts');
 }
@@ -326,7 +381,7 @@ for (let i = 0; i < contacts.length; i++) {
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
   const clicks = clicksIn(c.volcano_interaction_log);
-  const heat = isInternal(c) ? 0
+  const heat = (isInternal(c) || isRuledOut(c)) ? 0
     : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
   heatById[c.id] = heat;
 
@@ -337,6 +392,10 @@ for (let i = 0; i < contacts.length; i++) {
     volcano_li_messages: String(liMessages[email] || 0),
     volcano_emails_sent: String(emailsSent),
     volcano_email_opens: String(openTotals[email] || 0),
+    // Fill an empty disposition only. A person who has spoken to the prospect knows things no
+    // signal can recover, so a value already on the record always wins, and an AE's
+    // "disqualified" is never quietly downgraded to "not interested" by a sentiment score.
+    ...(!c.volcano_disposition && sentiment[email] ? { volcano_disposition: sentiment[email] } : {}),
     volcano_email_clicks: String(clicks),
     volcano_verified_visits: String(vv),
     volcano_genuine_reply: gr > 0 ? 'true' : 'false',
@@ -349,9 +408,87 @@ for (let i = 0; i < contacts.length; i++) {
   if (Object.keys(diff).length) changes.push({ id: c.id, email, heat, properties: diff });
 }
 
+// ------------------------------------------------- what the AEs actually learned
+// The strongest signal in this pipeline is a person talking to a person, and it was the one
+// thing the model could not see. An AE logs a call saying "they make products, not a fit" and
+// the contact keeps sitting in Warm because they once visited a page. Bill Baker was exactly
+// that: a verified visit holding him at 25 while the AE already knew he was out.
+//
+// Scoped to Warm and above. That is where it was asked for and also where it pays: a note on a
+// cold contact changes nothing anyone is about to act on, and reading every association for
+// all 356 would multiply the run for no decision.
+//
+// Our own automation notes are skipped. The LinkedIn sync writes hundreds carrying
+// [volcano:...] markers, and "connection request sent" is not an AE's judgement.
+const NOTE_RULES = [
+  { d: 'disqualified',   re: /\b(not (a )?(good )?fit|wrong fit|not our icp|out of scope|manufactur\w*|product (business|company)|retail|not (a )?(services|projects?) business|no projects?)\b/i },
+  { d: 'opted_out',      re: /\b(unsubscribe|do not (contact|call|email)|asked to be removed|remove (them|him|her) from)\b/i },
+  { d: 'not_interested', re: /\b(not interested|no interest|declined|no thanks|happy with (their|what)|already (have|using)|staying with|no budget)\b/i },
+  { d: 'engaged',        re: /\b(demo booked|booked (a )?(call|meeting|demo)|keen|wants (a )?(demo|call|quote|trial)|sending (them )?(a )?proposal)\b/i },
+];
+const classifyNote = (text) => {
+  const t = String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  if (!t.trim() || /\[volcano:[a-z-]+:/i.test(t)) return null;
+  for (const r of NOTE_RULES) if (r.re.test(t)) return { d: r.d, evidence: t.slice(0, 160) };
+  return null;
+};
+
+const warmSet = contacts.filter((c) => (heatById[c.id] || 0) >= 25 && !isInternal(c) && !isRuledOut(c));
+const noteFindings = {};
+if (warmSet.length) {
+  await pool(warmSet, 4, async (c) => {
+    for (const kind of ['notes', 'calls']) {
+      const a = await jget('https://api.hubapi.com/crm/v4/objects/contacts/' + c.id + '/associations/' + kind);
+      const ids = (a.results || []).map((x) => x.toObjectId);
+      if (!ids.length) continue;
+      const props = kind === 'notes'
+        ? ['hs_note_body', 'hs_timestamp']
+        : ['hs_call_body', 'hs_call_title', 'hs_timestamp', 'hs_call_disposition'];
+      for (let i = 0; i < ids.length; i += 100) {
+        const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/' + kind + '/batch/read', {
+          method: 'POST', headers: H,
+          body: JSON.stringify({ properties: props, inputs: ids.slice(i, i + 100).map((id) => ({ id })) }),
+        })).json();
+        for (const o of (b.results || [])) {
+          const pr = o.properties || {};
+          if (String(pr.hs_timestamp || '') < CUTOFF) continue;
+          const found = classifyNote([pr.hs_note_body, pr.hs_call_title, pr.hs_call_body].filter(Boolean).join(' '));
+          // Ruling someone out beats promoting them: if one note says "not a fit" and another
+          // says "keen", the one that closes them is the one to trust.
+          if (found && (!noteFindings[c.id] || (noteFindings[c.id].d === 'engaged' && found.d !== 'engaged'))) {
+            noteFindings[c.id] = Object.assign({}, found, { kind });
+          }
+        }
+      }
+    }
+  });
+  const nf = Object.values(noteFindings).reduce((a, v) => ((a[v.d] = (a[v.d] || 0) + 1), a), {});
+  console.log('AE notes and calls: read ' + warmSet.length + ' warm contacts, '
+    + Object.keys(noteFindings).length + ' carry a verdict', JSON.stringify(nf));
+  for (const [id, f] of Object.entries(noteFindings)) {
+    const c = contacts.find((x) => x.id === id) || {};
+    console.log('   ' + String(c.email || id).padEnd(36) + f.d.padEnd(15) + 'from a ' + f.kind.slice(0, -1) + ': "' + f.evidence.slice(0, 90) + '"');
+  }
+}
+
+// The findings land after the heat loop has already queued its writes, so amend those rather
+// than reordering the whole pass around them.
+for (const [id, f] of Object.entries(noteFindings)) {
+  const c = contacts.find((x) => x.id === id);
+  if (!c || c.volcano_disposition) continue;          // a value a person set always wins
+  const ruled = RULED_OUT.includes(f.d);
+  const props = Object.assign({ volcano_disposition: f.d }, ruled ? { volcano_heat: '0' } : {});
+  const existing = changes.find((x) => x.id === id);
+  if (existing) Object.assign(existing.properties, props);
+  else changes.push({ id, email: c.email || '', heat: ruled ? 0 : (heatById[id] || 0), properties: props });
+  if (ruled) heatById[id] = 0;
+}
 const band = (h) => h >= 100 ? 'Eruption' : h >= 65 ? 'Hot' : h >= 25 ? 'Warm' : 'Cold';
 const bands = {};
 contacts.forEach((c) => { const b = band(heatById[c.id] || 0); bands[b] = (bands[b] || 0) + 1; });
+const ruled = contacts.filter(isRuledOut).length;
+const byDisp = contacts.reduce((a, c) => { const d = c.volcano_disposition; if (d) a[d] = (a[d] || 0) + 1; return a; }, {});
+console.log('\nruled out of the volcano:', ruled, JSON.stringify(byDisp));
 console.log('\nbands:', JSON.stringify(bands));
 console.log(`${COMMIT ? 'WRITING' : 'DRY RUN'}: ${changes.length} contacts changed of ${contacts.length}`);
 changes.slice(0, 8).forEach((c) => console.log(`  ${c.email.padEnd(38)} heat ${String(c.heat).padStart(4)}  ${JSON.stringify(c.properties)}`));

@@ -546,7 +546,7 @@ const BANDS = [
   {k:'warm',  n:'Warm',     range:'25–64', min:25,  max:64,  y0:290, y1:192, col:'#ECC069'},
   {k:'cold',  n:'Cold',     range:'0–24',  min:0,   max:24,  y0:470, y1:290, col:'#5E8377'},
 ];
-let OPEN = null;
+let OPEN = null, RULED = [];
 
 // Link fetches are deliberately NOT scored. They were briefly folded in at +15 per
 // resource on the theory that they were prospect clicks, but the distribution says
@@ -1120,6 +1120,8 @@ function toRow(r) {
     op: num(p.volcano_email_opens),
     opGenuine: num(p.volcano_genuine_opens),
     emSent: num(p.volcano_emails_sent),
+    disp: p.volcano_disposition || '',
+    dispNote: p.volcano_disposition_note || '',
     liMsg: num(p.volcano_li_messages),
     inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
     inmailSent: num(p.volcano_inmail_sent),
@@ -1140,6 +1142,7 @@ const HS_INPUT = (offset) => ({
     'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
     'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
     'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
+    'volcano_disposition', 'volcano_disposition_note',
     'hs_analytics_last_timestamp',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
@@ -1189,6 +1192,12 @@ function renderSources() {
   const sum = (f) => C.reduce((s, c) => s + (f(c) || 0), 0);
 
   set('basecount', C.length);
+  const bn = document.getElementById('basenote');
+  if (bn) bn.innerHTML = RULED.length
+    ? RULED.length + ' ruled out and not shown &middot; '
+      + Object.entries(RULED.reduce((a, r) => ((a[DISP_LABEL[r.disp] || r.disp] = (a[DISP_LABEL[r.disp] || r.disp] || 0) + 1), a), {}))
+        .map(([k, v]) => v + ' ' + k).join(', ')
+    : '';
 
   // Email. The raw open count is shown because it is the number most tools would report,
   // with the surviving share beside it rather than in a footnote, so the gap is the headline.
@@ -1246,9 +1255,16 @@ document.querySelectorAll('.src .r.hoverable').forEach((el) => {
   el.addEventListener('blur', hidePeek);
 });
 
+// A prospect who asked us to stop, or who an AE has established is not a fit, is not a cold
+// ember waiting to warm up. Leaving them on the volcano keeps them in the queue and makes the
+// audience look bigger than it is, so they come out and are counted beside it instead.
+const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
+const DISP_LABEL = { opted_out: 'asked to opt out', not_interested: 'not interested', disqualified: 'disqualified', engaged: 'engaged' };
 function merge() {
   const seen = new Set();
   C = Object.values(pageRows).flat().filter((r) => !seen.has(r.id) && seen.add(r.id));
+  RULED = C.filter((r) => RULED_OUT.includes(r.disp));
+  C = C.filter((r) => !RULED_OUT.includes(r.disp));
   dim(false);
   renderVolcano();
   renderCampaignPerf();

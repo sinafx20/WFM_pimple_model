@@ -58,6 +58,29 @@ const PROPS = [
     type: 'number', fieldType: 'number',
   },
   {
+    name: 'volcano_disposition',
+    label: 'Volcano disposition',
+    description: 'Why a contact is out of play, when they are. Ruled-out dispositions zero the heat '
+      + 'and remove the contact from the volcano entirely, because a prospect who asked us to stop, '
+      + 'or who an AE has established is not a fit, should never sit in a queue of people to chase. '
+      + 'Set by hand by an AE, or automatically for opt-out language. A value set by a person is '
+      + 'never overwritten by the rollup.',
+    type: 'enumeration', fieldType: 'select',
+    options: [
+      { label: 'Engaged',           value: 'engaged',        displayOrder: 0 },
+      { label: 'Not interested',    value: 'not_interested', displayOrder: 1 },
+      { label: 'Asked to opt out',  value: 'opted_out',      displayOrder: 2 },
+      { label: 'Disqualified',      value: 'disqualified',   displayOrder: 3 },
+    ],
+  },
+  {
+    name: 'volcano_disposition_note',
+    label: 'Volcano disposition reason',
+    description: 'Why, in a sentence. Matters most for Disqualified, where the reason is something '
+      + 'only the AE who spoke to them knows and no signal can recover.',
+    type: 'string', fieldType: 'text',
+  },
+  {
     name: 'volcano_internal',
     label: 'Volcano internal tester',
     description: 'Set by hand for teammates and internal testers who sit in the campaign audience '
