@@ -11,7 +11,7 @@
 # recognised all 232 existing notes.
 #
 # SECRETS REQUIRED (repo Settings > Secrets and variables > Actions):
-#   HEYREACH_API_KEY, HUBSPOT_TOKEN
+#   HEYREACH_API_KEY, HUBSPOT_TOKEN, INSTANTLY_API_KEY
 name: Volcano sync (HeyReach to HubSpot, then engagement rollup)
 
 on:
@@ -46,4 +46,7 @@ jobs:
         env:
           HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          # Without this the rollup silently skips open counts AND reply sentiment, which is how
+          # an unsubscribe could go undetected on every scheduled run.
+          INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
         run: node volcano-rollup.mjs --commit

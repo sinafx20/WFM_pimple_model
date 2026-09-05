@@ -170,6 +170,37 @@ const PROPS = [
     type: 'datetime', fieldType: 'date',
   },
   {
+    name: 'volcano_peak_heat',
+    label: 'Volcano peak heat',
+    description: 'The highest heat this contact has ever reached. Only ever climbs. Heat itself is a '
+      + 'current reading with no memory, so when someone cools the fact they were ever Hot vanishes; '
+      + 'this is what lets the volcano answer "who has ever been in this band" and what travels with '
+      + 'a contact into nurture so a lead who reached 60 and went quiet stays distinguishable from '
+      + 'one who never moved.',
+    type: 'number', fieldType: 'number',
+  },
+  {
+    name: 'volcano_peak_band',
+    label: 'Volcano peak band',
+    description: 'The band volcano_peak_heat falls in. Stored rather than derived so it can be used '
+      + 'directly in a list, a workflow trigger or a report without recomputing thresholds in three '
+      + 'places.',
+    type: 'enumeration', fieldType: 'select',
+    options: [
+      { label: 'Cold',     value: 'cold',     displayOrder: 0 },
+      { label: 'Warm',     value: 'warm',     displayOrder: 1 },
+      { label: 'Hot',      value: 'hot',      displayOrder: 2 },
+      { label: 'Eruption', value: 'eruption', displayOrder: 3 },
+    ],
+  },
+  {
+    name: 'volcano_first_warm_at',
+    label: 'Volcano first reached Warm',
+    description: 'When this contact first crossed 25. Set once and never moved, so the ever-reached '
+      + 'view can be scoped to a period instead of all time, which it will need as the campaign ages.',
+    type: 'datetime', fieldType: 'date',
+  },
+  {
     name: 'volcano_heat',
     label: 'Volcano heat',
     description: 'Engagement score driving the Cold 0-24 / Warm 25-64 / Hot 65-99 / Eruption 100+ '

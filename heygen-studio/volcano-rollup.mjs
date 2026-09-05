@@ -81,6 +81,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_inmail_track', 'volcano_inmail_sent',
   'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
   'volcano_disposition', 'volcano_disposition_note',
+  'volcano_peak_heat', 'volcano_peak_band', 'volcano_first_warm_at',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -254,7 +255,11 @@ if (IK) {
   const sc = Object.values(sentiment).reduce((a, v) => ((a[v] = (a[v] || 0) + 1), a), {});
   console.log('instantly sentiment:', JSON.stringify(sc), '| pages read:', pages);
 } else {
-  console.log('instantly: no INSTANTLY_API_KEY, skipping raw open counts');
+  // Loud on purpose. This ran in GitHub Actions for days without the key, silently skipping
+  // open counts AND reply sentiment, which meant an unsubscribe would never have been caught
+  // automatically. A skipped input that looks like a clean run is worse than a failure.
+  console.error('WARNING: no INSTANTLY_API_KEY. Open counts and reply sentiment are BOTH skipped,'
+    + ' so opt-outs will not be detected in this run.');
 }
 
 // ---------------------------------------------------------------- genuine replies
@@ -292,6 +297,7 @@ for (let i = 0; i < flagged.length; i += 50) {
 }
 console.log(`completions: ${flagged.length} contacts flagged, ${completedAfterCutoff.size} of them after the ${CUTOFF} cutoff`);
 
+const emptyBodies = [];
 const replies = await pool(contacts, 4, async (c) => {
   const a = await jget(`https://api.hubapi.com/crm/v4/objects/contacts/${c.id}/associations/emails`);
   const eids = (a.results || []).map((x) => x.toObjectId);
@@ -300,7 +306,7 @@ const replies = await pool(contacts, 4, async (c) => {
   for (let i = 0; i < eids.length; i += 100) {
     const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/emails/batch/read', {
       method: 'POST', headers: H,
-      body: JSON.stringify({ properties: ['hs_email_subject', 'hs_email_direction', 'hs_timestamp'], inputs: eids.slice(i, i + 100).map((id) => ({ id })) }),
+      body: JSON.stringify({ properties: ['hs_email_subject', 'hs_email_direction', 'hs_timestamp', 'hs_email_text', 'hs_email_message_id'], inputs: eids.slice(i, i + 100).map((id) => ({ id })) }),
     })).json();
     (b.results || []).forEach((e) => {
       const pr = e.properties || {};
@@ -310,6 +316,13 @@ const replies = await pool(contacts, 4, async (c) => {
       // The same walk answers "how many did we send", so count it here rather than paying
       // for a second pass over every contact's associations.
       if (pr.hs_email_direction === 'EMAIL' && String(pr.hs_timestamp || '') >= CUTOFF) sent++;
+      // Instantly's webhook payload carries no body, so every email logged live since the one
+      // backfill on 1 Sept landed on the timeline as a subject with nothing under it. The message
+      // id is present though, which is all that is needed to go and fetch the text afterwards.
+      if (String(pr.hs_timestamp || '') >= CUTOFF && !String(pr.hs_email_text || '').trim()
+        && pr.hs_email_message_id) {
+        emptyBodies.push({ id: e.id, messageId: String(pr.hs_email_message_id) });
+      }
       if (pr.hs_email_direction !== 'INCOMING_EMAIL') return;
       if (String(pr.hs_timestamp || '') < CUTOFF) return;
       if (!isAuto(pr.hs_email_subject)) genuine++;
@@ -367,6 +380,7 @@ const LI_HEAT = { sent: 0, accepted: 15, replied: 30 };
 
 const changes = [];
 const heatById = {};
+const bandKey = (h) => h >= 100 ? 'eruption' : h >= 65 ? 'hot' : h >= 25 ? 'warm' : 'cold';
 for (let i = 0; i < contacts.length; i++) {
   const c = contacts[i];
   const email = (c.email || '').toLowerCase();
@@ -387,6 +401,12 @@ for (let i = 0; i < contacts.length; i++) {
 
   const next = {
     volcano_heat: String(heat),
+    // Peak only ever climbs, including across a rollup that lowers today's heat. This is what the
+    // ever-reached view reads and what travels with a contact into nurture.
+    volcano_peak_heat: String(Math.max(Number(c.volcano_peak_heat) || 0, heat)),
+    volcano_peak_band: bandKey(Math.max(Number(c.volcano_peak_heat) || 0, heat)),
+    // Stamped once, the first time they cross into Warm, and never moved afterwards.
+    ...((!c.volcano_first_warm_at && heat >= 25) ? { volcano_first_warm_at: new Date().toISOString() } : {}),
     volcano_inmail_track: inmailTrack[email] ? 'true' : 'false',
     volcano_inmail_sent: String(inmailSent[email] || 0),
     volcano_li_messages: String(liMessages[email] || 0),
@@ -483,6 +503,50 @@ for (const [id, f] of Object.entries(noteFindings)) {
   else changes.push({ id, email: c.email || '', heat: ruled ? 0 : (heatById[id] || 0), properties: props });
   if (ruled) heatById[id] = 0;
 }
+// ---------------------------------------------------- repair the missing email bodies
+// Written as a repair pass rather than fixed in the webhook because the worker has no Instantly
+// credential, and because a repair also heals everything already logged empty. The webhook keeps
+// writing the timeline entry immediately, which is what matters for an AE opening a record; the
+// text catches up within one rollup.
+if (emptyBodies.length && IK) {
+  const wanted = new Map(emptyBodies.map((e) => [e.messageId, e.id]));
+  const bodies = new Map();
+  const IH2 = { authorization: 'Bearer ' + IK, 'content-type': 'application/json' };
+  for (let cursor = null, page = 0; page < 40 && bodies.size < wanted.size; page++) {
+    const u = 'https://api.instantly.ai/api/v2/emails?limit=50' + (cursor ? '&starting_after=' + encodeURIComponent(cursor) : '');
+    let r = await fetch(u, { headers: IH2 });
+    if (!r.ok) { r = await fetch(u.replace('limit=50', 'limit=20'), { headers: IH2 }); }
+    if (!r.ok) { console.error('body repair: Instantly HTTP ' + r.status + ', stopping at ' + bodies.size); break; }
+    const b = await r.json();
+    for (const e of (b.items || [])) {
+      const mid = String(e.message_id || e.id || '').replace(/^</, '').replace(/@.*$/, '').replace(/>$/, '');
+      if (!wanted.has(mid) || bodies.has(mid)) continue;
+      const html = String((e.body && e.body.html) || '');
+      const text = String((e.body && e.body.text) || '').trim()
+        || html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      if (text) bodies.set(mid, { text: text.slice(0, 65000), html: html.slice(0, 65000) });
+    }
+    cursor = b.next_starting_after;
+    if (!cursor) break;
+  }
+  console.log('email bodies: ' + emptyBodies.length + ' empty on timelines, ' + bodies.size + ' recovered from Instantly');
+  if (COMMIT && bodies.size) {
+    const inputs = [...bodies.entries()].map(([mid, body]) => ({
+      id: wanted.get(mid),
+      properties: { hs_email_text: body.text, ...(body.html ? { hs_email_html: body.html } : {}) },
+    }));
+    for (let i = 0; i < inputs.length; i += 100) {
+      const r = await fetch('https://api.hubapi.com/crm/v3/objects/emails/batch/update', {
+        method: 'POST', headers: H, body: JSON.stringify({ inputs: inputs.slice(i, i + 100) }),
+      });
+      if (!r.ok) console.error('  body repair write failed: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+    }
+    console.log('  repaired ' + inputs.length + ' email bodies');
+  }
+} else if (emptyBodies.length) {
+  console.error('email bodies: ' + emptyBodies.length + ' empty and no INSTANTLY_API_KEY to repair them');
+}
+
 const band = (h) => h >= 100 ? 'Eruption' : h >= 65 ? 'Hot' : h >= 25 ? 'Warm' : 'Cold';
 const bands = {};
 contacts.forEach((c) => { const b = band(heatById[c.id] || 0); bands[b] = (bands[b] || 0) + 1; });
@@ -490,6 +554,11 @@ const ruled = contacts.filter(isRuledOut).length;
 const byDisp = contacts.reduce((a, c) => { const d = c.volcano_disposition; if (d) a[d] = (a[d] || 0) + 1; return a; }, {});
 console.log('\nruled out of the volcano:', ruled, JSON.stringify(byDisp));
 console.log('\nbands:', JSON.stringify(bands));
+const peaks = contacts.reduce((a, c) => {
+  const pk = bandKey(Math.max(Number(c.volcano_peak_heat) || 0, heatById[c.id] || 0));
+  a[pk] = (a[pk] || 0) + 1; return a;
+}, {});
+console.log('ever reached:', JSON.stringify(peaks));
 console.log(`${COMMIT ? 'WRITING' : 'DRY RUN'}: ${changes.length} contacts changed of ${contacts.length}`);
 changes.slice(0, 8).forEach((c) => console.log(`  ${c.email.padEnd(38)} heat ${String(c.heat).padStart(4)}  ${JSON.stringify(c.properties)}`));
 if (!COMMIT) { console.log('\nRe-run with --commit to write.'); process.exit(0); }

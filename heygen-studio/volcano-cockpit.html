@@ -29,6 +29,12 @@
     -webkit-mask-image:radial-gradient(ellipse 58% 54% at 50% 46%, #000 0%, transparent 76%);
     mask-image:radial-gradient(ellipse 58% 54% at 50% 46%, #000 0%, transparent 76%);}
 
+  .vtoggle{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-shrink:0;margin-left:auto}
+  .vtoggle button{font:inherit;font-size:11px;font-weight:600;letter-spacing:.02em;background:transparent;
+    color:var(--muted);border:0;padding:7px 13px;cursor:pointer}
+  .vtoggle button:hover{color:var(--ink)}
+  .vtoggle button.on{background:var(--money);color:var(--evergreen);font-weight:700}
+  .vtoggle button:focus-visible{outline:2px solid var(--money);outline-offset:-2px}
   .state{margin:0 0 16px;padding:18px 20px;border-radius:14px;border:1px solid var(--line);
     background:var(--panel);color:var(--ink);font-size:13px;line-height:1.55}
   .state b{display:block;font-size:14px;margin-bottom:5px}
@@ -319,6 +325,10 @@
       <div>
         <p class="ptitle">Engagement temperature</p>
         <p class="psub">Every open, click, reply and LinkedIn connection adds heat. Contacts climb as they warm.</p>
+        <div class="vtoggle" id="viewtoggle">
+          <button type="button" data-v="live" class="on">In play</button>
+          <button type="button" data-v="ever">Ever reached</button>
+        </div>
       </div>
       <span class="grow"></span>
     </div>
@@ -546,7 +556,7 @@ const BANDS = [
   {k:'warm',  n:'Warm',     range:'25–64', min:25,  max:64,  y0:290, y1:192, col:'#ECC069'},
   {k:'cold',  n:'Cold',     range:'0–24',  min:0,   max:24,  y0:470, y1:290, col:'#5E8377'},
 ];
-let OPEN = null, RULED = [];
+let OPEN = null, RULED = [], ALL = [];
 
 // Link fetches are deliberately NOT scored. They were briefly folded in at +15 per
 // resource on the theory that they were prospect clicks, but the distribution says
@@ -584,7 +594,7 @@ const visitHeat = c => (c.vv > 0 ? 25 + Math.min(50, (c.vv - 1) * 10) : 0) + (c.
 // heygen-studio/volcano-rollup.mjs every two hours, and that same property is what the
 // HubSpot workflows alert an AE on. A second copy of the rule living in this page would
 // drift from it silently: the page would say a contact is Warm while no alert had fired.
-const heatOf = c => c.heat;
+const heatOf = c => VIEW === 'ever' ? Math.max(c.peak || 0, c.heat || 0) : c.heat;
 // internal addresses never contribute heat — they're teammates and test records
 const effHeat = c => c.int ? 0 : heatOf(c);
 const bandOf = h => BANDS.find(b => h >= b.min && h <= b.max) || BANDS[3];
@@ -1121,6 +1131,7 @@ function toRow(r) {
     opGenuine: num(p.volcano_genuine_opens),
     emSent: num(p.volcano_emails_sent),
     disp: p.volcano_disposition || '',
+    peak: num(p.volcano_peak_heat),
     dispNote: p.volcano_disposition_note || '',
     liMsg: num(p.volcano_li_messages),
     inmailTrack: String(p.volcano_inmail_track || '').toLowerCase() === 'true',
@@ -1143,6 +1154,7 @@ const HS_INPUT = (offset) => ({
     'volcano_genuine_opens', 'volcano_inmail_track', 'volcano_inmail_sent',
     'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
     'volcano_disposition', 'volcano_disposition_note',
+    'volcano_peak_heat', 'volcano_peak_band',
     'hs_analytics_last_timestamp',
     'volcano_last_interaction_at'],
   // volcano_internal excludes teammates and internal testers outright rather than
@@ -1193,7 +1205,9 @@ function renderSources() {
 
   set('basecount', C.length);
   const bn = document.getElementById('basenote');
-  if (bn) bn.innerHTML = RULED.length
+  if (bn) bn.innerHTML = VIEW === 'ever'
+    ? 'placed at the highest heat each contact ever reached, including those since ruled out'
+    : RULED.length
     ? RULED.length + ' ruled out and not shown &middot; '
       + Object.entries(RULED.reduce((a, r) => ((a[DISP_LABEL[r.disp] || r.disp] = (a[DISP_LABEL[r.disp] || r.disp] || 0) + 1), a), {}))
         .map(([k, v]) => v + ' ' + k).join(', ')
@@ -1247,6 +1261,7 @@ function showPeek(kind) {
     : '<p class="none">' + spec.empty + '</p>');
 }
 function hidePeek() { const box = document.getElementById('peek'); if (box) { box.hidden = true; box.innerHTML = ''; } }
+document.querySelectorAll('#viewtoggle button').forEach((b) => { b.onclick = () => setView(b.dataset.v); });
 document.querySelectorAll('.src .r.hoverable').forEach((el) => {
   const kind = el.dataset.list;
   el.addEventListener('mouseenter', () => showPeek(kind));
@@ -1258,13 +1273,28 @@ document.querySelectorAll('.src .r.hoverable').forEach((el) => {
 // A prospect who asked us to stop, or who an AE has established is not a fit, is not a cold
 // ember waiting to warm up. Leaving them on the volcano keeps them in the queue and makes the
 // audience look bigger than it is, so they come out and are counted beside it instead.
+// VIEW is the one piece of page state that changes what the embers mean. 'live' is the working
+// queue: current heat, ruled-out contacts removed. 'ever' is the historical record: peak heat,
+// everyone included, because the question it answers is who has ever been in a band and a
+// contact who opted out after reaching Hot is precisely the sort of thing it should show.
+let VIEW = 'live';
 const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
 const DISP_LABEL = { opted_out: 'asked to opt out', not_interested: 'not interested', disqualified: 'disqualified', engaged: 'engaged' };
+function applyView() {
+  if (VIEW === 'ever') { C = ALL; RULED = []; }
+  else { RULED = ALL.filter((r) => RULED_OUT.includes(r.disp)); C = ALL.filter((r) => !RULED_OUT.includes(r.disp)); }
+}
+function setView(v) {
+  VIEW = v;
+  document.querySelectorAll('#viewtoggle button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  OPEN = null; document.getElementById('drill').classList.remove('open');
+  applyView(); renderVolcano(); renderCampaignPerf(); renderSources();
+}
 function merge() {
   const seen = new Set();
   C = Object.values(pageRows).flat().filter((r) => !seen.has(r.id) && seen.add(r.id));
-  RULED = C.filter((r) => RULED_OUT.includes(r.disp));
-  C = C.filter((r) => !RULED_OUT.includes(r.disp));
+  ALL = C;
+  applyView();
   dim(false);
   renderVolcano();
   renderCampaignPerf();
