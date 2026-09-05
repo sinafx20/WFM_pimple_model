@@ -30,6 +30,7 @@ const PROPS = ['firstname', 'lastname', 'jobtitle', 'company', 'hubspot_owner_id
   'volcano_verified_visits', 'volcano_email_clicks', 'volcano_interaction_depth',
   'volcano_last_interaction_at', 'volcano_genuine_opens', 'volcano_inmail_track',
   'volcano_inmail_sent', 'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
+  'volcano_disposition', 'volcano_disposition_note', 'volcano_peak_heat', 'volcano_peak_band',
   'hs_analytics_last_timestamp'];
 
 // --- contacts: the same filter the live page uses, so the two agree ---------------------
