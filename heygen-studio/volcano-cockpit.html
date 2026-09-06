@@ -450,8 +450,10 @@
       </div>
       <p class="flag">There are no read receipts for third-party tools, so accepting and replying are the
         only confirmed signals. InMail is the fallback for prospects who never accept, and it is
-        running without delivering: HeyReach reports the same, 27 chains started against 0 sent. Worth
-        checking the seat&rsquo;s InMail credits and whether these are open profiles.</p>
+        delivering. Counted by subject line, not by HeyReach&rsquo;s own flag: that flag reads false on
+        every message and its counter reports zero sent, yet every subject-bearing message went to a
+        non-connection, and a non-connection cannot be sent a DM. A few still fail for want of InMail
+        permission, so the seat is worth watching.</p>
     </div>
 
     <div class="panel src">
@@ -556,7 +558,7 @@ const BANDS = [
   {k:'warm',  n:'Warm',     range:'25–64', min:25,  max:64,  y0:290, y1:192, col:'#ECC069'},
   {k:'cold',  n:'Cold',     range:'0–24',  min:0,   max:24,  y0:470, y1:290, col:'#5E8377'},
 ];
-let OPEN = null, RULED = [], ALL = [];
+let OPEN = null, RULED = [], ALL = [], TOTAL = 0;
 
 // Link fetches are deliberately NOT scored. They were briefly folded in at +15 per
 // resource on the theory that they were prospect clicks, but the distribution says
@@ -1146,7 +1148,9 @@ function toRow(r) {
 
 const HS_INPUT = (offset) => ({
   objectType: 'CONTACT',
-  limit: 200,
+  // 100 per page, four pages. Two pages of 200 came back with only 286 of 347 contacts, so the
+  // page was quietly showing 61 fewer people than exist and calling that the audience.
+  limit: 100,
   offset,
   properties: ['firstname', 'lastname', 'jobtitle', 'company', 'hubspot_owner_id',
     'volcano_icp_vertical', 'volcano_heat', 'volcano_li_stage', 'volcano_genuine_reply',
@@ -1170,7 +1174,7 @@ const HS_INPUT = (offset) => ({
 });
 // Two pages because the search tool caps at 200 and the audience is larger than that.
 // Each page is its own watch identity, so they arrive independently and are merged.
-const PAGES = [0, 200];
+const PAGES = [0, 100, 200, 300];
 
 function setState(html, warn) {
   const el = document.getElementById('state');
@@ -1205,8 +1209,11 @@ function renderSources() {
 
   set('basecount', C.length);
   const bn = document.getElementById('basenote');
+  // A short load used to be a silent lie. Say it out loud instead.
+  const short = (TOTAL && ALL.length < TOTAL)
+    ? ' <b style="color:var(--hot)">showing ' + ALL.length + ' of ' + TOTAL + '</b>' : '';
   if (bn) bn.innerHTML = VIEW === 'ever'
-    ? 'placed at the highest heat each contact ever reached, including those since ruled out'
+    ? 'placed at the highest heat each contact ever reached, including those since ruled out' + short
     : RULED.length
     ? RULED.length + ' ruled out and not shown &middot; '
       + Object.entries(RULED.reduce((a, r) => ((a[DISP_LABEL[r.disp] || r.disp] = (a[DISP_LABEL[r.disp] || r.disp] || 0) + 1), a), {}))
@@ -1349,6 +1356,7 @@ function onError(err) {
       const rows = (p && p.results) || [];
       pageRows[offset] = rows.map(toRow);
       lastCache = ev.result.cache || null;
+      if (p && typeof p.total === 'number' && p.total > TOTAL) TOTAL = p.total;
       setState('');
       merge();
     // Five minutes is well under the two-hour rollup, so the page is never more than one

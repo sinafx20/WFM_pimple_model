@@ -161,7 +161,13 @@ if (HK) {
     const pr = c.correspondentProfile || {};
     const em = (pr.emailAddress || pr.enrichedEmailAddress || '').toLowerCase() || emailByProfileUrl[pr.profileUrl];
     if (!em) continue;
-    const n = (c.messages || []).filter((m) => m.sender === 'ME' && m.isInMail).length;
+    // Do NOT trust HeyReach's isInMail flag. It reads false on every message in the inbox and
+    // its inmailMessagesSent counter reports 0, while 33 InMails have demonstrably gone out.
+    // A subject line is the reliable tell: LinkedIn DMs have none, InMails do. Verified against
+    // connection status, every subject-bearing message went to someone who never accepted, and
+    // you cannot DM a non-connection, so it can only have been an InMail. Every subject-less
+    // message went to an accepted connection. The flag stays in the test in case it is fixed.
+    const n = (c.messages || []).filter((m) => m.sender === 'ME' && (m.isInMail || !!m.subject)).length;
     if (n) inmailSent[em] = (inmailSent[em] || 0) + n;
     // Every outbound message, InMail or not. The connection request is not a message and is
     // not counted here; it has its own stage.
