@@ -50,3 +50,20 @@ jobs:
           # an unsubscribe could go undetected on every scheduled run.
           INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
         run: node volcano-rollup.mjs --commit
+
+      # Runs last, on what the rollup just decided. Ruling someone out of the volcano only
+      # changed the dashboard; this is what actually stops the sending, which is the part the
+      # person on the other end experiences. Three contacts who had declined were still queued
+      # for the next send when this was manual.
+      #
+      # It refuses to act on more than ten contacts in one run. Dispositions come partly from a
+      # classifier, and removing an Instantly lead cannot be undone, so a classifier regression
+      # must not be able to quietly empty the campaigns while nobody is watching.
+      - name: Stop contacting the people who said no
+        if: always()
+        working-directory: heygen-studio
+        env:
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
+          HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
+        run: node volcano-suppress.mjs --commit

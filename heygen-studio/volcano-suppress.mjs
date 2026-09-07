@@ -97,6 +97,20 @@ const failures = [];
 const toDo = plan.filter((x) => x.actions.length);
 if (!toDo.length) { console.log('everyone ruled out is already suppressed'); process.exit(0); }
 
+// A circuit breaker, because this now runs unattended and removing an Instantly lead cannot be
+// undone. Dispositions come partly from a classifier, and a classifier regression that started
+// marking everyone not_interested would otherwise quietly empty the campaigns two hours later.
+// A handful of people declining in one window is normal; dozens is a bug, and the right response
+// to a suspected bug is to stop and say so rather than to act on it at scale.
+const MAX_PER_RUN = Number(process.env.SUPPRESS_MAX || 10);
+if (toDo.length > MAX_PER_RUN) {
+  console.error(`REFUSING TO ACT: ${toDo.length} contacts would be suppressed in one run, above the`
+    + ` limit of ${MAX_PER_RUN}. That is more people declining at once than this campaign plausibly`
+    + ` produces, so it is treated as a fault rather than a result. Inspect the dispositions, then`
+    + ` re-run with SUPPRESS_MAX set higher if they are genuinely all correct.`);
+  process.exit(1);
+}
+
 if (!COMMIT) {
   console.log(`DRY RUN. ${toDo.length} contact(s) need action. Re-run with --commit.`);
   console.log('Removing an Instantly lead deletes it from that campaign and cannot be undone;');
