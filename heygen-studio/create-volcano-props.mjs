@@ -170,6 +170,14 @@ const PROPS = [
     type: 'datetime', fieldType: 'date',
   },
   {
+    name: 'volcano_suppressed_at',
+    label: 'Volcano outreach stopped',
+    description: 'When we actually stopped contacting this person, as opposed to when we decided to. '
+      + 'Ruling someone out of the volcano only changed the dashboard; this records the sequence being '
+      + 'stopped, which is the part that matters to the person on the other end.',
+    type: 'datetime', fieldType: 'date',
+  },
+  {
     name: 'volcano_li_failed',
     label: 'Volcano LinkedIn step failed',
     description: 'The reason HeyReach could not run the LinkedIn sequence for this contact, if it '
