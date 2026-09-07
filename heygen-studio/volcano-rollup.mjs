@@ -82,6 +82,7 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_email_opens', 'volcano_emails_sent', 'volcano_li_messages',
   'volcano_disposition', 'volcano_disposition_note',
   'volcano_peak_heat', 'volcano_peak_band', 'volcano_first_warm_at',
+  'volcano_li_failed', 'volcano_li_orphan',
   'volcano_internal'];
 const contacts = [];
 for (let after = 0; ;) {
@@ -110,6 +111,13 @@ const liStage = {};
 const inmailTrack = {};
 const inmailSent = {};
 const liMessages = {};
+// Why HeyReach could not run the sequence, when it could not. 49 of 359 leads fail, and the
+// biggest group by far is ConnectionRequestAlreadySent: a request was already outstanding from
+// outside every campaign, LinkedIn refused a second one, and the whole arc was skipped. Those
+// contacts received nothing on LinkedIn at all, which is invisible unless it is recorded.
+const liFailed = {};
+const liConn = {};
+const liOrphan = {};
 const RANK = { sent: 1, accepted: 2, replied: 3 };
 if (HK) {
   const map = JSON.parse(fs.readFileSync(p('heyreach-real-campaigns.json'), 'utf8'));
@@ -136,6 +144,8 @@ if (HK) {
           : l.leadConnectionStatus === 'ConnectionSent' ? 'sent' : null;
         if (s && (!liStage[email] || RANK[s] > RANK[liStage[email]])) liStage[email] = s;
         if (l.leadConnectionStatus === 'ConnectionSent' && l.leadMessageStatus === 'MessageSent') inmailTrack[email] = true;
+        if (l.leadCampaignStatus === 'Failed' && !liFailed[email]) liFailed[email] = l.errorCode || 'Failed';
+        if (l.leadConnectionStatus && l.leadConnectionStatus !== 'None') liConn[email] = l.leadConnectionStatus;
       }
       offset += items.length;
       if (items.length < 100 || offset >= (b.totalCount || 0)) break;
@@ -157,10 +167,15 @@ if (HK) {
     offset += items.length;
     if (items.length < 50 || offset >= (b.totalCount || 0)) break;
   }
+  // A failed lead who has since accepted, or who has a thread at all, is reachable while nothing
+  // is set up to follow up: HeyReach marked the lead failed and moved on, so the acceptance would
+  // otherwise pass unnoticed. This is the one state worth alerting on.
+  const threaded = new Set();
   for (const c of convs) {
     const pr = c.correspondentProfile || {};
     const em = (pr.emailAddress || pr.enrichedEmailAddress || '').toLowerCase() || emailByProfileUrl[pr.profileUrl];
     if (!em) continue;
+    threaded.add(em);
     // Do NOT trust HeyReach's isInMail flag. It reads false on every message in the inbox and
     // its inmailMessagesSent counter reports 0, while 33 InMails have demonstrably gone out.
     // A subject line is the reliable tell: LinkedIn DMs have none, InMails do. Verified against
@@ -173,6 +188,17 @@ if (HK) {
     // not counted here; it has its own stage.
     const out = (c.messages || []).filter((m) => m.sender === 'ME').length;
     if (out) liMessages[em] = (liMessages[em] || 0) + out;
+  }
+  for (const em of Object.keys(liFailed)) {
+    if (liConn[em] === 'ConnectionAccepted' || threaded.has(em)) liOrphan[em] = true;
+  }
+  const failCounts = Object.values(liFailed).reduce((a, v) => ((a[v] = (a[v] || 0) + 1), a), {});
+  console.log('linkedin failures:', Object.keys(liFailed).length, JSON.stringify(failCounts));
+  if (Object.keys(liOrphan).length) {
+    console.log('ORPHANS: ' + Object.keys(liOrphan).length + ' failed leads are now reachable with no follow-up attached:');
+    Object.keys(liOrphan).forEach((em) => console.log('   ' + em + '  (' + liFailed[em] + ')'));
+  } else {
+    console.log('orphans: none, no failed lead has become reachable yet');
   }
   console.log(`heyreach: ${leads} leads with an email, ${Object.keys(liStage).length} distinct`
     + `, ${Object.keys(inmailTrack).length} on the InMail track, `
@@ -416,6 +442,8 @@ for (let i = 0; i < contacts.length; i++) {
     volcano_inmail_track: inmailTrack[email] ? 'true' : 'false',
     volcano_inmail_sent: String(inmailSent[email] || 0),
     volcano_li_messages: String(liMessages[email] || 0),
+    volcano_li_failed: liFailed[email] || '',
+    volcano_li_orphan: liOrphan[email] ? 'true' : 'false',
     volcano_emails_sent: String(emailsSent),
     volcano_email_opens: String(openTotals[email] || 0),
     // Fill an empty disposition only. A person who has spoken to the prospect knows things no

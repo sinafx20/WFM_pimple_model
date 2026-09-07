@@ -104,7 +104,9 @@ function acceptedArc(vertical, copy) {
 // matches the existing compactSequence's documented limitation exactly. The only
 // connection-status forks HeyReach supports are: the root CHECK_IS_CONNECTION, and
 // CONNECTION_REQUEST's own built-in accepted/not-accepted branch.
-function inmailChain(vertical, senderName, copy) {
+// Exported so the InMail rescue campaign can reuse the exact same copy and node shapes as
+// the real sequence, rather than growing a second, drifting definition of the same messages.
+export function inmailChain(vertical, senderName, copy) {
   const c = copy[vertical];
   const inmail3 = INMAIL(`${vertical}-inmail3-hub`, 7, 'DAY',
     c.inmail3.subject, withSig(c.inmail3.message, senderName), c.inmail3.fallbackSubject, withSig(c.inmail3.fallbackMessage, senderName), END);

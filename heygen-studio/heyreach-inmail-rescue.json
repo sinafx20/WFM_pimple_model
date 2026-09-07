@@ -1,0 +1,44 @@
+{
+  "architecture-sina": {
+    "campaignId": 587465,
+    "listId": 916638,
+    "vertical": "architecture",
+    "owner": "sina",
+    "seeded": 7
+  },
+  "construction-denzel": {
+    "campaignId": 587466,
+    "listId": 916639,
+    "vertical": "construction",
+    "owner": "denzel",
+    "seeded": 3
+  },
+  "consulting-denzel": {
+    "campaignId": 587467,
+    "listId": 916640,
+    "vertical": "consulting",
+    "owner": "denzel",
+    "seeded": 2
+  },
+  "construction-sina": {
+    "campaignId": 587468,
+    "listId": 916641,
+    "vertical": "construction",
+    "owner": "sina",
+    "seeded": 2
+  },
+  "consulting-sina": {
+    "campaignId": 587469,
+    "listId": 916642,
+    "vertical": "consulting",
+    "owner": "sina",
+    "seeded": 2
+  },
+  "engineering-denzel": {
+    "campaignId": 587470,
+    "listId": 916643,
+    "vertical": "engineering",
+    "owner": "denzel",
+    "seeded": 15
+  }
+}

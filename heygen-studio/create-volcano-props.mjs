@@ -170,6 +170,27 @@ const PROPS = [
     type: 'datetime', fieldType: 'date',
   },
   {
+    name: 'volcano_li_failed',
+    label: 'Volcano LinkedIn step failed',
+    description: 'The reason HeyReach could not run the LinkedIn sequence for this contact, if it '
+      + 'could not. Most often ConnectionRequestAlreadySent, meaning a request was already outstanding '
+      + 'from outside the campaign, so LinkedIn refused a second one and the whole arc was skipped.',
+    type: 'string', fieldType: 'text',
+  },
+  {
+    name: 'volcano_li_orphan',
+    label: 'Volcano LinkedIn orphan',
+    description: 'True when the LinkedIn sequence failed for this contact AND they are now reachable '
+      + 'anyway, because they accepted the older outstanding request or a thread exists. Nothing '
+      + 'follows up automatically in that state: HeyReach marked the lead failed and moved on, so an '
+      + 'acceptance would otherwise disappear silently.',
+    type: 'bool', fieldType: 'booleancheckbox',
+    options: [
+      { label: 'Yes', value: 'true',  displayOrder: 0 },
+      { label: 'No',  value: 'false', displayOrder: 1 },
+    ],
+  },
+  {
     name: 'volcano_peak_heat',
     label: 'Volcano peak heat',
     description: 'The highest heat this contact has ever reached. Only ever climbs. Heat itself is a '
