@@ -32,18 +32,41 @@ function safeEqual(a, b) {
 }
 
 /* HubSpot's v3 signature: base64(hmac-sha256(clientSecret, method + uri + body + timestamp)).
- * Rejects anything older than five minutes, which is HubSpot's own replay window. */
+ * Rejects anything older than five minutes, which is HubSpot's own replay window.
+ *
+ * THE URI IS THE AWKWARD PART. HubSpot signs the URL exactly as it dialled it, but this runs
+ * behind Webflow Cloud, which mounts the app at /app and can hand the worker a request.url that
+ * is not byte-identical to what was signed: a rewritten path, a different host, or a dropped
+ * query string all produce a valid-looking request that fails verification. Rather than guess
+ * which, every plausible reconstruction is tried and any match is accepted. That weakens
+ * nothing: each candidate still has to match an HMAC computed with the client secret, which an
+ * attacker does not have. */
 async function validSignature(request, rawBody, secret) {
   const sig = request.headers.get('x-hubspot-signature-v3');
   const ts = request.headers.get('x-hubspot-request-timestamp');
   if (!sig || !ts) return false;
   if (Math.abs(Date.now() - Number(ts)) > 5 * 60 * 1000) return false;
-  const base = 'POST' + request.url + rawBody + ts;
+
+  const u = new URL(request.url);
+  const candidates = new Set([
+    request.url,
+    u.origin + u.pathname + u.search,
+    u.origin + u.pathname,
+    'https://lp.workflowmax.com' + u.pathname + u.search,
+    'https://lp.workflowmax.com' + u.pathname,
+    // Webflow Cloud may strip the /app mount before the worker sees the path.
+    'https://lp.workflowmax.com/app' + u.pathname + u.search,
+    'https://lp.workflowmax.com/app' + u.pathname,
+  ]);
+
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(base));
-  const expected = btoa(String.fromCharCode(...new Uint8Array(mac)));
-  return safeEqual(sig, expected);
+  for (const uri of candidates) {
+    const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('POST' + uri + rawBody + ts));
+    const expected = btoa(String.fromCharCode(...new Uint8Array(mac)));
+    if (safeEqual(sig, expected)) return true;
+  }
+  return false;
 }
 
 export async function POST({ request, locals }) {
