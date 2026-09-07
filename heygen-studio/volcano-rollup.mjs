@@ -21,6 +21,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// One definition of how we read a reply or a note, shared with the HubSpot webhook endpoint
+// so the two cannot drift into disagreeing about the same contact.
+import { classifyReply, classifyNote, RULED_OUT } from '../src/lib/volcano-classify.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -54,7 +57,6 @@ const INTERNAL_EMAILS = new Set(
 // A ruled-out contact is not a cold prospect, it is a closed one. Zeroing the heat is not
 // enough on its own: a cold ember still reads as "not yet warmed up" and still sits in the
 // queue. These are removed from the volcano entirely and counted separately instead.
-const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
 const isRuledOut = (c) => RULED_OUT.includes(String(c.volcano_disposition || ''));
 
 const isInternal = (c) => {
@@ -62,26 +64,6 @@ const isInternal = (c) => {
   const e = String(c.email || '').toLowerCase();
   return INTERNAL_EMAILS.has(e) || INTERNAL_DOMAINS.some((d) => e.endsWith('@' + d));
 };
-
-// Opt-out and disinterest wording, shared by both channels. A prospect who says "not
-// interested" on LinkedIn means exactly what they mean when they say it by email, and having
-// two copies of these patterns would let the two drift apart.
-const OPT_OUT = /\b(unsubscribe|opt[\s-]?out|remove me|take me off|stop (emailing|contacting)|do not (contact|email)|no longer wish)\b/i;
-const NOT_INTERESTED = /\b(not interested|no interest|no thanks|no thank you|not for us|not a fit|not (an?|the) [a-z ]{0,24}(company|business|firm)|we do not|we don'?t do|wrong person|no longer (with|at)|left the (company|business)|not the right)\b/i;
-
-// Returns a disposition for a prospect's own words, or null. Deliberately conservative: it is
-// better to leave a reply unclassified for a human to read than to close a live conversation
-// because it contained an unlucky phrase.
-function classifyReply(text) {
-  const own = String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
-    // Everything below a quoted original is our words, not theirs, and our footer says
-    // "unsubscribe" in it.
-    .split(/(?:On .{0,80}wrote:|-{2,}\s*Original Message|_{5,})/)[0].slice(0, 1200);
-  if (!own.trim()) return null;
-  if (OPT_OUT.test(own)) return 'opted_out';
-  if (NOT_INTERESTED.test(own)) return 'not_interested';
-  return null;
-}
 
 const jget = async (url) => (await fetch(url, { headers: H })).json();
 async function pool(items, n, fn) {
@@ -525,24 +507,6 @@ for (let i = 0; i < contacts.length; i++) {
 //
 // Our own automation notes are skipped. The LinkedIn sync writes hundreds carrying
 // [volcano:...] markers, and "connection request sent" is not an AE's judgement.
-const NOTE_RULES = [
-  { d: 'disqualified',   re: /\b(not (a )?(good )?fit|wrong fit|not our icp|out of scope|manufactur\w*|product (business|company)|retail|not (a )?(services|projects?) business|no projects?)\b/i },
-  { d: 'opted_out',      re: /\b(unsubscribe|do not (contact|call|email)|asked to be removed|remove (them|him|her) from)\b/i },
-  { d: 'not_interested', re: /\b(not interested|no interest|declined|no thanks|happy with (their|what)|already (have|using)|staying with|no budget)\b/i },
-  { d: 'engaged',        re: /\b(demo booked|booked (a )?(call|meeting|demo)|keen|wants (a )?(demo|call|quote|trial)|sending (them )?(a )?proposal)\b/i },
-];
-const classifyNote = (text) => {
-  const t = String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  // Only a human's judgement counts, and two kinds of note are not that. Ours, carrying a
-  // [volcano:] marker, and the conversation transcripts a LinkedIn integration writes into
-  // HubSpot, which contain OUR OWN marketing copy. One of those matched the 'engaged' pattern
-  // on a prospect whose actual words were "we are not an engineering company".
-  const NOISE = /\[volcano:[a-z-]+:|LinkedIn Conversation with|Campaign name:|Sent from HeyReach/i;
-  if (!t.trim() || NOISE.test(t)) return null;
-  for (const r of NOTE_RULES) if (r.re.test(t)) return { d: r.d, evidence: t.slice(0, 160) };
-  return null;
-};
-
 const warmSet = contacts.filter((c) => (heatById[c.id] || 0) >= 25 && !isInternal(c) && !isRuledOut(c));
 const noteFindings = {};
 if (warmSet.length) {
