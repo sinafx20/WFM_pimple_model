@@ -1,0 +1,35 @@
+# Stops contacting the people who have been marked negative, on its own faster schedule.
+#
+# WHY SEPARATE FROM THE MAIN SYNC. Suppression is the one step with a person waiting on it: an
+# AE finishes a bad call, marks the contact, and reasonably expects the sending to stop. It reads
+# dispositions straight from HubSpot and depends on nothing the rollup produces, so it does not
+# need to wait for a 2-hourly job whose HeyReach and Instantly passes take minutes.
+#
+# The main sync still runs it too, as a backstop. Running twice is harmless: the second pass finds
+# volcano_suppressed_at already stamped and does nothing.
+#
+# SECRETS REQUIRED: HUBSPOT_TOKEN, INSTANTLY_API_KEY, HEYREACH_API_KEY
+name: Volcano suppression
+
+on:
+  schedule:
+    # Every 30 minutes. Fast enough that "I marked them, stop emailing them" is true within half
+    # an hour, cheap enough not to matter: one HubSpot search plus a lookup per ruled-out contact.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  suppress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stop contacting the people who said no
+        working-directory: heygen-studio
+        env:
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
+          HEYREACH_API_KEY: ${{ secrets.HEYREACH_API_KEY }}
+        run: node volcano-suppress.mjs --commit
