@@ -29,6 +29,40 @@
     -webkit-mask-image:radial-gradient(ellipse 58% 54% at 50% 46%, #000 0%, transparent 76%);
     mask-image:radial-gradient(ellipse 58% 54% at 50% 46%, #000 0%, transparent 76%);}
 
+  .find{padding:18px 20px;margin-bottom:16px}
+  .findhead{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  #cfind{font:inherit;font-size:13px;background:rgba(4,16,12,.55);color:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:9px 13px;min-width:270px;flex-shrink:0}
+  #cfind::placeholder{color:var(--faint)}
+  #cfind:focus{outline:none;border-color:rgba(99,219,148,.55)}
+  .findres{margin-top:14px;border:1px solid var(--line);border-radius:11px;overflow:hidden;max-height:260px;overflow-y:auto}
+  .fr{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+    padding:9px 13px;border-bottom:1px solid var(--line-2);cursor:pointer;font-size:12.5px}
+  .fr:last-child{border-bottom:0}
+  .fr:hover,.fr:focus-visible{background:rgba(255,255,255,.05);outline:none}
+  .fr .who b{color:var(--ink);font-weight:600}
+  .fr .who span{color:var(--faint);display:block;font-size:11px}
+  .fr .hh{font-family:'Bruna',Georgia,serif;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .fr .st{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .findnone{padding:12px 13px;font-size:12px;color:var(--faint)}
+  .actpanel{margin-top:14px;border:1px solid rgba(99,219,148,.35);border-radius:12px;
+    background:rgba(99,219,148,.06);padding:16px 18px}
+  .actpanel h5{margin:0 0 3px;font-family:'Bruna',Georgia,serif;font-size:16px;color:var(--ink)}
+  .actpanel .sub{font-size:11.5px;color:var(--faint);margin:0 0 14px}
+  .actbtns{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .actbtns button{font:inherit;font-size:12px;font-weight:600;border-radius:100px;cursor:pointer;
+    padding:8px 15px;border:1px solid var(--line);background:transparent;color:var(--ink)}
+  .actbtns button:hover:not(:disabled){border-color:rgba(255,255,255,.35)}
+  .actbtns button.danger{background:var(--hot);border-color:var(--hot);color:#fff}
+  .actbtns button.ghost{color:var(--muted)}
+  .actbtns button:disabled{opacity:.5;cursor:default}
+  .actbtns button:focus-visible{outline:2px solid var(--money);outline-offset:2px}
+  #actwhy{font:inherit;font-size:12px;background:rgba(4,16,12,.55);color:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:8px 12px;flex:1;min-width:220px}
+  #actwhy::placeholder{color:var(--faint)}
+  .actmsg{font-size:11.5px;margin-top:11px;color:var(--muted);line-height:1.5}
+  .actmsg.bad{color:var(--hot)}
+  .actmsg.good{color:#4FD1A0}
   .vtoggle{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-shrink:0;margin-left:auto}
   .vtoggle button{font:inherit;font-size:11px;font-weight:600;letter-spacing:.02em;background:transparent;
     color:var(--muted);border:0;padding:7px 13px;cursor:pointer}
@@ -399,6 +433,22 @@
       <span class="note" id="basenote"></span>
     </div>
     <p class="hint">Hover any ember for the contact, then click through to their HubSpot record. Click a band on the right to list everyone in it.</p>
+  </section>
+
+  <!-- ================= FIND AND ACT ================= -->
+  <section class="panel find">
+    <div class="findhead">
+      <div>
+        <p class="ptitle">Find a contact</p>
+        <p class="psub">Search the audience, then take them out of play. Marking someone stops their
+          sequences on the next suppression run, within 30 minutes</p>
+      </div>
+      <span class="grow"></span>
+      <input id="cfind" type="search" placeholder="Name, company or email" autocomplete="off"
+        aria-label="Search contacts by name, company or email">
+    </div>
+    <div id="findres" class="findres" hidden></div>
+    <div id="actpanel" class="actpanel" hidden></div>
   </section>
 
   <!-- ================= DRILL-DOWN ================= -->
@@ -1133,6 +1183,7 @@ function toRow(r) {
     opGenuine: num(p.volcano_genuine_opens),
     emSent: num(p.volcano_emails_sent),
     disp: p.volcano_disposition || '',
+    em_addr: p.email || '',
     peak: num(p.volcano_peak_heat),
     dispNote: p.volcano_disposition_note || '',
     liMsg: num(p.volcano_li_messages),
@@ -1160,7 +1211,7 @@ const HS_INPUT = (offset) => ({
     'volcano_disposition', 'volcano_disposition_note',
     'volcano_peak_heat', 'volcano_peak_band',
     'hs_analytics_last_timestamp',
-    'volcano_last_interaction_at'],
+    'volcano_last_interaction_at', 'email'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
   // look bigger than it is and still turns up in the campaign bars. It is only ever set
@@ -1268,6 +1319,128 @@ function showPeek(kind) {
     : '<p class="none">' + spec.empty + '</p>');
 }
 function hidePeek() { const box = document.getElementById('peek'); if (box) { box.hidden = true; box.innerHTML = ''; } }
+// ---------------------------------------------------------------- find and act
+// The point of this panel is that a call outcome is a judgement, not something to infer. An AE
+// who has just had a bad conversation marks it here, and the pipeline does the rest: heat drops
+// to zero, the ember leaves the volcano, and the suppression job pulls them out of the sequences
+// on its next pass. There is no classifier in this path at all.
+const DISPOSITIONS = [
+  { d: 'not_interested', label: 'Not interested', cls: '' },
+  { d: 'disqualified',   label: 'Not a fit',      cls: '' },
+  { d: 'opted_out',      label: 'Asked to stop',  cls: 'danger' },
+];
+let SELECTED = null;
+
+// Whether this viewer can actually write. The page runs against a published manifest, and a tool
+// missing from it fails at call time with not_in_manifest, so a button that always errors is
+// worse than one that explains itself. listTools reports the manifest intersected with what the
+// viewer has connected, which is exactly the question being asked. Unknown means enabled: a real
+// error is more informative than a guess, and this self-enables the moment the tool is granted.
+let CAN_WRITE = true;
+(async () => {
+  try {
+    const mcp = await claude.use('mcp');
+    if (!mcp || !mcp.listTools) return;
+    const listed = await mcp.listTools();
+    const servers = Array.isArray(listed) ? listed : (listed && listed.servers) || [];
+    const names = servers.flatMap((s) => (s.tools || []).map((t) => (typeof t === 'string' ? t : t && t.name)));
+    if (names.length) CAN_WRITE = names.includes('manage_crm_objects');
+  } catch { /* leave it enabled and let the call itself report the truth */ }
+  if (SELECTED) renderAct();
+})();
+
+const searchable = (r) => ((r.n || '') + ' ' + (r.ln || '') + ' ' + (r.c || '') + ' ' + (r.em_addr || '')).toLowerCase();
+
+function renderFind() {
+  const q = (document.getElementById('cfind').value || '').trim().toLowerCase();
+  const box = document.getElementById('findres');
+  if (q.length < 2) { box.hidden = true; box.innerHTML = ''; return; }
+  // Search ALL contacts, not just the ones the current view shows. Someone already ruled out is
+  // exactly who you might look up to check what happened to them.
+  const hits = ALL.filter((r) => searchable(r).includes(q)).slice(0, 40);
+  box.hidden = false;
+  box.innerHTML = hits.length ? hits.map((r) => {
+    const name = esc(((r.n || '') + ' ' + (r.ln || '')).trim() || r.em_addr || 'Unnamed');
+    const state = r.disp ? esc(r.disp.replace(/_/g, ' ')) : 'in play';
+    return '<div class="fr" tabindex="0" data-id="' + r.id + '">'
+      + '<span class="who"><b>' + name + '</b><span>' + esc(r.c || '') + (r.em_addr ? ' &middot; ' + esc(r.em_addr) : '') + '</span></span>'
+      + '<span class="hh">' + (r.heat || 0) + '</span><span class="st">' + state + '</span></div>';
+  }).join('') : '<p class="findnone">Nobody matches that.</p>';
+  box.querySelectorAll('.fr').forEach((el) => {
+    const pick = () => selectContact(el.dataset.id);
+    el.onclick = pick;
+    el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } };
+  });
+}
+
+function selectContact(id) {
+  SELECTED = ALL.find((r) => String(r.id) === String(id)) || null;
+  renderAct();
+}
+
+function renderAct(msg, cls) {
+  const el = document.getElementById('actpanel');
+  if (!SELECTED) { el.hidden = true; el.innerHTML = ''; return; }
+  const r = SELECTED;
+  const name = esc(((r.n || '') + ' ' + (r.ln || '')).trim() || r.em_addr || 'Unnamed');
+  el.hidden = false;
+  el.innerHTML = '<h5>' + name + '</h5>'
+    + '<p class="sub">' + esc(r.c || 'no company') + (r.em_addr ? ' &middot; ' + esc(r.em_addr) : '')
+      + ' &middot; heat ' + (r.heat || 0) + ' &middot; ' + (r.disp ? esc(r.disp.replace(/_/g, ' ')) : 'in play')
+      + ' &middot; <a class="hslink" href="https://app.hubspot.com/contacts/' + PORTAL + '/record/0-1/' + r.id
+      + '" target="_blank" rel="noopener">open in HubSpot</a></p>'
+    + '<div class="actbtns">'
+      + DISPOSITIONS.map((d) => '<button type="button" class="' + d.cls + '" data-d="' + d.d + '"' + (CAN_WRITE ? '' : ' disabled') + '>' + d.label + '</button>').join('')
+      + '<input id="actwhy" placeholder="Why, in a few words (optional)" autocomplete="off">'
+      + '<button type="button" class="ghost" data-close="1">Close</button>'
+    + '</div>'
+    + '<p class="actmsg' + (cls ? ' ' + cls : '') + '" id="actmsg">' + (msg
+      || (CAN_WRITE ? '' : 'Marking is unavailable in this view: the HubSpot connector is not granting write access here, so nothing can be changed from the page. Search still works. ')
+      || 'Sets the disposition and drops heat to 0. The suppression job removes them from the '
+       + 'Instantly and LinkedIn sequences on its next run, within 30 minutes. Asked to stop also '
+       + 'sets a portal-wide unsubscribe.') + '</p>';
+  el.querySelector('[data-close]').onclick = () => { SELECTED = null; renderAct(); };
+  if (CAN_WRITE) el.querySelectorAll('[data-d]').forEach((b) => { b.onclick = () => markContact(b.dataset.d, b); });
+}
+
+async function markContact(disposition, btn) {
+  const r = SELECTED;
+  if (!r) return;
+  const why = (document.getElementById('actwhy') || {}).value || '';
+  document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = true; });
+  renderAct('Saving...', '');
+  document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = true; });
+
+  const mcp = await claude.use('mcp');
+  if (!mcp) return renderAct('Cannot reach HubSpot from this view, so nothing was changed.', 'bad');
+  try {
+    const properties = { volcano_disposition: disposition, volcano_heat: '0' };
+    if (why.trim()) properties.volcano_disposition_note = why.trim();
+    const res = await mcp.callTool('HubSpot', 'manage_crm_objects', {
+      objectType: 'CONTACT', operation: 'update', objectId: String(r.id), properties,
+      chatInsights: { userIntent: 'Take a contact out of play from the Volcano cockpit', satisfaction: 'NEUTRAL' },
+    });
+    // Reflect it locally straight away rather than waiting for the next refresh, so the ember
+    // moves while the AE is still looking at it. The watch will confirm within five minutes.
+    r.disp = disposition; r.heat = 0;
+    applyView(); renderVolcano(); renderCampaignPerf(); renderSources(); renderFind();
+    if (mcp.invalidate) mcp.invalidate('HubSpot').catch(() => {});
+    renderAct('Done. Heat is 0 and they are out of the volcano. Sequences stop within 30 minutes.', 'good');
+  } catch (err) {
+    // Say what actually failed. A silent or vague failure here would leave an AE believing
+    // someone had been stopped when they had not.
+    const code = (err && err.code) || 'unknown';
+    const detail = (err && err.message) ? ' ' + err.message : '';
+    renderAct('Not saved (' + code + ').' + detail
+      + ' Nothing was changed, so they are still in the sequence.', 'bad');
+    document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = false; });
+  }
+}
+
+const findEl = document.getElementById('cfind');
+findEl.addEventListener('input', renderFind);
+findEl.addEventListener('search', renderFind);
+
 document.querySelectorAll('#viewtoggle button').forEach((b) => { b.onclick = () => setView(b.dataset.v); });
 document.querySelectorAll('.src .r.hoverable').forEach((el) => {
   const kind = el.dataset.list;
@@ -1306,6 +1479,7 @@ function merge() {
   renderVolcano();
   renderCampaignPerf();
   renderSources();
+  if (document.getElementById('cfind')) renderFind();
   stamp(lastCache);
 }
 
