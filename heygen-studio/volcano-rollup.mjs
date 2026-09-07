@@ -63,6 +63,26 @@ const isInternal = (c) => {
   return INTERNAL_EMAILS.has(e) || INTERNAL_DOMAINS.some((d) => e.endsWith('@' + d));
 };
 
+// Opt-out and disinterest wording, shared by both channels. A prospect who says "not
+// interested" on LinkedIn means exactly what they mean when they say it by email, and having
+// two copies of these patterns would let the two drift apart.
+const OPT_OUT = /\b(unsubscribe|opt[\s-]?out|remove me|take me off|stop (emailing|contacting)|do not (contact|email)|no longer wish)\b/i;
+const NOT_INTERESTED = /\b(not interested|no interest|no thanks|no thank you|not for us|not a fit|not (an?|the) [a-z ]{0,24}(company|business|firm)|we do not|we don'?t do|wrong person|no longer (with|at)|left the (company|business)|not the right)\b/i;
+
+// Returns a disposition for a prospect's own words, or null. Deliberately conservative: it is
+// better to leave a reply unclassified for a human to read than to close a live conversation
+// because it contained an unlucky phrase.
+function classifyReply(text) {
+  const own = String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    // Everything below a quoted original is our words, not theirs, and our footer says
+    // "unsubscribe" in it.
+    .split(/(?:On .{0,80}wrote:|-{2,}\s*Original Message|_{5,})/)[0].slice(0, 1200);
+  if (!own.trim()) return null;
+  if (OPT_OUT.test(own)) return 'opted_out';
+  if (NOT_INTERESTED.test(own)) return 'not_interested';
+  return null;
+}
+
 const jget = async (url) => (await fetch(url, { headers: H })).json();
 async function pool(items, n, fn) {
   const out = new Array(items.length); let i = 0;
@@ -118,6 +138,8 @@ const liMessages = {};
 const liFailed = {};
 const liConn = {};
 const liOrphan = {};
+// Shared by both channels, so it must not live inside either one's branch.
+const sentiment = {};
 const inRescue = new Set();
 const RANK = { sent: 1, accepted: 2, replied: 3 };
 if (HK) {
@@ -189,6 +211,19 @@ if (HK) {
     const em = (pr.emailAddress || pr.enrichedEmailAddress || '').toLowerCase() || emailByProfileUrl[pr.profileUrl];
     if (!em) continue;
     threaded.add(em);
+    // A LinkedIn reply is a reply. Nothing set volcano_li_stage to 'replied' before this: the
+    // rank map and the +30 weight both existed and no code path ever assigned it, so two
+    // prospects who wrote back sat at heat 0. Their words are classified with the same rules
+    // the email side uses, because "not interested" means the same thing on either channel.
+    const inbound = (c.messages || []).filter((m) => m.sender !== 'ME');
+    if (inbound.length) {
+      if (RANK.replied > (RANK[liStage[em]] || 0)) liStage[em] = 'replied';
+      for (const m of inbound) {
+        const verdict = classifyReply(m.body);
+        if (verdict === 'opted_out') sentiment[em] = 'opted_out';
+        else if (verdict && sentiment[em] !== 'opted_out') sentiment[em] = verdict;
+      }
+    }
     // Do NOT trust HeyReach's isInMail flag. It reads false on every message in the inbox and
     // its inmailMessagesSent counter reports 0, while 33 InMails have demonstrably gone out.
     // A subject line is the reliable tell: LinkedIn DMs have none, InMails do. Verified against
@@ -231,7 +266,7 @@ if (HK) {
 // whole history. Instantly's per-lead email_open_count is the number its own dashboard
 // shows, which is exactly the figure the cockpit needs to put a genuine count beside.
 const openTotals = {};
-const sentiment = {};
+
 const IK = g('INSTANTLY_API_KEY');
 if (IK) {
   const camps = JSON.parse(fs.readFileSync(p('instantly-real-campaigns.json'), 'utf8'));
@@ -269,8 +304,6 @@ if (IK) {
   // be removed is a compliance obligation and far too important to leave to a model's score.
   const IH = { authorization: 'Bearer ' + IK, 'content-type': 'application/json' };
   let pages = 0;
-  const OPT_OUT = /\b(unsubscribe|opt[\s-]?out|remove me|take me off|stop (emailing|contacting)|do not (contact|email)|no longer wish)\b/i;
-  const NOT_INTERESTED = /\b(not interested|no thanks|no thank you|not for us|not a fit|we('| a)re (all )?(good|sorted|set))\b/i;
   for (let cursor = null; ;) {
     // 100 returns HTTP 500 from Instantly; 50 is the largest page it will serve.
     const url = 'https://api.instantly.ai/api/v2/emails?limit=50&email_type=received'
@@ -295,9 +328,9 @@ if (IK) {
       // Only the prospect's own words count. A quoted copy of our email sits below the reply
       // and would match anything, including the unsubscribe line in our own footer.
       const own = body.split(/\r?\n\s*(?:On .{0,80}wrote:|-{2,}\s*Original Message|_{5,}|>)/)[0].slice(0, 1200);
-      if (OPT_OUT.test(own)) sentiment[em] = 'opted_out';
-      else if (sentiment[em] !== 'opted_out'
-        && (NOT_INTERESTED.test(own) || Number(e.ai_interest_value) < 0)) sentiment[em] = 'not_interested';
+      const verdict = classifyReply(own) || (Number(e.ai_interest_value) < 0 ? 'not_interested' : null);
+      if (verdict === 'opted_out') sentiment[em] = 'opted_out';
+      else if (verdict && sentiment[em] !== 'opted_out') sentiment[em] = verdict;
     }
     cursor = b.next_starting_after;
     if (!cursor || !items.length) break;
@@ -500,7 +533,12 @@ const NOTE_RULES = [
 ];
 const classifyNote = (text) => {
   const t = String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  if (!t.trim() || /\[volcano:[a-z-]+:/i.test(t)) return null;
+  // Only a human's judgement counts, and two kinds of note are not that. Ours, carrying a
+  // [volcano:] marker, and the conversation transcripts a LinkedIn integration writes into
+  // HubSpot, which contain OUR OWN marketing copy. One of those matched the 'engaged' pattern
+  // on a prospect whose actual words were "we are not an engineering company".
+  const NOISE = /\[volcano:[a-z-]+:|LinkedIn Conversation with|Campaign name:|Sent from HeyReach/i;
+  if (!t.trim() || NOISE.test(t)) return null;
   for (const r of NOTE_RULES) if (r.re.test(t)) return { d: r.d, evidence: t.slice(0, 160) };
   return null;
 };
@@ -548,6 +586,9 @@ if (warmSet.length) {
 for (const [id, f] of Object.entries(noteFindings)) {
   const c = contacts.find((x) => x.id === id);
   if (!c || c.volcano_disposition) continue;          // a value a person set always wins
+  // Ruling out beats promoting, in both directions. A note reading "engaged" must not overturn
+  // a prospect who has told us in their own words that they are not interested.
+  if (f.d === 'engaged' && RULED_OUT.includes(sentiment[c.email])) continue;
   const ruled = RULED_OUT.includes(f.d);
   const props = Object.assign({ volcano_disposition: f.d }, ruled ? { volcano_heat: '0' } : {});
   const existing = changes.find((x) => x.id === id);
