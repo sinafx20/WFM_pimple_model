@@ -96,16 +96,27 @@ export async function POST({ request, locals }) {
 
   for (const e of events) {
     const type = String(e.subscriptionType || '');
-    const kind = type.startsWith('note') ? 'notes' : type.startsWith('call') ? 'calls' : null;
-    if (!kind || !e.objectId) { results.push({ type, skipped: 'not a note or call' }); continue; }
+    // HubSpot names these several ways depending on how the subscription was set up. The
+    // engagement-flavoured names (note.creation) are one shape; a subscription on the
+    // Engagements object sends object.creation with objectTypeId 0-4, which covers notes,
+    // calls, emails, meetings and tasks all at once. Rather than guess which the portal is
+    // configured for, work out the kind where the payload says so and otherwise try both.
+    // The first version only accepted the note.* / call.* names and silently dropped
+    // everything else, which is indistinguishable from the webhook never firing.
+    const named = type.includes('note') ? ['notes'] : type.includes('call') ? ['calls'] : null;
+    const kinds = named || ['notes', 'calls'];
+    if (!e.objectId) { results.push({ type, skipped: 'no objectId' }); continue; }
 
     try {
-      const props = kind === 'notes'
-        ? 'hs_note_body,hs_timestamp'
-        : 'hs_call_body,hs_call_title,hs_timestamp';
-      const obj = await (await fetch(
-        `https://api.hubapi.com/crm/v3/objects/${kind}/${e.objectId}?properties=${props}&associations=contacts`,
-        { headers: H })).json();
+      let obj = null, kind = null;
+      for (const k of kinds) {
+        const props = k === 'notes' ? 'hs_note_body,hs_timestamp' : 'hs_call_body,hs_call_title,hs_timestamp';
+        const r = await fetch(
+          `https://api.hubapi.com/crm/v3/objects/${k}/${e.objectId}?properties=${props}&associations=contacts`,
+          { headers: H });
+        if (r.ok) { obj = await r.json(); kind = k; break; }
+      }
+      if (!obj) { results.push({ id: e.objectId, type, skipped: 'not a note or call' }); continue; }
       const p = obj.properties || {};
       const verdict = classifyNote([p.hs_note_body, p.hs_call_title, p.hs_call_body].filter(Boolean).join(' '));
       if (!verdict) { results.push({ id: e.objectId, kind, recorded: false, reason: 'nothing decisive in it' }); continue; }
