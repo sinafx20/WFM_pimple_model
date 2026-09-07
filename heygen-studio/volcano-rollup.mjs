@@ -118,9 +118,18 @@ const liMessages = {};
 const liFailed = {};
 const liConn = {};
 const liOrphan = {};
+const inRescue = new Set();
 const RANK = { sent: 1, accepted: 2, replied: 3 };
 if (HK) {
+  // The rescue campaigns count too. They carry the leads whose connection request could never
+  // be sent, reaching them by InMail instead, and their activity is just as real as the main
+  // sequence's. Reading only the original ten would leave 31 contacts looking untouched on
+  // LinkedIn while InMails were landing in their inbox.
   const map = JSON.parse(fs.readFileSync(p('heyreach-real-campaigns.json'), 'utf8'));
+  const rescuePath = p('heyreach-inmail-rescue.json');
+  const rescue = fs.existsSync(rescuePath) ? JSON.parse(fs.readFileSync(rescuePath, 'utf8')) : {};
+  const rescueIds = new Set(Object.values(rescue).map((r) => r.campaignId));
+  for (const [k, v] of Object.entries(rescue)) map['rescue-' + k] = v;
   const hr = (path_, body) => fetch('https://api.heyreach.io/api/public' + path_, {
     method: 'POST', headers: { 'X-API-KEY': HK, accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -143,6 +152,10 @@ if (HK) {
         const s = l.leadConnectionStatus === 'ConnectionAccepted' ? 'accepted'
           : l.leadConnectionStatus === 'ConnectionSent' ? 'sent' : null;
         if (s && (!liStage[email] || RANK[s] > RANK[liStage[email]])) liStage[email] = s;
+        // On the main sequence the InMail arc is inferred from request-sent-never-accepted plus
+        // messaging started. A rescue campaign IS the InMail arc, so membership is enough.
+        if (rescueIds.has(m.campaignId)) inmailTrack[email] = true;
+        if (rescueIds.has(m.campaignId)) inRescue.add(email);
         if (l.leadConnectionStatus === 'ConnectionSent' && l.leadMessageStatus === 'MessageSent') inmailTrack[email] = true;
         if (l.leadCampaignStatus === 'Failed' && !liFailed[email]) liFailed[email] = l.errorCode || 'Failed';
         if (l.leadConnectionStatus && l.leadConnectionStatus !== 'None') liConn[email] = l.leadConnectionStatus;
@@ -189,7 +202,12 @@ if (HK) {
     const out = (c.messages || []).filter((m) => m.sender === 'ME').length;
     if (out) liMessages[em] = (liMessages[em] || 0) + out;
   }
+  // An orphan is a failed lead who is reachable with NOTHING attached to follow up. A lead the
+  // rescue picked up has follow-up attached by definition, and the InMail it sends creates the
+  // very thread that would otherwise look like an orphan signal. Without this the rescue would
+  // manufacture 18 false alarms on its first run.
   for (const em of Object.keys(liFailed)) {
+    if (inRescue.has(em)) continue;
     if (liConn[em] === 'ConnectionAccepted' || threaded.has(em)) liOrphan[em] = true;
   }
   const failCounts = Object.values(liFailed).reduce((a, v) => ((a[v] = (a[v] || 0) + 1), a), {});
