@@ -6,7 +6,7 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:07:39.382Z",
-    "copyLoadedAt": "2026-10-01T01:23:11.963Z"
+    "copyLoadedAt": "2026-10-01T02:08:47.094Z"
   },
   "APAC-denzel": {
     "id": "f6d6c757-b7e9-46bd-bf44-a73cf2341aab",
@@ -15,7 +15,7 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:07:40.031Z",
-    "copyLoadedAt": "2026-10-01T01:23:12.318Z"
+    "copyLoadedAt": "2026-10-01T02:08:47.485Z"
   },
   "US-West-sina": {
     "id": "e8e511ff-5a3d-4d6f-9f49-31ae12fcbefd",
@@ -24,7 +24,7 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:08:33.165Z",
-    "copyLoadedAt": "2026-10-01T01:23:12.692Z"
+    "copyLoadedAt": "2026-10-01T02:08:47.819Z"
   },
   "US-West-denzel": {
     "id": "64714786-ccc8-475a-a1cf-4c4f38181c7e",
@@ -33,6 +33,6 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:08:33.480Z",
-    "copyLoadedAt": "2026-10-01T01:23:12.994Z"
+    "copyLoadedAt": "2026-10-01T02:08:48.166Z"
   }
 }

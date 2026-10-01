@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildHarvestSequence, copyComplete, STEPS, ANGLES, ANGLE_KEYS, REGION_KEYS, requiredCustomFields } from './harvest-sequences.mjs';
-import { resolveConstants, BOOKING, TRIAL_LINK, DEMO_LINK } from './harvest-tokens.mjs';
+import { resolveConstants } from './harvest-tokens.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -156,7 +156,7 @@ async function loadCopy() {
   console.log('\nCampaigns still DRAFT.');
   if (live.length) {
     console.log(`LIVE MERGE FIELDS, these must be pushed per lead or the fallback sends instead: ${live.join(', ')}`);
-    if (!DEMO_LINK) console.log('  {demo_link} has no value set in harvest-tokens.mjs yet.');
+    console.log('  {demo_link} carries the contact email for attribution, so the push must supply it per lead.');
   } else {
     console.log('No live merge fields beyond {FIRST_NAME}: nothing extra has to be pushed per lead.');
   }
