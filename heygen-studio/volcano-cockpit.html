@@ -446,22 +446,6 @@
     <p class="hint">Hover any ember for the contact, then click through to their HubSpot record. Click a band on the right to list everyone in it.</p>
   </section>
 
-  <!-- ================= FIND AND ACT ================= -->
-  <section class="panel find">
-    <div class="findhead">
-      <div>
-        <p class="ptitle">Find a contact</p>
-        <p class="psub">Search the audience, then take them out of play. Marking someone stops their
-          sequences on the next suppression run, within 30 minutes</p>
-      </div>
-      <span class="grow"></span>
-      <input id="cfind" type="search" placeholder="Name, company or email" autocomplete="off"
-        aria-label="Search contacts by name, company or email">
-    </div>
-    <div id="findres" class="findres" hidden></div>
-    <div id="actpanel" class="actpanel" hidden></div>
-  </section>
-
   <!-- ================= DRILL-DOWN ================= -->
   <section class="panel drill" id="drill">
     <div class="drill-head">
@@ -532,30 +516,6 @@
         evidenced and are not claimed.</p>
     </div>
   </div>
-
-  <!-- ================= CAMPAIGN PERFORMANCE ================= -->
-  <section class="live panel bd">
-    <div class="bd-head">
-      <div>
-        <p class="ptitle">Campaign performance</p>
-        <p class="psub">Each contact counted once, at the furthest stage they reached. Two bars per industry, Sina then Denzel</p>
-      </div>
-      <span class="grow"></span>
-      <div class="legend" id="cplegend"></div>
-    </div>
-    <div class="cpwrap">
-      <div class="cpcol">
-        <div class="cph"><span class="ic" style="background:rgba(99,219,148,.16);color:#63DB94">&#9993;</span>Email &middot; Instantly</div>
-        <div class="chartbox"><div id="cpEmail"></div></div>
-      </div>
-      <div class="cpcol">
-        <div class="cph"><span class="ic" style="background:rgba(143,217,255,.16);color:#8FD9FF">in</span>LinkedIn &middot; HeyReach</div>
-        <div class="chartbox"><div id="cpLi"></div></div>
-      </div>
-    </div>
-    <p class="flag" id="cpnote"></p>
-  </section>
-
 
   <footer>
     Heat model. Email: verified click <b>+10</b>, genuine reply <b>+30</b>, late open <b>+2</b> to a <b>+10</b> cap.
@@ -1014,25 +974,6 @@ function stackChart(target, stages, getter) {
   return { groups };
 }
 
-function renderCampaignPerf() {
-  document.getElementById('cplegend').innerHTML = [...EMAIL_STAGES].reverse()
-    .concat([{ label: 'Request sent', col: 'var(--stage-1)' }])
-    .filter((s, i, a) => a.findIndex((x) => x.label === s.label) === i)
-    .map((s) => '<span class="lg"><i style="background:' + s.col + '"></i>' + s.label + '</span>').join('');
-  stackChart('cpEmail', EMAIL_STAGES, emailStages);
-  stackChart('cpLi', LI_STAGES, liStages);
-
-  const e = emailStages(C), l = liStages(C);
-  document.getElementById('cpnote').innerHTML =
-    'Bars share one scale across both charts, so height is comparable everywhere. Across the whole audience, email has '
-    + '<b style="color:var(--ink)">' + e.op + ' opened, ' + e.cl + ' clicked, ' + e.rp + ' replied</b> of ' + e.n
-    + '; LinkedIn has <b style="color:var(--ink)">' + l.sn + ' pending, ' + l.ac + ' connected, ' + l.rp + ' replied</b> of ' + l.n + '. '
-    + 'LinkedIn reads as a true funnel because a request must be accepted before a reply is possible. Email does not: '
-    + 'anyone can reply without ever clicking, so the stages are furthest-reached, not sequential.';
-}
-
-renderSky();
-
 // -------------------------------------------------------------- live weekly activity
 // One grouped query per activity type answers both AEs and all eight weeks at once. The
 // local generator this replaces made 80 separate searches, which is fine for a nightly
@@ -1342,111 +1283,6 @@ let SELECTED = null;
 // worse than one that explains itself. listTools reports the manifest intersected with what the
 // viewer has connected, which is exactly the question being asked. Unknown means enabled: a real
 // error is more informative than a guess, and this self-enables the moment the tool is granted.
-let CAN_WRITE = true;
-(async () => {
-  try {
-    const mcp = await claude.use('mcp');
-    if (!mcp || !mcp.listTools) return;
-    const listed = await mcp.listTools();
-    const servers = Array.isArray(listed) ? listed : (listed && listed.servers) || [];
-    const names = servers.flatMap((s) => (s.tools || []).map((t) => (typeof t === 'string' ? t : t && t.name)));
-    if (names.length) CAN_WRITE = names.includes('manage_crm_objects');
-  } catch { /* leave it enabled and let the call itself report the truth */ }
-  if (SELECTED) renderAct();
-})();
-
-const searchable = (r) => ((r.n || '') + ' ' + (r.ln || '') + ' ' + (r.c || '') + ' ' + (r.em_addr || '')).toLowerCase();
-
-function renderFind() {
-  const q = (document.getElementById('cfind').value || '').trim().toLowerCase();
-  const box = document.getElementById('findres');
-  if (q.length < 2) { box.hidden = true; box.innerHTML = ''; return; }
-  // Search ALL contacts, not just the ones the current view shows. Someone already ruled out is
-  // exactly who you might look up to check what happened to them.
-  const hits = ALL.filter((r) => searchable(r).includes(q)).slice(0, 40);
-  box.hidden = false;
-  box.innerHTML = hits.length ? hits.map((r) => {
-    const name = esc(((r.n || '') + ' ' + (r.ln || '')).trim() || r.em_addr || 'Unnamed');
-    const state = r.disp ? esc(r.disp.replace(/_/g, ' ')) : 'in play';
-    return '<div class="fr" tabindex="0" data-id="' + r.id + '">'
-      + '<span class="who"><b>' + name + '</b><span>' + esc(r.c || '') + (r.em_addr ? ' &middot; ' + esc(r.em_addr) : '') + '</span></span>'
-      + '<span class="hh">' + (r.heat || 0) + '</span><span class="st">' + state + '</span></div>';
-  }).join('') : '<p class="findnone">Nobody matches that.</p>';
-  box.querySelectorAll('.fr').forEach((el) => {
-    const pick = () => selectContact(el.dataset.id);
-    el.onclick = pick;
-    el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } };
-  });
-}
-
-function selectContact(id) {
-  SELECTED = ALL.find((r) => String(r.id) === String(id)) || null;
-  renderAct();
-}
-
-function renderAct(msg, cls) {
-  const el = document.getElementById('actpanel');
-  if (!SELECTED) { el.hidden = true; el.innerHTML = ''; return; }
-  const r = SELECTED;
-  const name = esc(((r.n || '') + ' ' + (r.ln || '')).trim() || r.em_addr || 'Unnamed');
-  el.hidden = false;
-  el.innerHTML = '<h5>' + name + '</h5>'
-    + '<p class="sub">' + esc(r.c || 'no company') + (r.em_addr ? ' &middot; ' + esc(r.em_addr) : '')
-      + ' &middot; heat ' + (r.heat || 0) + ' &middot; ' + (r.disp ? esc(r.disp.replace(/_/g, ' ')) : 'in play')
-      + ' &middot; <a class="hslink" href="https://app.hubspot.com/contacts/' + PORTAL + '/record/0-1/' + r.id
-      + '" target="_blank" rel="noopener">open in HubSpot</a></p>'
-    + '<div class="actbtns">'
-      + DISPOSITIONS.map((d) => '<button type="button" class="' + d.cls + '" data-d="' + d.d + '"' + (CAN_WRITE ? '' : ' disabled') + '>' + d.label + '</button>').join('')
-      + '<input id="actwhy" placeholder="Why, in a few words (optional)" autocomplete="off">'
-      + '<button type="button" class="ghost" data-close="1">Close</button>'
-    + '</div>'
-    + '<p class="actmsg' + (cls ? ' ' + cls : '') + '" id="actmsg">' + (msg
-      || (CAN_WRITE ? '' : 'Marking is unavailable in this view: the HubSpot connector is not granting write access here, so nothing can be changed from the page. Search still works. ')
-      || 'Sets the disposition and drops heat to 0. The suppression job removes them from the '
-       + 'Instantly and LinkedIn sequences on its next run, within 30 minutes. Asked to stop also '
-       + 'sets a portal-wide unsubscribe.') + '</p>';
-  el.querySelector('[data-close]').onclick = () => { SELECTED = null; renderAct(); };
-  if (CAN_WRITE) el.querySelectorAll('[data-d]').forEach((b) => { b.onclick = () => markContact(b.dataset.d, b); });
-}
-
-async function markContact(disposition, btn) {
-  const r = SELECTED;
-  if (!r) return;
-  const why = (document.getElementById('actwhy') || {}).value || '';
-  document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = true; });
-  renderAct('Saving...', '');
-  document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = true; });
-
-  const mcp = await claude.use('mcp');
-  if (!mcp) return renderAct('Cannot reach HubSpot from this view, so nothing was changed.', 'bad');
-  try {
-    const properties = { volcano_disposition: disposition, volcano_heat: '0' };
-    if (why.trim()) properties.volcano_disposition_note = why.trim();
-    const res = await mcp.callTool('HubSpot', 'manage_crm_objects', {
-      objectType: 'CONTACT', operation: 'update', objectId: String(r.id), properties,
-      chatInsights: { userIntent: 'Take a contact out of play from the Volcano cockpit', satisfaction: 'NEUTRAL' },
-    });
-    // Reflect it locally straight away rather than waiting for the next refresh, so the ember
-    // moves while the AE is still looking at it. The watch will confirm within five minutes.
-    r.disp = disposition; r.heat = 0;
-    applyView(); renderVolcano(); renderCampaignPerf(); renderSources(); renderFind();
-    if (mcp.invalidate) mcp.invalidate('HubSpot').catch(() => {});
-    renderAct('Done. Heat is 0 and they are out of the volcano. Sequences stop within 30 minutes.', 'good');
-  } catch (err) {
-    // Say what actually failed. A silent or vague failure here would leave an AE believing
-    // someone had been stopped when they had not.
-    const code = (err && err.code) || 'unknown';
-    const detail = (err && err.message) ? ' ' + err.message : '';
-    renderAct('Not saved (' + code + ').' + detail
-      + ' Nothing was changed, so they are still in the sequence.', 'bad');
-    document.querySelectorAll('.actbtns button').forEach((b) => { b.disabled = false; });
-  }
-}
-
-const findEl = document.getElementById('cfind');
-findEl.addEventListener('input', renderFind);
-findEl.addEventListener('search', renderFind);
-
 document.querySelectorAll('#viewtoggle button').forEach((b) => { b.onclick = () => setView(b.dataset.v); });
 document.querySelectorAll('#camptoggle button').forEach((b) => { b.onclick = () => setCampaign(b.dataset.c); });
 document.querySelectorAll('.src .r.hoverable').forEach((el) => {
@@ -1481,8 +1317,7 @@ function setCampaign(v) {
   const d = document.getElementById('drill');
   if (d) d.classList.remove('open');
   applyCampaign(); applyView();
-  renderVolcano(); renderCampaignPerf(); renderSources();
-  if (document.getElementById('cfind')) renderFind();
+  renderVolcano(); renderSources();
   stampCampaign();
 }
 
@@ -1507,7 +1342,7 @@ function setView(v) {
   VIEW = v;
   document.querySelectorAll('#viewtoggle button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
   OPEN = null; document.getElementById('drill').classList.remove('open');
-  applyView(); renderVolcano(); renderCampaignPerf(); renderSources();
+  applyView(); renderVolcano(); renderSources();
 }
 function merge() {
   const seen = new Set();
@@ -1516,9 +1351,7 @@ function merge() {
   applyView();
   dim(false);
   renderVolcano();
-  renderCampaignPerf();
   renderSources();
-  if (document.getElementById('cfind')) renderFind();
   stampCampaign();
   stamp(lastCache);
 }
