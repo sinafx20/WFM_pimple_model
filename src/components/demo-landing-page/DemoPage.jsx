@@ -118,6 +118,16 @@ const bookingUrl = (id) => {
   return BOOKING_URLS[id];
 };
 const FREE_TRIAL_URL = "https://app.workflowmax.com/register/sign_up";
+/* Plain product site, used where naming an industry would be a guess rather than a fact. */
+const WFM_SITE_URL = "https://workflowmax.com";
+
+/* The Harvest displacement campaign reuses this page, with two differences: no "All Resources"
+   nav, because that campaign has no resource hub behind it and the link would dead-end on a
+   TP6 page built for Volcano; and a migration callout, because the one thing a Harvest user
+   wants to know is whether their own data comes across. Both are off unless ?campaign=harvest
+   is on the URL, so the Volcano version of this page is untouched. */
+const isHarvest = () => (typeof window !== "undefined"
+  && (new URLSearchParams(window.location.search).get("campaign") || "").toLowerCase() === "harvest");
 const goTo = (url) => {
   if (typeof window !== "undefined" && url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -127,6 +137,7 @@ export default function DemoLandingPage() {
   const v = detectVertical();
   const videoId = demoVideoId();
   const cover = demoCover();
+  const harvest = isHarvest();
 
   return (
     <div className="dlp wfm-card" style={{
@@ -144,9 +155,11 @@ export default function DemoLandingPage() {
         padding: "16px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         borderBottom: "1px solid #E5E7EB", background: "#fff", position: "sticky", top: 0, zIndex: 10,
       }}>
-        <div style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)" }}>
-          <AllResourcesLink />
-        </div>
+        {!harvest && (
+          <div style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)" }}>
+            <AllResourcesLink />
+          </div>
+        )}
         <WFMLogo />
         <FirmBadge align="center" />
       </div>
@@ -257,6 +270,43 @@ export default function DemoLandingPage() {
           <CredibilityStrip />
         </div>
 
+        {/* Harvest migration callout. Only on the Harvest campaign. */}
+        {harvest && (
+          <div style={{
+            border: "1px solid #73e2a340", background: "#f6fef9", borderRadius: 16,
+            padding: "20px 20px 22px", marginBottom: 24,
+          }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px",
+              background: "#fff", border: "1px solid #73e2a350", borderRadius: 100,
+              fontSize: 11, fontWeight: 700, color: "#0D8D5C", letterSpacing: "0.04em",
+              textTransform: "uppercase", marginBottom: 12,
+            }}>
+              Migrating from Harvest?
+            </div>
+            <h3 style={{ fontSize: 19, fontWeight: 700, color: "#0A2F28", margin: "0 0 8px", lineHeight: 1.25 }}>
+              See your own data in WorkflowMAX
+            </h3>
+            <p style={{ fontSize: 14, color: "#3B504A", margin: "0 0 16px", lineHeight: 1.55 }}>
+              We built a migration tool specifically for Harvest. Connect your account and your
+              clients, jobs and time history come across as they are, in a few minutes. Nothing
+              changes on the Harvest side, it is a copy rather than a move.
+            </p>
+            <button
+              onClick={() => goTo(FREE_TRIAL_URL)}
+              style={{
+                padding: "13px 28px", background: "#0A2F28", color: "#fff", border: "none",
+                borderRadius: 100, fontSize: 15, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit", transition: "background 0.2s", display: "block", width: "100%",
+              }}
+              onMouseEnter={(e) => (e.target.style.background = "#0D8D5C")}
+              onMouseLeave={(e) => (e.target.style.background = "#0A2F28")}
+            >
+              Try the Harvest migration tool &rarr;
+            </button>
+          </div>
+        )}
+
         {/* CTA section */}
         <div style={{
           background: "#0A2F28", borderRadius: 16, padding: "24px 20px",
@@ -266,7 +316,9 @@ export default function DemoLandingPage() {
             Ready to get started?
           </h3>
           <p style={{ fontSize: 14, color: "#9DA4AE", margin: "0 0 16px", lineHeight: 1.55 }}>
-            Start a free trial and explore it yourself, book a tailored walkthrough, or see how WorkflowMAX fits {v.label.toLowerCase()} firms.
+            {harvest
+              ? "Start a free trial and explore it yourself, book a walkthrough, or read more about how WorkflowMAX runs the whole job."
+              : `Start a free trial and explore it yourself, book a tailored walkthrough, or see how WorkflowMAX fits ${v.label.toLowerCase()} firms.`}
           </p>
           <button
             onClick={() => goTo(FREE_TRIAL_URL)}
@@ -293,7 +345,7 @@ export default function DemoLandingPage() {
             Book a walkthrough
           </button>
           <button
-            onClick={() => goTo(SOLUTION_URLS[v.id])}
+            onClick={() => goTo(harvest ? WFM_SITE_URL : SOLUTION_URLS[v.id])}
             style={{
               padding: "13px 32px", marginTop: 10, background: "transparent", color: "#63DB94",
               border: "1px solid #63DB9450", borderRadius: 100, fontSize: 15, fontWeight: 600,
@@ -302,22 +354,25 @@ export default function DemoLandingPage() {
             onMouseEnter={(e) => { e.target.style.background = "#63DB9410"; e.target.style.borderColor = "#63DB94"; }}
             onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.borderColor = "#63DB9450"; }}
           >
-            Or explore WorkflowMAX for {v.label} firms →
+            {harvest ? "Explore WorkflowMAX \u2192" : `Or explore WorkflowMAX for ${v.label} firms \u2192`}
           </button>
         </div>
 
-        {/* Soft alternative */}
-        <div style={{
-          background: "#fefbe8", border: "1px solid #fde27240", borderRadius: 14,
-          padding: "18px 16px", marginBottom: 24, textAlign: "center",
-        }}>
-          <p style={{ fontSize: 14, color: "#713b12", margin: "0 0 10px", fontWeight: 600 }}>
-            Not ready for a call?
-          </p>
-          <p style={{ fontSize: 13, color: "#85490e", margin: 0, lineHeight: 1.5 }}>
-            No pressure. Keep an eye out for the next email in this series, where we'll share how {v.label.toLowerCase()} firms are using WorkflowMAX to get better results.
-          </p>
-        </div>
+        {/* Soft alternative. Not on Harvest: it promises the next email in a series about a
+            vertical this campaign does not know, and Harvest has its own close. */}
+        {!harvest && (
+          <div style={{
+            background: "#fefbe8", border: "1px solid #fde27240", borderRadius: 14,
+            padding: "18px 16px", marginBottom: 24, textAlign: "center",
+          }}>
+            <p style={{ fontSize: 14, color: "#713b12", margin: "0 0 10px", fontWeight: 600 }}>
+              Not ready for a call?
+            </p>
+            <p style={{ fontSize: 13, color: "#85490e", margin: 0, lineHeight: 1.5 }}>
+              No pressure. Keep an eye out for the next email in this series, where we'll share how {v.label.toLowerCase()} firms are using WorkflowMAX to get better results.
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid #E5E7EB", textAlign: "center" }}>

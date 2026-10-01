@@ -25,3 +25,6 @@ npm-debug.log*
 
 # webflow cli build artifacts
 .tmp/
+
+# Harvest audience dumps: real prospect names, emails and LinkedIn URLs.
+heygen-studio/_harvest-*.json

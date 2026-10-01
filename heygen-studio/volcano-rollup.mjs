@@ -36,9 +36,27 @@ const COMMIT = process.argv.includes('--commit');
 // Kept for reference: the daily batch still works from this list.
 const LIST_ID = '3698';
 
-// Everything before this is our own testing, not prospects. Same cutoff verified-visits.mjs
-// uses: counting July activity once crowned a test session as the hottest lead in the pipeline.
-const CUTOFF = '2026-08-26';
+// Two campaigns share these properties and this heat model. The scoring is deliberately
+// identical across them, so a Warm contact means the same thing wherever it came from; only
+// the audience and the activity cutoff differ. Without this scoping the audience filter
+// below ("every contact with volcano_icp_vertical") silently merges the two, which would put
+// Harvest activity into Volcano's reported numbers and score it against Volcano's cutoff.
+//
+// Cutoff = everything before it is our own testing, not prospects. Counting July activity
+// once crowned a test session as the hottest lead in the pipeline.
+const CAMPAIGNS = {
+  volcano: { cutoff: '2026-08-26' },
+  harvest: { cutoff: '2026-10-06' },   // launch week; move this if the start date shifts
+};
+const CAMPAIGN = (process.argv.find((a) => a.startsWith('--campaign=')) || '').split('=')[1]
+  || process.env.VOLCANO_CAMPAIGN || 'volcano';
+if (!CAMPAIGNS[CAMPAIGN]) {
+  console.error(`unknown campaign "${CAMPAIGN}" — known: ${Object.keys(CAMPAIGNS).join(', ')}`);
+  process.exit(1);
+}
+const DEFAULT_CAMPAIGN = 'volcano';
+const CUTOFF = CAMPAIGNS[CAMPAIGN].cutoff;
+console.log(`campaign: ${CAMPAIGN} (activity cutoff ${CUTOFF})`);
 
 // Teammates and test records sit in the same audience but must never generate heat, or an
 // AE gets sent after their own colleague. Domains cover the team; the local override file
@@ -85,21 +103,39 @@ const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'hubspot_
   'volcano_disposition', 'volcano_disposition_note',
   'volcano_peak_heat', 'volcano_peak_band', 'volcano_first_warm_at',
   'volcano_li_failed', 'volcano_li_orphan',
-  'volcano_internal'];
+  'volcano_internal', 'volcano_campaign'];
 const contacts = [];
 for (let after = 0; ;) {
   const b = await (await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
     method: 'POST', headers: H,
     body: JSON.stringify({
-      filterGroups: [{ filters: [{ propertyName: 'volcano_icp_vertical', operator: 'HAS_PROPERTY' }] }],
+      // filterGroups are OR'd, filters within a group are AND'd. The second group exists
+      // only for the default campaign: every contact that predates volcano_campaign has it
+      // blank, and dropping them would zero the audience on the first scoped run. They are
+      // tagged as they are written below, so the group stops matching anything once the
+      // backfill has been through.
+      filterGroups: CAMPAIGN === DEFAULT_CAMPAIGN
+        ? [{ filters: [{ propertyName: 'volcano_campaign', operator: 'EQ', value: CAMPAIGN }] },
+           // Legacy path: contacts scored before volcano_campaign existed have it blank. They
+           // are tagged as they are written below, so this stops matching once backfilled.
+           { filters: [{ propertyName: 'volcano_icp_vertical', operator: 'HAS_PROPERTY' },
+                       { propertyName: 'volcano_campaign', operator: 'NOT_HAS_PROPERTY' }] }]
+        : [{ filters: [{ propertyName: 'volcano_campaign', operator: 'EQ', value: CAMPAIGN }] }],
       properties: READ, limit: 100, after: String(after),
     }),
   })).json();
-  (b.results || []).forEach((c) => contacts.push({ id: c.id, ...c.properties }));
+  if (b.status === 'error' || !Array.isArray(b.results)) {
+    console.error('HubSpot contact search failed, so the audience is unknown rather than empty:');
+    console.error('  ' + JSON.stringify(b).slice(0, 400));
+    console.error('  A filter on a property that does not exist in HubSpot yet fails this way.');
+    console.error('  Run: node create-volcano-props.mjs --commit');
+    process.exit(1);
+  }
+  b.results.forEach((c) => contacts.push({ id: c.id, ...c.properties }));
   if (!b.paging?.next?.after) break;
   after = b.paging.next.after;
 }
-console.log(`campaign audience: ${contacts.length} contacts`);
+console.log(`campaign audience: ${contacts.length} contacts in "${CAMPAIGN}"`);
 
 // ---------------------------------------------------------------- LinkedIn stage
 // HeyReach has no webhooks (three endpoint shapes probed 2026-09-01, all 404), so the only
@@ -402,7 +438,13 @@ console.log(`replies: ${replies.filter((r) => r && r.genuine).length} contacts w
 // the Instantly click webhook, one line per verified action. Distinct days in it are the
 // closest thing we have to "a real person came back", and unlike hs_analytics_num_page_views
 // it is dated per event rather than being a lifetime cumulative counter.
-const dates = (log) => new Set(String(log || '').split('\n')
+// Click lines are excluded on purpose. They are written by the Instantly webhook, not by the
+// on-page beacon, so they are not evidence anyone loaded anything: across the Volcano run all
+// 11 logged clickers produced zero page views, zero forms and no other browser activity, while
+// the one contact who did complete a tool had no recorded click at all. Counting them here
+// scored a probable link-scanner 25 visit heat on top of its click heat.
+const VISIT_LINE = (l) => !/instantly\/link-click/.test(l);
+const dates = (log) => new Set(String(log || '').split('\n').filter(VISIT_LINE)
   .map((l) => (l.match(/\d{4}-\d{2}-\d{2}/) || [])[0]).filter((d) => d && d >= CUTOFF));
 
 // The beacon only started writing that log on 2026-08-31, so on its own it would erase every
@@ -459,12 +501,18 @@ for (let i = 0; i < contacts.length; i++) {
   // Repeat visits add less and cap, so one person browsing repeatedly cannot outrank the
   // rest of the pipeline. Completing a tool is a form submission, so it scores like a reply.
   const visitHeat = (vv > 0 ? 25 + Math.min(50, (vv - 1) * 10) : 0) + (completed ? 30 : 0);
+  // Counted and written, never scored, exactly like opens. An Instantly click is a redirect,
+  // and a mail security appliance following a link trips it the same way a person does. The
+  // Volcano run measured this: 11 clickers, 0 page views, 0 forms, 0 further activity between
+  // them, and Construction logged 3 clicks against a single genuine open. Scoring them at 10
+  // each put contacts into Warm on behaviour nobody could show was human.
   const clicks = clicksIn(c.volcano_interaction_log);
   const heat = (isInternal(c) || isRuledOut(c)) ? 0
-    : clicks * 10 + gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
+    : gr * 30 + (stage ? LI_HEAT[stage] : 0) + visitHeat;
   heatById[c.id] = heat;
 
   const next = {
+    volcano_campaign: c.volcano_campaign || CAMPAIGN,
     volcano_heat: String(heat),
     // Peak only ever climbs, including across a rollup that lowers today's heat. This is what the
     // ever-reached view reads and what travels with a contact into nurture.

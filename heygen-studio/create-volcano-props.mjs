@@ -26,6 +26,65 @@ const COMMIT = process.argv.includes('--commit');
 
 const PROPS = [
   {
+    // Two campaigns now share one set of properties and one heat model. Without this the
+    // rollup's "every contact with volcano_icp_vertical" audience silently merges them, so
+    // Harvest activity would land in Volcano's numbers and be scored against Volcano's
+    // cutoff date. The cockpit switches campaigns on this value.
+    name: 'volcano_campaign',
+    label: 'Volcano campaign',
+    description: 'Which outbound campaign this contact belongs to. Scopes the rollup, the '
+      + 'cockpit and all reporting. Tracking and the heat model are identical across campaigns; '
+      + 'only the audience and the activity cutoff differ.',
+    type: 'enumeration', fieldType: 'select',
+    options: [
+      { label: 'Volcano MVP', value: 'volcano', displayOrder: 0 },
+      { label: 'Harvest',     value: 'harvest', displayOrder: 1 },
+    ],
+  },
+  {
+    // The Harvest campaign splits its audience three ways to compare three angles. The lane is
+    // a property of the FIRM, not the person: several contacts at one firm are in this audience
+    // and two of them comparing notes on two different angles reads as a mail merge. Derived
+    // deterministically in harvest-lanes.mjs, but written here so an AE can see it, HubSpot can
+    // filter on it, and a hand override survives the next sync.
+    name: 'volcano_lane',
+    label: 'Volcano lane',
+    description: 'Which message variant this contact is in. Assigned per company, balanced across '
+      + 'the audience. A value set by hand always wins over the derived one.',
+    type: 'enumeration', fieldType: 'select',
+    options: [
+      { label: 'A - Disconnected workflows',        value: 'A', displayOrder: 0 },
+      { label: 'B - AI on one source of truth',     value: 'B', displayOrder: 1 },
+      { label: 'C - Scope creep, WIP, variations',  value: 'C', displayOrder: 2 },
+    ],
+  },
+  {
+    // Which opening the contact gets. 69 of the 225 Harvest contacts left a review, but only 22
+    // of those reviews contain something we can quote back: the rest are praise for Harvest,
+    // and quoting a happy customer's praise as though it were a grievance is worse than not
+    // quoting them. Everyone else opens on the price rise, which is true for all of them.
+    name: 'volcano_entry',
+    label: 'Volcano entry point',
+    description: 'Which Act 1 opener this contact receives. "review" only where we hold a quotable '
+      + 'grievance in their own words; everyone else gets the pricing opener.',
+    type: 'enumeration', fieldType: 'select',
+    options: [
+      { label: 'Pricing opener', value: 'pricing', displayOrder: 0 },
+      { label: 'Review opener',  value: 'review',  displayOrder: 1 },
+    ],
+  },
+  {
+    // Stored rather than derived at send time so it is auditable before anything goes out.
+    // This is the single highest-risk string in the campaign: it is put in the prospect's own
+    // mouth, so it should be readable in HubSpot by whoever is sending.
+    name: 'volcano_review_quote',
+    label: 'Volcano review quote',
+    description: 'The exact fragment of this contact\'s own Harvest review that the opener quotes '
+      + 'back to them. Blank for everyone on the pricing opener. Extracted by harvest-review-quote.mjs, '
+      + 'which refuses anything that reads as praise for Harvest.',
+    type: 'string', fieldType: 'textarea',
+  },
+  {
     name: 'volcano_li_stage',
     label: 'Volcano LinkedIn stage',
     description: 'Furthest LinkedIn stage reached in the outreach sequence. Written every 2 hours '

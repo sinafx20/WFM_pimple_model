@@ -1,0 +1,55 @@
+{
+  "_notes": {
+    "source": "Lane copy artifact UAY5Jp9xRL2zM8PtCXRNu9, version 7, with the fixes agreed 2026-10-01.",
+    "review_removed": "cr, dm1 and em1 opened on 'your review caught my eye'. {review_site} had no data source and only 19 of 160 left a review, so Act 1 now stands on the price rise, which is true for all 160 confirmed Harvest users.",
+    "signature": "{signature} is substituted per campaign at load time (Sina or Denzel). It is never a per-lead value because each campaign has exactly one owner.",
+    "cr_is_ab": "cr carries two variants. It is the step the most people see, so it is the most informative place to test.",
+    "inmail": "No InMail copy yet. The sequence ends when a connection request is not accepted, so non-accepters receive nothing after it."
+  },
+
+  "cr": {
+    "A": "Hi {first_name}, I've been speaking with a lot of firms who were with Harvest for years and then had a steep price rise they had no say in. A few have told me the same story. WorkflowMAX may be worth a look. I'd love to connect either way.",
+    "B": "Hi {first_name}, a lot of Harvest users have been shocked by the recent pricing changes after years as customers. Putting WorkflowMAX on your radar, not just another time tracker but an OS that runs the whole job, lead to invoice. Love to connect either way.",
+    "C": "Hi {first_name}, I've been speaking with firms who have been on Harvest a long time and have just seen what the new pricing looks like. For a few it has been enough to start looking properly. WorkflowMAX might be worth a look. Happy to connect either way."
+  },
+
+  "dm1": "Hi {first_name}, thanks for connecting.\n\nThe reason I reached out: the price rise after years with Harvest is a story I keep hearing at the moment, and for a lot of teams it has been enough to start looking.\n\nWhat I notice with most Harvest users: the tool only comes in once a job is won, for time and invoicing. Quoting, proposals and lead tracking sit elsewhere. Time ends up disconnected from the quote, so on fixed fee work you find out how it went after it is done.\n\nWorkflowMAX runs the lot in one place, lead to final invoice, so job profitability is something you watch as you go rather than reconstruct later. You can connect it to your AI tool and ask it for numbers in plain language instead of building a clunky report, and it sits tight with Xero or QBO too.\n\nKeen to hear how you run jobs today and whether any of that resonates. If it does, happy to show you how firms that have moved across are running theirs.\n\nCoffee is on me either way, more than happy to send a voucher for your time :)\n\nOpen to 20 minutes in the coming days? Here is my booking link if it's easier. {booking_link}",
+
+  "dm2": {
+    "A": "{first_name}, following on from my last note. The pricing is reason enough to be looking, you do not need me to tell you that. What is worth knowing while you are looking is what else is costing you, because it rarely shows up on a licence line. Leads in a CRM, quoting in a spreadsheet, purchase orders and bills in an inbox, and someone reconciling it all by hand before the numbers mean anything.\n\nWith WorkflowMAX the lead, the quote, the job, the costs and the invoice are one record, all there for you to ask about with your AI tool. Here is a walkthrough. {demo_link}",
+    "B": "{first_name}, picking up the AI point from my last note. The tools are fine, the limit is usually what they can read. If the fee proposal sits in one system and the time and costs in another, there is nothing holding a whole project for an assistant to answer from.\n\nWith WorkflowMAX the lead, the quote, the job, the costs and the invoice are one record, so you can just ask it what is due to invoice, or which clients actually made money. Here is a walkthrough. {demo_link}",
+    "C": "{first_name}, one more thing from my last note. The other place margin goes is variations. The extra round gets done, nobody logs it because logging it is admin, and by the time it surfaces at month end it is too late to put on an invoice.\n\nWith WorkflowMAX you can manage variations as they happen, invoice a percentage of progress against the proposal, and see WIP clearly, so scope creep gets caught while the job is still running. Here is a quick walkthrough. {demo_link}"
+  },
+
+  "dm3": "{first_name}, we know change is hard. That's why we've saved the best for last.\n\nWe have built a migration tool specifically for Harvest. Start a trial, connect your account, and your own clients, jobs and time history come across in a few minutes. Not a demo running on someone else's data, your own work, sitting in a system that can do a good deal more with it.\n\nThere is no risk. Nothing changes on the Harvest side while you trial, it is a copy rather than a move.\n\nHappy to sit on a call and go through it with you, or send you the steps if you would rather have a poke at it yourself. {trial_link}",
+
+  "em1": {
+    "subject": "After years on Harvest",
+    "body": "Hi {first_name},\n\nThe reason I reached out: a price rise after years with Harvest is a story I keep hearing at the moment, and for a lot of teams it has been enough to start looking.\n\nWhat I notice with most Harvest users: the tool only comes in once a job is won, for time and invoicing. Quoting, proposals and lead tracking sit elsewhere. Time ends up disconnected from the quote, so on fixed fee work you find out how it went after it is done.\n\nWorkflowMAX runs the lot in one place, lead to final invoice, so profitability is something you watch as you go rather than reconstruct later. You can connect it to your AI tool and ask it for numbers in plain language instead of building a clunky report, and it sits tight with Xero or QBO.\n\nKeen to hear how you run jobs today and whether any of that resonates. If it does, happy to show you how firms that have moved across are running theirs.\n\nCoffee is on me either way, I will send a voucher for your time.\n\nOpen to 20 minutes in the coming days? Here is my booking link if it's easier. {booking_link}\n\n{signature}"
+  },
+
+  "em2": {
+    "A": {
+      "subject": "The costs that don't show on a licence",
+      "body": "Hi {first_name},\n\nThe price rise is reason enough to be looking, and you do not need me to explain that one to you.\n\nWhat is worth knowing while you are looking is what else is costing you, because it rarely shows up on a licence line. Leads sitting in a CRM, quoting done in a spreadsheet, purchase orders and bills in an inbox, and somebody reconciling all of it by hand before anyone can say how a project actually went without relying on a bank balance.\n\nThat is what changes with WorkflowMAX. The lead, the quote, the job, the costs and the invoice are one record, all of it there for you to ask about with your AI tool.\n\nSee it for yourself here.\n\n{demo_link}\n\n{signature}"
+    },
+    "B": {
+      "subject": "The question your AI can't answer",
+      "body": "Hi {first_name},\n\nI mentioned you can connect WorkflowMAX to your AI tool. Worth being specific about why that matters, because it is not really about the AI.\n\nAn assistant can only answer from what it can read. If the lead sits in a CRM, the quote in a spreadsheet and the time somewhere else again, nothing it can reach holds a whole project. So it answers a fraction of the question, and people conclude AI is not ready.\n\nWith WorkflowMAX the lead, the quote, the job, the costs and the invoice are one record, so the questions get simple. What is due to invoice this month. How much is sitting in work in progress. Which clients actually made money last quarter. Rather than describe it, here is a walkthrough for you.\n\n{demo_link}\n\n{signature}"
+    },
+    "C": {
+      "subject": "The extra round nobody billed",
+      "body": "Hi {first_name},\n\nMost firms can tell you exactly what they quoted. Far fewer can tell you what they actually delivered.\n\nThe extra iteration, the revised option, the bit redone after the client changed their mind. It all gets done, most of it gets absorbed, and the decision about whether to bill it happens weeks after the work did. The same gap shows up again as work in progress that nobody can see until month end.\n\nWith WorkflowMAX you are not just bringing the whole job lifecycle under one roof. You can manage variations as they happen, invoice a percentage of progress against the original proposal, and see WIP clearly, so scope creep gets caught while the job is still running rather than after it. And all of it can be pulled up by prompting your AI tool rather than building a report.\n\nHere is a quick walkthrough of it all for you.\n\n{demo_link}\n\n{signature}"
+    }
+  },
+
+  "em3": {
+    "subject": "See your own Harvest data in WorkflowMAX",
+    "body": "Hi {first_name},\n\nWe have built a migration tool specifically for Harvest customers. Start a trial, connect your Harvest account, and your clients, jobs and time history come across into WorkflowMAX as they are.\n\nNothing changes on the Harvest side. It is a copy, not a move, so you can look without committing to anything.\n\nWhat you end up with is your own work sitting in a system that also holds the lead, the fee proposal and the budget that came before the job started. That is the part that is missing today, and it is much easier to see with your own jobs in front of you than in a demo.\n\n{trial_link}\n\nIf you would rather I walked you through it on a call, happy to do that instead. Booking link here: {booking_link}\n\n{signature}"
+  },
+
+  "em4": {
+    "subject": "Last one from me",
+    "body": "Hi {first_name},\n\nI have sent a few things this month and have not heard back, which usually means the timing is wrong or it simply is not a priority right now. Both are completely fair, and I will stop here rather than keep turning up.\n\nTwo things worth keeping hold of either way.\n\nOur pricing is published on our website, per user per month, and there is nothing in it based on invoice counts or invoiced value.\n\nAnd the Harvest migration tool is not going anywhere. If you decide to look in three months, connecting your account and seeing your own data takes the same few minutes then as it does today.\n\n{trial_link}\n\nThanks for your time.\n\n{signature}"
+  }
+}
