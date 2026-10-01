@@ -20,7 +20,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildHarvestSequence, copyComplete, STEPS, ANGLES, ANGLE_KEYS, REGION_KEYS, requiredCustomFields } from './harvest-sequences.mjs';
-import { resolveConstants } from './harvest-tokens.mjs';
+import { resolveConstants, shortenCopy } from './harvest-tokens.mjs';
+import { shorten } from './harvest-shorten.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -146,7 +147,7 @@ async function loadCopy() {
   for (const { owner, key } of ALL) {
     const s = state[key];
     if (!s?.campaignId) { console.log(`- ${key} not created yet, skipping`); continue; }
-    const sequence = buildHarvestSequence(resolveConstants(copy, owner));
+    const sequence = buildHarvestSequence(await shortenCopy(resolveConstants(copy, owner), shorten));
     const r = await hr('/campaign/UpdateSequence', { campaignId: s.campaignId, sequence });
     const ok = r.status < 300;
     console.log(`${ok ? '+' : '!'} ${key} sequence updated: HTTP ${r.status}${ok ? '' : ' ' + (await r.text()).slice(0, 200)}`);

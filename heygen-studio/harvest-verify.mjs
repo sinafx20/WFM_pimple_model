@@ -23,6 +23,27 @@ const EXPECT = {
 };
 const ownerOf = (k) => (k.endsWith('denzel') ? 'denzel' : 'sina');
 
+// Follow one redirect to recover what a wfmax.info alias actually points at. Cached, because
+// 160 leads share far fewer distinct aliases than that once the trial and booking links repeat.
+const resolved = new Map();
+async function destinationOf(url) {
+  if (!/^https:\/\/wfmax\.info\//.test(url)) return url;   // already a long URL
+  if (resolved.has(url)) return resolved.get(url);
+  // Paced and retried. An unpaced pass over 160 aliases reported 19 as dead; a 60ms gap
+  // reported none. Rate limiting that looks like a broken link is worse than being slow.
+  let dest = '';
+  for (let i = 0; i < 3 && !dest; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 1500 * i));
+    try {
+      const r = await fetch(url, { redirect: 'manual' });
+      dest = r.headers.get('location') || '';
+    } catch { /* retry */ }
+  }
+  await new Promise((r) => setTimeout(r, 60));
+  resolved.set(url, dest);
+  return dest;
+}
+
 let bad = 0;
 console.log('=== HeyReach: every lead in every list ===');
 for (const [key, v] of Object.entries(hrS)) {
@@ -38,8 +59,15 @@ for (const [key, v] of Object.entries(hrS)) {
     if (items.length < 100) break;
     offset += 100;
   }
-  const demo = (l) => (l.customFields || []).find((f) => f.name === 'demo_link')?.value || '';
-  const missing = leads.filter((l) => !demo(l));
+  const stored = (l) => (l.customFields || []).find((f) => f.name === 'demo_link')?.value || '';
+  // Resolve every alias once, then check the destination rather than the opaque short link.
+  const dest = new Map();
+  for (const l of leads) dest.set(l, stored(l) ? await destinationOf(stored(l)) : '');
+  const demo = (l) => dest.get(l) || '';
+  const shortened = leads.filter((l) => /wfmax\.info/.test(stored(l))).length;
+  const unresolved = leads.filter((l) => stored(l) && !demo(l)).length;
+
+  const missing = leads.filter((l) => !stored(l));
   const wrongOwner = leads.filter((l) => demo(l) && (!demo(l).includes(e.presenter) || !demo(l).includes(e.book)));
   const leaked = leads.filter((l) => demo(l).includes(other.book) || demo(l).includes(other.presenter));
   const tracked = leads.filter((l) => demo(l).includes('email=')).length;
@@ -48,9 +76,10 @@ for (const [key, v] of Object.entries(hrS)) {
     const m = demo(l).match(/[?&]email=([^&]+)/);
     return m && decodeURIComponent(m[1]).toLowerCase() !== String(l.emailAddress || '').toLowerCase();
   });
-  bad += missing.length + wrongOwner.length + leaked.length + mismatched.length;
-  console.log(`  ${key.padEnd(15)} ${String(leads.length).padStart(3)} leads | demo_link missing ${missing.length}`
-    + ` | wrong owner ${wrongOwner.length} | other-owner leak ${leaked.length}`
+  bad += missing.length + wrongOwner.length + leaked.length + mismatched.length + unresolved;
+  console.log(`  ${key.padEnd(15)} ${String(leads.length).padStart(3)} leads | missing ${missing.length}`
+    + ` | shortened ${shortened} | unresolved ${unresolved}`
+    + ` | wrong owner ${wrongOwner.length} | leak ${leaked.length}`
     + ` | email mismatch ${mismatched.length} | tracked ${tracked}`);
 }
 

@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { demoLinkFor, BOOKING } from './harvest-tokens.mjs';
+import { shorten } from './harvest-shorten.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -107,7 +108,12 @@ if (noEmail) console.log(`\n${noEmail} contacts have no email: they get a workin
 
 console.log('\nexample demo link:');
 const sample = live.find((c) => c.email);
-if (sample) console.log('  ' + demoLinkFor(OWNER_OF[sample.hubspot_owner_id], sample.email));
+if (sample) {
+  const long = demoLinkFor(OWNER_OF[sample.hubspot_owner_id], sample.email);
+  console.log('  long  ' + long);
+  console.log('  short (LinkedIn, for click counting) assigned per contact at push time');
+  console.log('  email uses the long URL: Instantly rewrites links itself for its own tracking');
+}
 
 if (!COMMIT) { console.log('\nDRY RUN. Re-run with --commit to push.'); process.exit(0); }
 
@@ -134,7 +140,7 @@ for (const [key, list] of Object.entries(plan).sort()) {
           profileUrl: c.hs_linkedin_url,
           firstName: c.firstname || '', lastName: c.lastname || '',
           companyName: c.company || '', emailAddress: (c.email || '').toLowerCase(),
-          customUserFields: [{ name: 'demo_link', value: demoLinkFor(owner, c.email) }],
+          customUserFields: [{ name: 'demo_link', value: await shorten(demoLinkFor(owner, c.email)) }],
         };
         try {
           const r = await hr('/list/AddLeadsToListV2', { listId: camp.listId, leads: [lead] });

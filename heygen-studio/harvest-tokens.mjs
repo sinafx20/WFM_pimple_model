@@ -104,6 +104,38 @@ export const resolveConstants = (copy, owner) => {
   return deep(copy, (t) => applyMap(t, map));
 };
 
+// Replace every literal https:// URL in a copy tree with its branded short form, so LinkedIn
+// clicks can be counted. LinkedIn exposes no click event of any kind, so an unshortened link
+// there is simply invisible. Email does not need this: Instantly's own link tracking rewrites
+// links at send time, and wrapping ours inside that would double-redirect the prospect.
+//
+// The demo link is NOT shortened here. It is a per-lead merge field carrying the contact's
+// email, so the push shortens each contact's own URL and the alias maps back to one person.
+// These baked links (trial, booking) are shared, so their hits are a per-campaign count.
+export async function shortenCopy(copy, shorten) {
+  const seen = new Map();
+  const sub = async (text) => {
+    const urls = [...new Set(String(text).match(/https:\/\/[^\s<>"')]+/g) || [])];
+    let out = String(text);
+    for (const u of urls) {
+      if (!seen.has(u)) seen.set(u, await shorten(u));
+      out = out.split(u).join(seen.get(u));
+    }
+    return out;
+  };
+  const walk = async (v) => {
+    if (typeof v === 'string') return sub(v);
+    if (Array.isArray(v)) return Promise.all(v.map(walk));
+    if (v && typeof v === 'object') {
+      const o = {};
+      for (const [k, x] of Object.entries(v)) o[k] = await walk(x);
+      return o;
+    }
+    return v;
+  };
+  return walk(copy);
+}
+
 const HEYREACH_MAP = { '{first_name}': '{FIRST_NAME}' };
 const INSTANTLY_MAP = { '{first_name}': '{{firstName}}', '{demo_link}': '{{demo_link}}' };
 
