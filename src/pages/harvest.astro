@@ -61,7 +61,10 @@ const URL = 'https://lp.workflowmax.com/app/harvest';
     h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 10px; letter-spacing: -0.015em; text-wrap: balance; }
     .sub { color: #9DB9AE; font-size: clamp(15px, 2vw, 17px); margin: 0 0 28px; max-width: 62ch; }
     figure { margin: 0 0 28px; }
-    img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); }
+    /* Never upscale past the artwork's own 792px: stretched to the 1000px wrapper it went
+       visibly soft. Centred instead, so it is sharp at every width. */
+    img { display: block; width: 100%; max-width: 792px; height: auto; margin: 0 auto;
+          border-radius: 14px; border: 1px solid rgba(255,255,255,.1); }
     .cta { display: flex; flex-wrap: wrap; gap: 12px; }
     a.btn {
       display: inline-block; padding: 13px 26px; border-radius: 100px; font-weight: 600;
