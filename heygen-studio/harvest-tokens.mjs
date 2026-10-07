@@ -112,12 +112,18 @@ export const resolveConstants = (copy, owner) => {
 // The demo link is NOT shortened here. It is a per-lead merge field carrying the contact's
 // email, so the push shortens each contact's own URL and the alias maps back to one person.
 // These baked links (trial, booking) are shared, so their hits are a per-campaign count.
+// Already a branded short link. Re-shortening it would mint a second alias pointing at the
+// first, which adds a redirect hop and, for the comparison link in Act 1, replaces the exact
+// URL whose LinkedIn unfurl was verified by hand. Leave these alone.
+const ALREADY_SHORT = /^https:\/\/wfmax\.info\//i;
+
 export async function shortenCopy(copy, shorten) {
   const seen = new Map();
   const sub = async (text) => {
     const urls = [...new Set(String(text).match(/https:\/\/[^\s<>"')]+/g) || [])];
     let out = String(text);
     for (const u of urls) {
+      if (ALREADY_SHORT.test(u)) continue;
       if (!seen.has(u)) seen.set(u, await shorten(u));
       out = out.split(u).join(seen.get(u));
     }
