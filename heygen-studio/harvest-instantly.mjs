@@ -26,6 +26,10 @@ import { ANGLES, ANGLE_KEYS, REGION_KEYS } from './harvest-sequences.mjs';
 // neutral tokens in copy-harvest.json have to be translated here exactly as they are for
 // HeyReach. An untranslated token does not fail at push time, it arrives in somebody's inbox.
 import { forInstantly, resolveConstants } from './harvest-tokens.mjs';
+// Bodies are authored as plain text with blank lines between paragraphs. Instantly renders
+// HTML and discards newlines, so without this every email arrives as one unbroken block.
+// Applied AFTER forInstantly, because the linkifier needs the translated {{demo_link}} form.
+import { toHtml } from './harvest-html.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -93,11 +97,11 @@ for (const region of REGION_KEYS) for (const owner of OWNERS) ALL.push({ region,
 function variantsFor(step, copy) {
   const c = copy?.[step.key];
   if (!step.angled) {
-    return [{ subject: forInstantly(c?.subject || PH_SUBJ(step.key)), body: forInstantly(c?.body ?? c?.message ?? PH_BODY(step.key)) }];
+    return [{ subject: forInstantly(c?.subject || PH_SUBJ(step.key)), body: toHtml(forInstantly(c?.body ?? c?.message ?? PH_BODY(step.key))) }];
   }
   return ANGLE_KEYS.map((a) => ({
     subject: forInstantly(c?.[a]?.subject || PH_SUBJ(step.key, a)),
-    body: forInstantly(c?.[a]?.body ?? c?.[a]?.message ?? PH_BODY(step.key, a)),
+    body: toHtml(forInstantly(c?.[a]?.body ?? c?.[a]?.message ?? PH_BODY(step.key, a))),
   }));
 }
 const buildSequence = (copy = null) => [{

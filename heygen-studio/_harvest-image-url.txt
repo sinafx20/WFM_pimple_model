@@ -1,0 +1,4 @@
+{
+  "og": "https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-og.png",
+  "full": "https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-full.png"
+}

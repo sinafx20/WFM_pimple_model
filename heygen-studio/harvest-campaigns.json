@@ -7,7 +7,7 @@
     "seat": 221310,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:06:40.851Z",
-    "copyLoadedAt": "2026-10-01T06:34:32.461Z"
+    "copyLoadedAt": "2026-10-07T23:05:13.355Z"
   },
   "APAC-denzel": {
     "campaignId": 629179,
@@ -17,7 +17,7 @@
     "seat": 223029,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:06:41.802Z",
-    "copyLoadedAt": "2026-10-01T06:34:34.299Z"
+    "copyLoadedAt": "2026-10-07T23:05:15.557Z"
   },
   "US-West-sina": {
     "campaignId": 629180,
@@ -27,7 +27,7 @@
     "seat": 221310,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:06:42.708Z",
-    "copyLoadedAt": "2026-10-01T06:34:36.241Z"
+    "copyLoadedAt": "2026-10-07T23:05:16.271Z"
   },
   "US-West-denzel": {
     "campaignId": 629181,
@@ -37,6 +37,6 @@
     "seat": 223029,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:06:43.518Z",
-    "copyLoadedAt": "2026-10-01T06:34:37.419Z"
+    "copyLoadedAt": "2026-10-07T23:05:17.394Z"
   }
 }
