@@ -124,6 +124,24 @@ async function status() {
   console.log(`\nOrphans to delete in the HeyReach UI: ${ORPHANS.join(', ')}`);
 }
 
+// Act 1 is the only step whose LinkedIn preview card matters, and LinkedIn previews exactly one
+// URL per message. Two URLs make it a coin flip over which card appears, and the booking link
+// winning is the one outcome we specifically do not want. This is one careless copy edit away at
+// all times, so refuse the push rather than discover it in someone's inbox.
+const UNFURL_LINK = 'https://wfmax.info/2wvwsza6';
+
+function checkAct1(copy) {
+  const bad = [];
+  for (const [key, text] of [['dm1', copy.dm1], ['inmail1', copy.inmail1?.message]]) {
+    if (typeof text !== 'string') { bad.push(`${key} is missing`); continue; }
+    const urls = text.match(/https:\/\/\S+/g) || [];
+    if (urls.length !== 1) bad.push(`${key} holds ${urls.length} urls, expected 1: ${urls.join(' ') || 'none'}`);
+    else if (urls[0] !== UNFURL_LINK) bad.push(`${key} links ${urls[0]}, expected the verified alias ${UNFURL_LINK}`);
+    if (/\{booking_link\}/.test(text)) bad.push(`${key} has the booking link back, which would compete for the unfurl`);
+  }
+  return bad;
+}
+
 async function loadCopy() {
   const state = loadState();
   if (!fs.existsSync(COPY_PATH)) {
@@ -142,6 +160,12 @@ async function loadCopy() {
   if (!cc.ok) {
     console.error('REFUSING: copy is incomplete. A half-filled campaign looks ready and is not.');
     console.error(`  missing: ${cc.missing.join(', ')}`);
+    process.exit(1);
+  }
+  const act1 = checkAct1(copy);
+  if (act1.length) {
+    console.error('REFUSING: Act 1 would not unfurl predictably on LinkedIn.');
+    act1.forEach((m) => console.error(`  ${m}`));
     process.exit(1);
   }
   for (const { owner, key } of ALL) {
