@@ -15,6 +15,10 @@
 // crawler is not a person.
 const OG_IMAGE = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-og.png';
 const FULL_IMAGE = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-full.png';
+// Same artwork re-rendered from the vector PDF at twice the size. A 792px image shown at 792
+// CSS px is upscaled 2x on any high-DPI screen, which is most laptops, and that was the real
+// cause of the blur. srcset lets a 1x screen keep the 696KB smaller file.
+const FULL_IMAGE_2X = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-full@2x.png';
 const TITLE = 'Harvest vs. WorkflowMAX';
 const DESC = 'Same job, two very different ways to get it done. From enquiry to invoice, one connected platform or a collection of tools.';
 const URL = 'https://lp.workflowmax.com/app/harvest';
@@ -85,7 +89,7 @@ const URL = 'https://lp.workflowmax.com/app/harvest';
       between tools burns time and hides what a job actually made.</p>
 
     <figure>
-      <img src={FULL_IMAGE} width="792" height="612"
+      <img src={FULL_IMAGE} srcset={`${FULL_IMAGE} 1x, ${FULL_IMAGE_2X} 2x`} width="792" height="612"
                 alt="Left: a disconnected set of tools, with the lead in a CRM, the quote in a spreadsheet, time in Harvest and invoicing in Xero, joined by manual handoffs. Right: WorkflowMAX running the full job lifecycle in one place, from lead and quote through to job, timesheets, invoicing and AI-integrated reporting." />
     </figure>
 
