@@ -19,6 +19,7 @@ const FULL_IMAGE = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/242149
 // CSS px is upscaled 2x on any high-DPI screen, which is most laptops, and that was the real
 // cause of the blur. srcset lets a 1x screen keep the 696KB smaller file.
 const FULL_IMAGE_2X = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-full@2x.png';
+const FULL_IMAGE_3X = 'https://24214994.fs1.hubspotusercontent-na1.net/hubfs/24214994/volcano-assets/harvest-vs-workflowmax-full@3x.png';
 const TITLE = 'Harvest vs. WorkflowMAX';
 const DESC = 'Same job, two very different ways to get it done. From enquiry to invoice, one connected platform or a collection of tools.';
 const URL = 'https://lp.workflowmax.com/app/harvest';
@@ -61,13 +62,14 @@ const URL = 'https://lp.workflowmax.com/app/harvest';
       font-family: 'DM Sans', -apple-system, 'Segoe UI', sans-serif;
       line-height: 1.55;
     }
-    .wrap { max-width: 1000px; margin: 0 auto; padding-block: 40px; padding-left: 20px; padding-right: 20px; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding-block: 40px; padding-left: 20px; padding-right: 20px; }
     h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 10px; letter-spacing: -0.015em; text-wrap: balance; }
     .sub { color: #9DB9AE; font-size: clamp(15px, 2vw, 17px); margin: 0 0 28px; max-width: 62ch; }
     figure { margin: 0 0 28px; }
-    /* Never upscale past the artwork's own 792px: stretched to the 1000px wrapper it went
-       visibly soft. Centred instead, so it is sharp at every width. */
-    img { display: block; width: 100%; max-width: 792px; height: auto; margin: 0 auto;
+    /* Widened on request so the comparison reads at a glance. The 792px source cannot carry
+       this on its own, so srcset offers the same artwork re-rendered from the vector PDF at
+       1584 and 2376px and the browser takes what its pixel density needs. */
+    img { display: block; width: 100%; max-width: 1060px; height: auto; margin: 0 auto;
           border-radius: 14px; border: 1px solid rgba(255,255,255,.1); }
     .cta { display: flex; flex-wrap: wrap; gap: 12px; }
     a.btn {
@@ -89,7 +91,10 @@ const URL = 'https://lp.workflowmax.com/app/harvest';
       between tools burns time and hides what a job actually made.</p>
 
     <figure>
-      <img src={FULL_IMAGE} srcset={`${FULL_IMAGE} 1x, ${FULL_IMAGE_2X} 2x`} width="792" height="612"
+      <img src={FULL_IMAGE_2X}
+                srcset={`${FULL_IMAGE} 792w, ${FULL_IMAGE_2X} 1584w, ${FULL_IMAGE_3X} 2376w`}
+                sizes="(max-width: 1100px) calc(100vw - 40px), 1060px"
+                width="792" height="612"
                 alt="Left: a disconnected set of tools, with the lead in a CRM, the quote in a spreadsheet, time in Harvest and invoicing in Xero, joined by manual handoffs. Right: WorkflowMAX running the full job lifecycle in one place, from lead and quote through to job, timesheets, invoicing and AI-integrated reporting." />
     </figure>
 

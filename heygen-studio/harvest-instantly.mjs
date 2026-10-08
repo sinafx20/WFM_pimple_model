@@ -42,12 +42,18 @@ const H = { authorization: `Bearer ${K}`, 'content-type': 'application/json' };
 const OWNERS = ['sina', 'denzel'];
 const NAME = { sina: 'Sina', denzel: 'Denzel' };
 
-// `delay` is days to wait before this step; the first step sends on enrolment.
+// `delay` is the wait AFTER this step, before the next one. It is NOT the wait before this step.
+//
+// This was wrong once and it cost real sends. With em1.delay = 0 the first email went out on
+// enrolment and the second followed nine minutes later, so 13 of the first 17 contacts got two
+// cold emails in the same session. The first step always sends on enrolment whatever its delay
+// holds, so the value sitting on em1 only ever controls the gap to em2. Read the ladder as the
+// gap BELOW each line, and leave the last step at 0 because nothing follows it.
 export const EMAIL_STEPS = [
-  { key: 'em1', week: 1, angled: false, delay: 0, label: 'Act 1, the pricing message' },
-  { key: 'em2', week: 2, angled: true,  delay: 4, label: 'The angle, plus the demo video' },
+  { key: 'em1', week: 1, angled: false, delay: 4, label: 'Act 1, the pricing message' },
+  { key: 'em2', week: 2, angled: true,  delay: 6, label: 'The angle, plus the demo video' },
   { key: 'em3', week: 3, angled: false, delay: 6, label: 'Trial and the Harvest migration tool' },
-  { key: 'em4', week: 4, angled: false, delay: 6, label: 'Close' },
+  { key: 'em4', week: 4, angled: false, delay: 0, label: 'Close' },
 ];
 
 const SCHEDULE = {
@@ -104,9 +110,22 @@ function variantsFor(step, copy) {
     body: toHtml(forInstantly(c?.[a]?.body ?? c?.[a]?.message ?? PH_BODY(step.key, a))),
   }));
 }
-const buildSequence = (copy = null) => [{
-  steps: EMAIL_STEPS.map((s) => ({ type: 'email', delay: s.delay, variants: variantsFor(s, copy) })),
-}];
+// A zero gap on any step but the last stacks that send onto the next one in the same minute.
+// That is what put two cold emails nine minutes apart in front of 13 people, so the ladder is
+// checked on every build rather than trusted.
+function checkLadder() {
+  const bad = EMAIL_STEPS.slice(0, -1).filter((s) => !(s.delay >= 1));
+  if (bad.length) {
+    console.error('REFUSING: these steps leave no gap before the next email, so two would send together:');
+    bad.forEach((s) => console.error(`  ${s.key} delay=${s.delay}`));
+    process.exit(1);
+  }
+}
+
+const buildSequence = (copy = null) => {
+  checkLadder();
+  return [{ steps: EMAIL_STEPS.map((s) => ({ type: 'email', delay: s.delay, variants: variantsFor(s, copy) })) }];
+};
 
 function emailCopyComplete(copy) {
   const missing = [];
