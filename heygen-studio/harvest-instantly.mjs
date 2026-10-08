@@ -234,7 +234,19 @@ async function loadCopy() {
     console.log(`${ok ? '+' : '!'} ${key} sequence updated: HTTP ${r.status}${ok ? '' : ' ' + (await r.text()).slice(0, 200)}`);
     if (ok) { state[key].copyLoaded = true; state[key].copyLoadedAt = new Date().toISOString(); saveState(state); }
   }
-  console.log('\nStill draft, still no mailboxes attached. Nothing will send.');
+  // Was a hardcoded "still draft, nothing will send", which stayed on screen long after the
+  // campaigns had mailboxes and had sent. A reassurance nobody checked is worse than none, so
+  // this reads the real state back instead.
+  const ST = { 0: 'draft', 1: 'ACTIVE', 2: 'paused', 3: 'completed' };
+  console.log('');
+  for (const { key } of ALL) {
+    const id = loadState()[key]?.id;
+    if (!id) continue;
+    const c = await (await fetch(`https://api.instantly.ai/api/v2/campaigns/${id}`, { headers: H })).json();
+    const live = c.status === 1;
+    console.log(`  ${key.padEnd(15)} ${String(ST[c.status] ?? c.status).padEnd(9)} `
+      + `${(c.email_list || []).length} mailbox(es)${live ? '   <- ACTIVE, this copy is sending now' : ''}`);
+  }
 }
 
 const cmd = process.argv[2];

@@ -12,8 +12,14 @@
 // overridden, and it still degrades to sensible plain text in a client that strips tags.
 //
 // Links are made explicit anchors rather than left bare: a bare URL in an HTML body is not
-// clickable in every client. The visible text stays the URL, because in a cold email a visible
-// destination reads as more honest than hidden anchor text.
+// clickable in every client.
+//
+// A short, readable URL keeps its own text, because in a cold email a visible destination reads
+// as more honest than hidden anchor text. A merge field does not, because of what it expands
+// to: {{demo_link}} becomes 150 characters carrying tool, campaign, presenter, a percent-encoded
+// booking URL and the recipient's own email address, and Instantly then rewrites the href
+// through its click-tracking host anyway. Printed in full that reads as spam and exposes the
+// tracking parameters to the reader, so the merge fields get a plain label instead.
 
 // Escape only what breaks HTML. Merge-field braces are deliberately untouched: Instantly
 // substitutes {{firstName}} and {{demo_link}} before send, and escaping them would ship the
@@ -27,11 +33,21 @@ const esc = (s) => String(s)
 const LINK = /(\{\{[a-z_]+\}\}|https:\/\/[^\s<>"')]+)/gi;
 const LINKY_FIELD = /^\{\{(demo_link|booking|trial_link)\}\}$/i;
 
+// What the reader sees in place of each expanded merge field. "Book a Conversation" is the
+// campaign's fixed CTA wording and is deliberately not reworded here.
+const LABEL = {
+  demo_link: 'Watch the walkthrough',
+  booking: 'Book a Conversation',
+  trial_link: 'Start a free trial',
+};
+
 function linkify(escaped) {
   return escaped.replace(LINK, (m) => {
     const isUrl = /^https:\/\//i.test(m);
     if (!isUrl && !LINKY_FIELD.test(m)) return m;   // {{firstName}} is not a link
-    return `<a href="${m}" target="_blank" rel="noopener">${m}</a>`;
+    const field = isUrl ? null : m.replace(/[{}]/g, '').toLowerCase();
+    const text = field ? (LABEL[field] || m) : m;
+    return `<a href="${m}" target="_blank" rel="noopener">${text}</a>`;
   });
 }
 
