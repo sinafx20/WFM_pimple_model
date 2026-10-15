@@ -92,11 +92,15 @@ const accounts = ((await (await fetch('https://api.instantly.ai/api/v2/accounts?
 const byEmail = Object.fromEntries(accounts.map((a) => [String(a.email).toLowerCase(), a]));
 const ST = { 0: 'draft', 1: 'ACTIVE', 2: 'paused', 3: 'completed', 4: 'subsequences' };
 for (const [key, v] of Object.entries(inS)) {
+  // Superseded campaigns are kept in state so their ids are not lost, not to be launched.
+  if (key.endsWith('-retired')) continue;
   const c = await (await fetch(`https://api.instantly.ai/api/v2/campaigns/${v.id}`, { headers: IH })).json();
   const boxes = c.email_list || [];
   const bad = boxes.filter((m) => { const a = byEmail[m.toLowerCase()]; return !a || a.status !== 1 || a.warmup_status !== 1; });
   const line = `${key.padEnd(15)} ${String(ST[c.status] ?? c.status).padEnd(7)} ${boxes.length} mailboxes, daily ${c.daily_limit}, link_tracking ${c.link_tracking}`;
-  if (c.status !== 0) block(`${line}  <- expected draft`);
+  // The point of this check is that nothing is sending yet, not that nothing ever has. Draft
+  // and paused both satisfy that; only ACTIVE means mail is going out right now.
+  if (c.status === 1) block(`${line}  <- already ACTIVE, it is sending now`);
   else if (!boxes.length) block(`${line}  <- no sending mailbox attached`);
   else if (bad.length) block(`${line}  <- unhealthy mailbox: ${bad.join(', ')}`);
   else if (!c.link_tracking) warn(`${line}  <- link tracking is off`);

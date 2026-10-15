@@ -117,12 +117,14 @@ if (sample) {
 
 // ---------------------------------------------------------------- already emailed
 // The APAC relaunch runs in duplicated campaigns, so Instantly has no memory of the first
-// attempt and would start these people at Act 1 again. 17 of them already received it on
-// 2026-10-08 and 13 got it twice within nine minutes, which is the last group that should hear
-// the same opener a third time. Contact history lives on the lead, so it is read back rather
-// than kept in a list here.
+// attempt and starts everyone at Act 1 again. 17 people already received it on 2026-10-08 and
+// 13 of those got it twice within nine minutes.
 //
-// Email only. HeyReach has never sent anything, so LinkedIn still goes to everyone.
+// Sina decided on 2026-10-15 that a repeat is acceptable and the duplicates should hold the
+// full audience, so the default is to include them and say how many are repeats. Pass
+// --skip-contacted to leave them out instead. Either way the count is printed, because sending
+// a third opener to the people who got a double should be a visible choice, not a silent one.
+const SKIP_CONTACTED = process.argv.includes('--skip-contacted');
 const emailedAlready = new Set();
 {
   const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -149,8 +151,10 @@ const emailedAlready = new Set();
   }
 }
 const wouldResend = live.filter((c) => emailedAlready.has(String(c.email || '').toLowerCase()));
-console.log(`\n${emailedAlready.size} people have already been emailed at some point; `
-  + `${wouldResend.length} of them are in this push and will be SKIPPED on email, kept on LinkedIn.`);
+console.log(`\n${emailedAlready.size} people have been emailed at some point; ${wouldResend.length} of them are in this push.`);
+console.log(SKIP_CONTACTED
+  ? '  --skip-contacted is set, so they are left out of the email channel and kept on LinkedIn.'
+  : '  They are INCLUDED and will receive Act 1 again. Pass --skip-contacted to leave them out.');
 
 if (!COMMIT) { console.log('\nDRY RUN. Re-run with --commit to push.'); process.exit(0); }
 
@@ -197,7 +201,7 @@ for (const [key, list] of Object.entries(plan).sort()) {
     else {
       for (const c of list) {
         if (!String(c.email || '').trim()) { results.instantly.skip++; continue; }
-        if (emailedAlready.has(c.email.toLowerCase())) { results.instantly.skip++; continue; }
+        if (SKIP_CONTACTED && emailedAlready.has(c.email.toLowerCase())) { results.instantly.skip++; continue; }
         const body = {
           campaign: camp.id,
           email: c.email.toLowerCase(),
