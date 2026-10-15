@@ -45,7 +45,7 @@
   },
   "em4": {
     "subject": "Last one from me",
-    "body": "Hi {first_name},\n\nI have sent a few things this month and have not heard back, which usually means the timing is wrong or it simply is not a priority right now. Both are completely fair, and I will stop here rather than keep turning up.\n\nTwo things worth keeping hold of either way.\n\nOur pricing is published on our website, per user per month, and there is nothing in it based on invoice counts or invoiced value.\n\nAnd the Harvest migration tool is not going anywhere. If you decide to look in three months, connecting your account and seeing your own data takes the same few minutes then as it does today.\n\n{trial_link}\n\nThanks for your time.\n\n{signature}"
+    "body": "Hi {first_name},\n\nI have sent a few things this month and have not heard back, which usually means the timing is wrong or it simply is not a priority right now. Both are completely fair, and I will stop here rather than keep turning up.\n\nTwo things worth keeping hold of either way.\n\nOur pricing is published on the WorkflowMAX website, per user per month, and there is nothing in it based on invoice counts or invoiced value.\n\nAnd the Harvest migration tool is not going anywhere. If you decide to look in three months, connecting your account and seeing your own data takes the same few minutes then as it does today.\n\n{trial_link}\n\nThanks for your time.\n\n{signature}"
   },
   "inmail1": {
     "subject": "After years on Harvest",

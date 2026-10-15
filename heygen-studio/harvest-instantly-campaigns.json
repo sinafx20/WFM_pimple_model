@@ -1,21 +1,23 @@
 {
   "APAC-sina": {
-    "id": "ac75f752-a3b8-4b2f-9517-ac87d473bb59",
+    "id": "25fea8d7-0f8c-4599-84f7-0dffa93d3a6b",
     "region": "APAC",
     "owner": "sina",
     "status": 0,
     "copyLoaded": true,
-    "createdAt": "2026-09-30T05:07:39.382Z",
-    "copyLoadedAt": "2026-10-08T03:27:11.154Z"
+    "createdAt": "2026-10-15T03:39:13.146Z",
+    "note": "Duplicate created in the Instantly UI on 2026-10-15 to relaunch APAC.",
+    "copyLoadedAt": "2026-10-15T03:41:06.306Z"
   },
   "APAC-denzel": {
-    "id": "f6d6c757-b7e9-46bd-bf44-a73cf2341aab",
+    "id": "6a3b491e-c9ba-4c90-bec1-2f210bbad30f",
     "region": "APAC",
     "owner": "denzel",
     "status": 0,
     "copyLoaded": true,
-    "createdAt": "2026-09-30T05:07:40.031Z",
-    "copyLoadedAt": "2026-10-08T03:27:11.520Z"
+    "createdAt": "2026-10-15T03:39:13.146Z",
+    "note": "Duplicate created in the Instantly UI on 2026-10-15 to relaunch APAC.",
+    "copyLoadedAt": "2026-10-15T03:41:07.126Z"
   },
   "US-West-sina": {
     "id": "e8e511ff-5a3d-4d6f-9f49-31ae12fcbefd",
@@ -24,7 +26,7 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:08:33.165Z",
-    "copyLoadedAt": "2026-10-08T03:27:11.890Z"
+    "copyLoadedAt": "2026-10-15T03:41:07.497Z"
   },
   "US-West-denzel": {
     "id": "64714786-ccc8-475a-a1cf-4c4f38181c7e",
@@ -33,6 +35,28 @@
     "status": 0,
     "copyLoaded": true,
     "createdAt": "2026-09-30T05:08:33.480Z",
-    "copyLoadedAt": "2026-10-08T03:27:12.242Z"
+    "copyLoadedAt": "2026-10-15T03:41:07.826Z"
+  },
+  "APAC-sina-retired": {
+    "id": "ac75f752-a3b8-4b2f-9517-ac87d473bb59",
+    "region": "APAC",
+    "owner": "sina",
+    "status": 0,
+    "copyLoaded": true,
+    "createdAt": "2026-09-30T05:07:39.382Z",
+    "copyLoadedAt": "2026-10-08T03:27:11.154Z",
+    "retiredAt": "2026-10-15T03:39:13.142Z",
+    "note": "Paused original. Sent 30 emails on 2026-10-08, 13 of them doubled by the delay bug. Superseded by the duplicate."
+  },
+  "APAC-denzel-retired": {
+    "id": "f6d6c757-b7e9-46bd-bf44-a73cf2341aab",
+    "region": "APAC",
+    "owner": "denzel",
+    "status": 0,
+    "copyLoaded": true,
+    "createdAt": "2026-09-30T05:07:40.031Z",
+    "copyLoadedAt": "2026-10-08T03:27:11.520Z",
+    "retiredAt": "2026-10-15T03:39:13.146Z",
+    "note": "Paused original. Sent 30 emails on 2026-10-08, 13 of them doubled by the delay bug. Superseded by the duplicate."
   }
 }

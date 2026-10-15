@@ -41,21 +41,60 @@ const LABEL = {
   trial_link: 'Start a free trial',
 };
 
+// The same three destinations also arrive as plain URLs, because resolveConstants expands
+// {booking_link} and {trial_link} to literals before this runs. They deserve the same label as
+// the merge-field form; a reader should not see one email say "Book a Conversation" and the
+// next print a bare meetings URL for the identical action.
+const URL_LABEL = [
+  [/^https:\/\/meetings\.hubspot\.com\//i, 'Book a Conversation'],
+  [/^https:\/\/app\.workflowmax\.com\/register\/sign_up/i, 'Start a free trial'],
+];
+
 function linkify(escaped) {
   return escaped.replace(LINK, (m) => {
     const isUrl = /^https:\/\//i.test(m);
     if (!isUrl && !LINKY_FIELD.test(m)) return m;   // {{firstName}} is not a link
-    const field = isUrl ? null : m.replace(/[{}]/g, '').toLowerCase();
-    const text = field ? (LABEL[field] || m) : m;
+    let text = m;
+    if (isUrl) {
+      const hit = URL_LABEL.find(([re]) => re.test(m));
+      if (hit) text = hit[1];
+    } else {
+      text = LABEL[m.replace(/[{}]/g, '').toLowerCase()] || m;
+    }
     return `<a href="${m}" target="_blank" rel="noopener">${text}</a>`;
   });
+}
+
+// The brand word itself links to the Harvest comparison page. Only the first mention in a
+// message, because linking every one turns the body into a field of blue and reads as SEO spam.
+const BRAND = 'WorkflowMAX';
+export const BRAND_URL = 'https://start.workflowmax.com/harvest';
+
+// Replace inside text only. Splitting on tags keeps the brand word out of an href, out of a
+// tracking URL and out of anchor text that already points somewhere else, any of which would
+// produce a nested or broken anchor.
+function linkBrandOnce(html, state) {
+  if (state.done) return html;
+  let depth = 0;
+  return html.split(/(<[^>]+>)/).map((part) => {
+    if (part.startsWith('<')) {
+      if (/^<a\b/i.test(part)) depth++;
+      else if (/^<\/a>/i.test(part)) depth = Math.max(0, depth - 1);
+      return part;
+    }
+    if (state.done || depth > 0 || !part.includes(BRAND)) return part;
+    state.done = true;
+    return part.replace(BRAND, `<a href="${BRAND_URL}" target="_blank" rel="noopener">${BRAND}</a>`);
+  }).join('');
 }
 
 // plain text -> HTML, preserving the paragraph structure the copy was written with.
 export function toHtml(text) {
   const paras = String(text ?? '').replace(/\r\n/g, '\n').split(/\n{2,}/);
+  const state = { done: false };
   return paras
-    .map((para) => para.split('\n').map((line) => `<div>${linkify(esc(line)) || '<br>'}</div>`).join(''))
+    .map((para) => para.split('\n')
+      .map((line) => `<div>${linkBrandOnce(linkify(esc(line)), state) || '<br>'}</div>`).join(''))
     .join('<div><br></div>');
 }
 

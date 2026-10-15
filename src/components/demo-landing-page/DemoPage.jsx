@@ -119,7 +119,9 @@ const bookingUrl = (id) => {
 };
 const FREE_TRIAL_URL = "https://app.workflowmax.com/register/sign_up";
 /* Plain product site, used where naming an industry would be a guess rather than a fact. */
-const WFM_SITE_URL = "https://workflowmax.com";
+// Harvest campaign only. The generic site sends a Harvest user to a homepage that knows
+// nothing about why they came; this page answers the comparison they arrived with.
+const WFM_SITE_URL = "https://start.workflowmax.com/harvest";
 
 /* The Harvest displacement campaign reuses this page, with two differences: no "All Resources"
    nav, because that campaign has no resource hub behind it and the link would dead-end on a
