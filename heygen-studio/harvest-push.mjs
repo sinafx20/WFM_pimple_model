@@ -115,6 +115,43 @@ if (sample) {
   console.log('  email uses the long URL: Instantly rewrites links itself for its own tracking');
 }
 
+// ---------------------------------------------------------------- already emailed
+// The APAC relaunch runs in duplicated campaigns, so Instantly has no memory of the first
+// attempt and would start these people at Act 1 again. 17 of them already received it on
+// 2026-10-08 and 13 got it twice within nine minutes, which is the last group that should hear
+// the same opener a third time. Contact history lives on the lead, so it is read back rather
+// than kept in a list here.
+//
+// Email only. HeyReach has never sent anything, so LinkedIn still goes to everyone.
+const emailedAlready = new Set();
+{
+  const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
+  let sa;
+  for (let i = 0; i < 15; i++) {
+    const r = await fetch('https://api.instantly.ai/api/v2/leads/list', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${IK}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ limit: 100, ...(sa ? { starting_after: sa } : {}) }),
+    });
+    if (r.status === 429) { await sleep2(4000); i--; continue; }
+    if (!r.ok) {
+      console.error(`REFUSING: could not read Instantly lead history (HTTP ${r.status}).`);
+      console.error('Pushing blind here re-sends Act 1 to people who already have it.');
+      process.exit(1);
+    }
+    const b = await r.json();
+    for (const l of b.items || []) {
+      if (l.timestamp_last_contact) emailedAlready.add(String(l.email).toLowerCase());
+    }
+    if (!b.next_starting_after || !(b.items || []).length) break;
+    sa = b.next_starting_after;
+    await sleep2(350);
+  }
+}
+const wouldResend = live.filter((c) => emailedAlready.has(String(c.email || '').toLowerCase()));
+console.log(`\n${emailedAlready.size} people have already been emailed at some point; `
+  + `${wouldResend.length} of them are in this push and will be SKIPPED on email, kept on LinkedIn.`);
+
 if (!COMMIT) { console.log('\nDRY RUN. Re-run with --commit to push.'); process.exit(0); }
 
 // ---------------------------------------------------------------- push
@@ -160,6 +197,7 @@ for (const [key, list] of Object.entries(plan).sort()) {
     else {
       for (const c of list) {
         if (!String(c.email || '').trim()) { results.instantly.skip++; continue; }
+        if (emailedAlready.has(c.email.toLowerCase())) { results.instantly.skip++; continue; }
         const body = {
           campaign: camp.id,
           email: c.email.toLowerCase(),
