@@ -108,11 +108,17 @@ const isVideoCard = (tool === "intro" || isDemo) && /^https:\/\//.test(isDemo ? 
     <script is:inline>
       (function () {
         try {
-          var email = new URLSearchParams(window.location.search).get("email");
-          if (!email || email.indexOf("@") < 0) return;
           var _hsq = (window._hsq = window._hsq || []);
-          _hsq.push(["identify", { email: email }]);
+          var email = new URLSearchParams(window.location.search).get("email");
+          // Identify only when the link carried the contact's address, which outbound links do
+          // and an ad click never will.
+          if (email && email.indexOf("@") > -1) _hsq.push(["identify", { email: email }]);
           _hsq.push(["setPath", window.location.pathname + window.location.search]);
+          // The page view is recorded either way. It used to return early without an email, so
+          // every visit from a LinkedIn or Google ad was dropped before HubSpot saw it. An
+          // anonymous view is still worth having: HubSpot holds it against the browser cookie
+          // and attaches the whole history to the contact the moment that person is identified
+          // later, by an outbound link or a form. Dropping it loses that permanently.
           _hsq.push(["trackPageView"]);
         } catch (e) { /* tracking must never take the page down */ }
       })();
