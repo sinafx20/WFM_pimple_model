@@ -59,21 +59,35 @@ if (problems.length) {
 }
 console.log('all four mailboxes are connected and warmed\n');
 
+// Which campaigns this run touches. Without --region every campaign in state is patched,
+// including the superseded APAC originals, which should keep whatever they have. The daily
+// limit is per campaign, so the more campaigns an owner has attached the more they oversubscribe
+// the same two mailboxes; only the campaigns actually being launched belong here.
+const REGION = (process.argv.find((a) => a.startsWith('--region=')) || '').split('=')[1];
+const targets = Object.entries(state).filter(([key]) => {
+  if (key.endsWith('-retired')) return false;
+  return REGION ? key.startsWith(`${REGION}-`) : true;
+});
+if (!targets.length) {
+  console.error(REGION ? `no campaigns in state for region ${REGION}` : 'no campaigns in state');
+  process.exit(1);
+}
+
 console.log('campaign            mailboxes                                            daily');
-for (const [key, s] of Object.entries(state)) {
+for (const [key] of targets) {
   const owner = key.endsWith('denzel') ? 'denzel' : 'sina';
   console.log(`  ${key.padEnd(18)} ${MAILBOXES[owner].join(', ').padEnd(52)} ${DAILY_LIMIT}`);
 }
 
 const perOwner = {};
-Object.keys(state).forEach((k) => { const o = k.endsWith('denzel') ? 'denzel' : 'sina'; perOwner[o] = (perOwner[o] || 0) + DAILY_LIMIT; });
+targets.map(([k]) => k).forEach((k) => { const o = k.endsWith('denzel') ? 'denzel' : 'sina'; perOwner[o] = (perOwner[o] || 0) + DAILY_LIMIT; });
 console.log(`\nper owner this adds up to ${Object.values(perOwner)[0]} sends a day against a mailbox ceiling of 40,`);
 console.log('leaving the rest for Volcano, which still shares these mailboxes.');
 
 if (!COMMIT) { console.log('\nDRY RUN. Re-run with --commit to apply.'); process.exit(0); }
 
 let ok = 0, fail = 0;
-for (const [key, s] of Object.entries(state)) {
+for (const [key, s] of targets) {
   const owner = key.endsWith('denzel') ? 'denzel' : 'sina';
   const r = await fetch(`https://api.instantly.ai/api/v2/campaigns/${s.id}`, {
     method: 'PATCH', headers: H,

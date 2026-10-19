@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildHarvestSequence, copyComplete, STEPS, ANGLES, ANGLE_KEYS, REGION_KEYS, requiredCustomFields } from './harvest-sequences.mjs';
+import { buildHarvestSequence, copyComplete, STEPS, ANGLES, ANGLE_KEYS, REGION_KEYS, requiredCustomFields, regionsFromArgv } from './harvest-sequences.mjs';
 import { resolveConstants, shortenCopy } from './harvest-tokens.mjs';
 import { shorten } from './harvest-shorten.mjs';
 
@@ -49,7 +49,7 @@ const campaignName = (region, owner) => `Harvest LI - ${region} - ${NAME[owner]}
 
 
 const ALL = [];
-for (const region of REGION_KEYS) for (const owner of OWNERS) ALL.push({ region, owner, key: `${region}-${owner}` });
+for (const region of regionsFromArgv()) for (const owner of OWNERS) ALL.push({ region, owner, key: `${region}-${owner}` });
 
 // Campaigns from the abandoned lane x owner pass. HeyReach exposes no delete or rename in its
 // public API, so these have to go from the UI; naming them here stops them being mistaken for
@@ -57,7 +57,7 @@ for (const region of REGION_KEYS) for (const owner of OWNERS) ALL.push({ region,
 const ORPHANS = [629069, 629070, 629071, 629072, 629073, 629074];
 
 function plan() {
-  console.log('Four campaigns would be created, all DRAFT, all with placeholder copy:\n');
+  console.log(`${ALL.length} campaign(s) would be created, all DRAFT, all with placeholder copy:\n`);
   ALL.forEach(({ region, owner, key }) => console.log(`  ${key.padEnd(16)} "${campaignName(region, owner)}"  seat ${SEAT[owner]}`));
   console.log('\nThe three angles run as A/B variants inside each angled step:');
   ANGLE_KEYS.forEach((k) => console.log(`  ${k}  ${ANGLES[k]}`));

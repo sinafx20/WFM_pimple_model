@@ -59,42 +59,103 @@ async function api(url, opts = {}, label = '') {
 }
 
 // ---------------------------------------------------------------- audience
+//
+// Two sources. By default the audience is everyone carrying volcano_campaign=harvest, which is
+// what enrolment stamps. --source=companylist:<id> instead walks a HubSpot COMPANY list and
+// takes every contact associated with those companies: that is how the AU launch is defined,
+// by confirmed-Harvest companies rather than by a contact property.
+//
+// --region=AU then forces every contact into that lane. Without it regionOf() reads `country`,
+// which would route these to APAC and into the wrong campaign entirely.
 const READ = ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'country',
   'hs_linkedin_url', 'hubspot_owner_id', 'volcano_campaign', 'volcano_disposition'];
+const SOURCE = (process.argv.find((a) => a.startsWith('--source=')) || '').split('=')[1] || null;
+const FORCE_REGION = (process.argv.find((a) => a.startsWith('--region=')) || '').split('=')[1] || null;
 const contacts = [];
-for (let after = 0; ;) {
-  const b = await api('https://api.hubapi.com/crm/v3/objects/contacts/search', {
-    method: 'POST', headers: H,
-    body: JSON.stringify({
-      filterGroups: [{ filters: [{ propertyName: 'volcano_campaign', operator: 'EQ', value: 'harvest' }] }],
-      properties: READ, limit: 100, after: String(after),
-    }),
-  }, 'contact search');
-  (b.results || []).forEach((c) => contacts.push({ id: c.id, ...c.properties }));
-  if (!b.paging?.next?.after) break;
-  after = b.paging.next.after;
+
+if (SOURCE && SOURCE.startsWith('companylist:')) {
+  const listId = SOURCE.split(':')[1];
+  const companyIds = [];
+  for (let after = 0; ;) {
+    const u = new URL(`https://api.hubapi.com/crm/v3/lists/${listId}/memberships`);
+    u.searchParams.set('limit', '250');
+    if (after) u.searchParams.set('after', String(after));
+    const b = await api(u.toString(), { headers: H }, 'list memberships');
+    (b.results || []).forEach((m) => companyIds.push(m.recordId));
+    if (!b.paging?.next?.after) break;
+    after = b.paging.next.after;
+    await sleep(150);
+  }
+  console.log(`company list ${listId}: ${companyIds.length} companies`);
+  if (!companyIds.length) { console.error('That list is empty.'); process.exit(1); }
+
+  // 10 at a time, paced. Firing these in parallel once turned every 429 into a silent "no
+  // contacts" and under-reported the audience by two orders of magnitude.
+  const contactIds = new Set();
+  for (let i = 0; i < companyIds.length; i += 10) {
+    const b = await api('https://api.hubapi.com/crm/v4/associations/companies/contacts/batch/read', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ inputs: companyIds.slice(i, i + 10).map((id) => ({ id })) }),
+    }, 'company->contact associations');
+    for (const r of b.results || []) for (const t of r.to || []) contactIds.add(String(t.toObjectId));
+    await sleep(220);
+  }
+  const ids = [...contactIds];
+  console.log(`contacts associated with them: ${ids.length}`);
+  for (let i = 0; i < ids.length; i += 100) {
+    const b = await api('https://api.hubapi.com/crm/v3/objects/contacts/batch/read', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ inputs: ids.slice(i, i + 100).map((id) => ({ id })), properties: READ }),
+    }, 'contact batch read');
+    (b.results || []).forEach((c) => contacts.push({ id: c.id, ...c.properties }));
+    await sleep(200);
+  }
+} else {
+  for (let after = 0; ;) {
+    const b = await api('https://api.hubapi.com/crm/v3/objects/contacts/search', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({
+        filterGroups: [{ filters: [{ propertyName: 'volcano_campaign', operator: 'EQ', value: 'harvest' }] }],
+        properties: READ, limit: 100, after: String(after),
+      }),
+    }, 'contact search');
+    (b.results || []).forEach((c) => contacts.push({ id: c.id, ...c.properties }));
+    if (!b.paging?.next?.after) break;
+    after = b.paging.next.after;
+  }
 }
-console.log(`enrolled in harvest: ${contacts.length} contacts`);
+console.log(`audience: ${contacts.length} contacts`);
 if (!contacts.length) {
-  console.error('Nobody is enrolled yet. Run: node harvest-enrol.mjs --commit');
+  console.error('Nobody to push. Without --source, run: node harvest-enrol.mjs --commit');
   process.exit(1);
 }
 
+// Owner decides the sender, the calendar and the walkthrough video, so a contact owned by
+// nobody cannot be routed. Refusing is the default because guessing an owner puts a prospect in
+// front of the wrong AE. --skip-unowned drops them instead, which is right when the audience
+// comes from a company list that was never owner-scoped in the first place.
+const SKIP_UNOWNED = process.argv.includes('--skip-unowned');
 const stray = contacts.filter((c) => !OWNER_OF[c.hubspot_owner_id]);
-if (stray.length) {
+if (stray.length && !SKIP_UNOWNED) {
   console.error(`REFUSING: ${stray.length} contacts are owned by someone other than Sina or Denzel.`);
-  stray.slice(0, 5).forEach((c) => console.error(`   ${c.email || c.id} owner ${c.hubspot_owner_id}`));
+  stray.slice(0, 5).forEach((c) => console.error(`   ${c.email || c.id} owner ${c.hubspot_owner_id ?? 'none'}`));
+  console.error('Assign them in HubSpot, or re-run with --skip-unowned to leave them out.');
   process.exit(1);
 }
-const ruled = contacts.filter((c) => RULED.includes(String(c.volcano_disposition || '')));
-const live = contacts.filter((c) => !RULED.includes(String(c.volcano_disposition || '')));
+if (stray.length) {
+  console.log(`skipping ${stray.length} contact(s) with no Sina/Denzel owner: `
+    + stray.map((c) => c.email || c.id).join(', '));
+}
+const owned = contacts.filter((c) => OWNER_OF[c.hubspot_owner_id]);
+const ruled = owned.filter((c) => RULED.includes(String(c.volcano_disposition || '')));
+const live = owned.filter((c) => !RULED.includes(String(c.volcano_disposition || '')));
 if (ruled.length) console.log(`skipping ${ruled.length} marked as a no since enrolment`);
 
 // ---------------------------------------------------------------- plan
 const plan = {};
 for (const c of live) {
   const owner = OWNER_OF[c.hubspot_owner_id];
-  const key = `${regionOf(c)}-${owner}`;
+  const key = `${FORCE_REGION || regionOf(c)}-${owner}`;
   (plan[key] = plan[key] || []).push({ ...c, _owner: owner, _key: key });
 }
 console.log('\ncampaign            contacts  linkedin  email  tracked');

@@ -41,11 +41,30 @@ export const ANGLES = {
 };
 export const ANGLE_KEYS = Object.keys(ANGLES);
 
+// AU is deliberately narrower than APAC rather than a rename of it. The APAC campaigns hold New
+// Zealand and Singapore contacts and have already sent; AU is the Australia-only relaunch built
+// from the confirmed-Harvest company list. Both exist at once, so every script that iterates
+// regions has to be told which one it means.
 export const REGIONS = {
+  AU: { label: 'AU', countries: ['Australia'] },
   APAC: { label: 'APAC', countries: ['Australia', 'New Zealand', 'Singapore'] },
   'US-West': { label: 'US-West', countries: ['United States'] },
 };
 export const REGION_KEYS = Object.keys(REGIONS);
+
+// --region=AU limits a run to one region. Without it a create would try to rebuild every
+// campaign that already exists, and HeyReach has no delete in its public API.
+export function regionsFromArgv(argv = process.argv) {
+  const arg = (argv.find((a) => a.startsWith('--region=')) || '').split('=')[1];
+  if (!arg) return REGION_KEYS;
+  const want = arg.split(',').map((s) => s.trim());
+  const bad = want.filter((r) => !REGION_KEYS.includes(r));
+  if (bad.length) {
+    console.error(`unknown region: ${bad.join(', ')}. Known: ${REGION_KEYS.join(', ')}`);
+    process.exit(1);
+  }
+  return want;
+}
 
 export const STEPS = [
   { key: 'cr',      kind: 'connection_request', week: 1, angled: true,  required: true,  label: 'Connection request, Act 1 (A/B/C)' },

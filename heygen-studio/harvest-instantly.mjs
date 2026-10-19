@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ANGLES, ANGLE_KEYS, REGION_KEYS } from './harvest-sequences.mjs';
+import { ANGLES, ANGLE_KEYS, REGION_KEYS, regionsFromArgv } from './harvest-sequences.mjs';
 // Instantly's built-in is {{firstName}} and its custom variables are double-braced too, so the
 // neutral tokens in copy-harvest.json have to be translated here exactly as they are for
 // HeyReach. An untranslated token does not fail at push time, it arrives in somebody's inbox.
@@ -57,6 +57,16 @@ export const EMAIL_STEPS = [
 ];
 
 const SCHEDULE = {
+  // Australia only, so a single local business day rather than APAC's compromise across
+  // UTC+8 to +13. Melbourne is the timezone Instantly offers that matches.
+  AU: {
+    schedules: [{
+      name: 'AU business hours',
+      timing: { from: '08:00', to: '17:00' },
+      days: { 1: true, 2: true, 3: true, 4: true, 5: true },
+      timezone: 'Australia/Melbourne',
+    }],
+  },
   APAC: {
     schedules: [{
       name: 'APAC business hours',
@@ -98,7 +108,7 @@ const saveState = (s) => fs.writeFileSync(STATE_PATH, JSON.stringify(s, null, 2)
 const campaignName = (region, owner) => `Harvest Email - ${region} - ${NAME[owner]}`;
 
 const ALL = [];
-for (const region of REGION_KEYS) for (const owner of OWNERS) ALL.push({ region, owner, key: `${region}-${owner}` });
+for (const region of regionsFromArgv()) for (const owner of OWNERS) ALL.push({ region, owner, key: `${region}-${owner}` });
 
 function variantsFor(step, copy) {
   const c = copy?.[step.key];
@@ -146,7 +156,7 @@ function emailCopyComplete(copy) {
 }
 
 function plan() {
-  console.log('Four Instantly campaigns would be created, draft, no sending accounts:\n');
+  console.log(`${ALL.length} Instantly campaign(s) would be created, draft, no sending accounts:\n`);
   ALL.forEach(({ region, owner, key }) => console.log(`  ${key.padEnd(16)} "${campaignName(region, owner)}"  ${SCHEDULE[region].schedules[0].timezone}`));
   console.log('\nAngles as A/B variants:');
   ANGLE_KEYS.forEach((k) => console.log(`  ${k}  ${ANGLES[k]}`));

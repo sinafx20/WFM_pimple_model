@@ -1,62 +1,20 @@
 {
-  "APAC-sina": {
-    "id": "25fea8d7-0f8c-4599-84f7-0dffa93d3a6b",
-    "region": "APAC",
+  "AU-sina": {
+    "id": "9ce617d3-f5e6-48cd-b115-55ab8610d4a6",
+    "region": "AU",
     "owner": "sina",
     "status": 0,
     "copyLoaded": true,
-    "createdAt": "2026-10-15T03:39:13.146Z",
-    "note": "Duplicate created in the Instantly UI on 2026-10-15 to relaunch APAC.",
-    "copyLoadedAt": "2026-10-15T03:41:06.306Z"
+    "createdAt": "2026-10-19T05:25:30.155Z",
+    "copyLoadedAt": "2026-10-19T05:25:39.842Z"
   },
-  "APAC-denzel": {
-    "id": "6a3b491e-c9ba-4c90-bec1-2f210bbad30f",
-    "region": "APAC",
+  "AU-denzel": {
+    "id": "ca6d980d-97e0-4793-9a49-2598c68064aa",
+    "region": "AU",
     "owner": "denzel",
     "status": 0,
     "copyLoaded": true,
-    "createdAt": "2026-10-15T03:39:13.146Z",
-    "note": "Duplicate created in the Instantly UI on 2026-10-15 to relaunch APAC.",
-    "copyLoadedAt": "2026-10-15T03:41:07.126Z"
-  },
-  "US-West-sina": {
-    "id": "e8e511ff-5a3d-4d6f-9f49-31ae12fcbefd",
-    "region": "US-West",
-    "owner": "sina",
-    "status": 0,
-    "copyLoaded": true,
-    "createdAt": "2026-09-30T05:08:33.165Z",
-    "copyLoadedAt": "2026-10-15T03:41:07.497Z"
-  },
-  "US-West-denzel": {
-    "id": "64714786-ccc8-475a-a1cf-4c4f38181c7e",
-    "region": "US-West",
-    "owner": "denzel",
-    "status": 0,
-    "copyLoaded": true,
-    "createdAt": "2026-09-30T05:08:33.480Z",
-    "copyLoadedAt": "2026-10-15T03:41:07.826Z"
-  },
-  "APAC-sina-retired": {
-    "id": "ac75f752-a3b8-4b2f-9517-ac87d473bb59",
-    "region": "APAC",
-    "owner": "sina",
-    "status": 0,
-    "copyLoaded": true,
-    "createdAt": "2026-09-30T05:07:39.382Z",
-    "copyLoadedAt": "2026-10-08T03:27:11.154Z",
-    "retiredAt": "2026-10-15T03:39:13.142Z",
-    "note": "Paused original. Sent 30 emails on 2026-10-08, 13 of them doubled by the delay bug. Superseded by the duplicate."
-  },
-  "APAC-denzel-retired": {
-    "id": "f6d6c757-b7e9-46bd-bf44-a73cf2341aab",
-    "region": "APAC",
-    "owner": "denzel",
-    "status": 0,
-    "copyLoaded": true,
-    "createdAt": "2026-09-30T05:07:40.031Z",
-    "copyLoadedAt": "2026-10-08T03:27:11.520Z",
-    "retiredAt": "2026-10-15T03:39:13.146Z",
-    "note": "Paused original. Sent 30 emails on 2026-10-08, 13 of them doubled by the delay bug. Superseded by the duplicate."
+    "createdAt": "2026-10-19T05:25:30.960Z",
+    "copyLoadedAt": "2026-10-19T05:25:40.210Z"
   }
 }
