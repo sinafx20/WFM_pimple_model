@@ -91,7 +91,17 @@ for (const [key, s] of targets) {
   const owner = key.endsWith('denzel') ? 'denzel' : 'sina';
   const r = await fetch(`https://api.instantly.ai/api/v2/campaigns/${s.id}`, {
     method: 'PATCH', headers: H,
-    body: JSON.stringify({ email_list: MAILBOXES[owner], daily_limit: DAILY_LIMIT }),
+    // Tracking is switched on HERE rather than at create, because create deliberately leaves a
+    // half-built campaign unable to record anything. This is the step that makes a campaign
+    // sendable, so it is also where the two signals the heat model is built on get enabled.
+    // The AU campaigns shipped with both off and nobody would have noticed until the numbers
+    // stayed at zero for a week.
+    body: JSON.stringify({
+      email_list: MAILBOXES[owner],
+      daily_limit: DAILY_LIMIT,
+      link_tracking: true,
+      open_tracking: true,
+    }),
   });
   if (r.status < 300) { ok++; console.log(`+ ${key}: ${MAILBOXES[owner].length} mailboxes, daily limit ${DAILY_LIMIT}`); }
   else { fail++; console.error(`! ${key} FAILED HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`); }
