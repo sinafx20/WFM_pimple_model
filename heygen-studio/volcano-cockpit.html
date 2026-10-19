@@ -215,6 +215,11 @@
   .hcard .hstat b{font-weight:600;font-variant-numeric:tabular-nums}
   .hcard .hheat{font-family:'Bruna',Georgia,serif;font-weight:700;font-size:19px;line-height:1;
     font-variant-numeric:tabular-nums}
+  /* People behind a company's score, inside the hover card. */
+  .hppl{margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+  .hprow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+         font-size:11.5px;line-height:1.5;color:var(--muted)}
+  .hprow b{font-variant-numeric:tabular-nums}
   .hslink{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:11px;
     background:var(--money);color:var(--evergreen);font-size:11.5px;font-weight:700;
     text-decoration:none;border-radius:8px;padding:8px 10px;letter-spacing:.02em}
@@ -440,10 +445,10 @@
 
     <div class="basebar">
       <span class="bignum" id="basecount">&mdash;</span>
-      <span class="lbl">contacts in sequence</span>
+      <span class="lbl">companies in sequence</span>
       <span class="note" id="basenote"></span>
     </div>
-    <p class="hint">Hover any ember for the contact, then click through to their HubSpot record. Click a band on the right to list everyone in it.</p>
+    <p class="hint">Each ember is a company. Hover one to see the people behind its score, then click through to the HubSpot record. Click a band on the right to list every company in it.</p>
   </section>
 
   <!-- ================= DRILL-DOWN ================= -->
@@ -456,7 +461,7 @@
     <div class="tscroll">
       <table>
         <thead><tr>
-          <th>Contact</th><th>Vertical</th><th>AE</th>
+          <th>Company</th><th>Vertical</th><th>AE</th>
           <th>Email signals</th><th>LinkedIn</th><th class="num">Heat</th><th>Record</th>
         </tr></thead>
         <tbody id="drows"></tbody>
@@ -668,7 +673,7 @@ function renderVolcano(){
   const climbing = placed.filter(p => p.h > 0 && !p.c.int).length;
   const intCount = C.filter(c => c.int).length;
   document.getElementById('basenote').innerHTML =
-    '<b style="color:var(--ink)">'+climbing+'</b> showing any heat so far'
+    '<b style="color:var(--ink)">'+climbing+'</b> compan'+(climbing===1?'y':'ies')+' showing any heat so far'
     + (intCount ? ' · '+intCount+' internal address'+(intCount>1?'es':'')+' excluded' : '');
 
   window.__counts = counts;
@@ -709,9 +714,12 @@ function showCard(p, svg, card, host){
     : c.ls === 'ConnectionSent' ? 'request pending' : c.lin ? 'in sequence' : 'not in LinkedIn';
   const topTools = Object.entries(c.lct || {}).filter(([,n]) => n > 0).sort((a,b) => b[1]-a[1])
     .map(([t,n]) => (TOOL_ORDER.find(x => x[0]===t)||[t,t])[1] + ' ' + n).slice(0,3).join(', ');
+  const who = c.nPeople === 1 ? esc(c.people[0].n + ' ' + c.people[0].ln).trim() + (c.people[0].t ? ' &middot; ' + esc(c.people[0].t) : '')
+    : c.nPeople + ' contacts tracked'
+      + (c.breadth ? ' &middot; <span style="color:' + p.b.col + '">' + (c.breadth + 1) + ' engaged</span>' : '');
   card.innerHTML =
-    '<div class="hn">' + esc(c.n) + (c.ln ? ' ' + esc(c.ln) : '') + (c.int ? ' <span class="tag int">internal</span>' : '') + '</div>'
-    + '<div class="ht">' + (c.t ? esc(c.t) + '<br>' : '') + esc(c.c || '') + '</div>'
+    '<div class="hn">' + esc(c.n) + (c.int ? ' <span class="tag int">internal</span>' : '') + '</div>'
+    + '<div class="ht">' + who + '</div>'
     + '<div class="hrow">'
       + '<span class="tag ae-' + (c.o==='sina'?'s':'d') + '">' + (c.o==='sina'?'Sina':'Denzel') + '</span>'
       + '<span class="tag" style="color:var(--muted);border-color:var(--line)">' + esc(VLABEL[c.v] || 'unclassified') + '</span>'
@@ -727,7 +735,18 @@ function showCard(p, svg, card, host){
         + (c.vx ? ' <span style="color:var(--faint);font-weight:400">(pre-cutoff, not counted)</span>' : '') + '</b></div>'
       + '<div class="hstat"><span>Link fetches</span><b>' + (c.lc || 0) + (topTools ? ' <span style="color:var(--faint);font-weight:400">(' + esc(topTools) + ')</span>' : '') + '</b></div>'
     + '</div>'
-    + '<a class="hslink" href="https://app.hubspot.com/contacts/' + PORTAL + '/record/0-1/' + c.id + '" target="_blank" rel="noopener">Open in HubSpot &#8599;</a>';
+    // Who is actually behind the account's score. Without this the company number is unactionable:
+    // the AE still has to ring a person, and the breadth bonus is invisible otherwise.
+    + (c.nPeople > 1
+      ? '<div class="hppl">' + c.people.slice(0, 5).map((q) =>
+          '<div class="hprow"><span>' + esc((q.n + ' ' + q.ln).trim() || q.id)
+          + (q.t ? ' <span style="color:var(--faint)">' + esc(q.t) + '</span>' : '') + '</span>'
+          + '<b style="color:' + bandOf(effHeat(q)).col + '">' + effHeat(q) + '</b></div>').join('')
+        + (c.nPeople > 5 ? '<div class="hprow" style="color:var(--faint)">and ' + (c.nPeople - 5) + ' more</div>' : '')
+        + '</div>'
+      : '')
+    + '<a class="hslink" href="https://app.hubspot.com/contacts/' + PORTAL + '/record/'
+      + (c.isCo ? '0-2' : '0-1') + '/' + c.id + '" target="_blank" rel="noopener">Open in HubSpot &#8599;</a>';
   card.classList.add('show');
   // clamp inside the host so the card never runs off the panel edge
   const cw = card.offsetWidth, chh = card.offsetHeight, hw = host.clientWidth;
@@ -843,7 +862,7 @@ function toggleBand(k){
   const b = BANDS.find(x => x.k === OPEN);
   const rows = window.__placed.filter(p => p.b.k === OPEN).sort((a,z) => z.h - a.h);
   document.getElementById('dtitle').innerHTML = '<span style="color:'+b.col+'">'+b.n+'</span> · heat '+b.range;
-  document.getElementById('dcount').textContent = rows.length + (rows.length===1?' contact':' contacts');
+  document.getElementById('dcount').textContent = rows.length + (rows.length===1?' company':' companies');
   document.getElementById('drows').innerHTML = rows.length ? rows.map(p => {
     const c = p.c;
     const sigs = [];
@@ -852,15 +871,21 @@ function toggleBand(k){
     if (c.rp) sigs.push('<b>'+c.rp+'</b> repl'+(c.rp>1?'ies':'y'));
     const liTxt = c.li >= 30 ? '<b>replied</b>' : c.ls === 'ConnectionAccepted' ? '<b>accepted</b>'
       : c.ls === 'ConnectionSent' ? 'request sent' : c.lin ? 'in sequence' : '—';
+    // Name the people under the company, so the row says who to ring rather than only which firm.
+    const names = c.people.slice(0, 3).map(q => esc((q.n + ' ' + q.ln).trim() || '—')).join(', ')
+      + (c.nPeople > 3 ? ' +' + (c.nPeople - 3) : '');
     return '<tr><td><span class="who">'+esc(c.n)+'</span>'
       + (c.int?' <span class="tag int">internal</span>':'')
-      + '<br><span class="co">'+esc(c.c)+'</span></td>'
+      + (c.breadth ? ' <span class="tag" style="color:'+p.b.col+';border-color:'+p.b.col+'">'+(c.breadth+1)+' engaged</span>' : '')
+      + '<br><span class="co">'+names+'</span></td>'
       + '<td>'+(VLABEL[c.v]||'—')+'</td>'
       + '<td><span class="tag ae-'+(c.o==='sina'?'s':'d')+'">'+(c.o==='sina'?'Sina':'Denzel')+'</span></td>'
       + '<td><span class="sig">'+(sigs.length?sigs.join(' · '):(c.em?'no activity yet':'not in email'))+'</span></td>'
       + '<td><span class="sig">'+liTxt+'</span></td>'
-      + '<td class="num"><span class="heat" style="color:'+p.b.col+'">'+p.h+'</span></td>'
-      + '<td><a class="hslink hsrow" href="https://app.hubspot.com/contacts/'+PORTAL+'/record/0-1/'+c.id+'" target="_blank" rel="noopener">HubSpot &#8599;</a></td></tr>';
+      + '<td class="num"><span class="heat" style="color:'+p.b.col+'">'+p.h+'</span>'
+        + (c.breadth ? '<br><span style="font-size:10px;color:var(--faint)">'+c.maxHeat+' + '+(c.breadth*CO_BONUS)+'</span>' : '') + '</td>'
+      + '<td><a class="hslink hsrow" href="https://app.hubspot.com/contacts/'+PORTAL+'/record/'
+        + (c.isCo?'0-2':'0-1') + '/'+c.id+'" target="_blank" rel="noopener">HubSpot &#8599;</a></td></tr>';
   }).join('') : '<tr><td colspan="7" style="padding:18px 14px;color:var(--faint)">Nothing has reached this band yet.</td></tr>';
   drill.classList.add('open');
   renderVolcano();
@@ -1099,6 +1124,10 @@ function toRow(r) {
   return {
     id: String(p.hs_object_id || r.id || ''),
     n: p.firstname || '', ln: p.lastname || '', t: p.jobtitle || '', c: p.company || '',
+    // The association id, not the company NAME. Names are free text and blank on some
+    // records, so grouping by them splits one firm across several rows and merges firms
+    // that happen to share a name. Every tracked contact has the association.
+    co: p.associatedcompanyid || '',
     v: VERT[p.volcano_icp_vertical] || 'consulting',
     o: OWNER_AE[p.hubspot_owner_id] || 'sina',
     // Blank until the rollup backfills it. A Volcano contact that predates volcano_campaign
@@ -1148,7 +1177,7 @@ const HS_INPUT = (offset) => ({
     'volcano_disposition', 'volcano_disposition_note',
     'volcano_peak_heat', 'volcano_peak_band',
     'hs_analytics_last_timestamp',
-    'volcano_last_interaction_at', 'email'],
+    'volcano_last_interaction_at', 'email', 'associatedcompanyid'],
   // volcano_internal excludes teammates and internal testers outright rather than
   // zeroing their heat: a colleague sitting in the Cold band still makes the audience
   // look bigger than it is and still turns up in the campaign bars. It is only ever set
@@ -1328,15 +1357,75 @@ function stampCampaign() {
   if (!el) return;
   if (!RAW.length) { el.textContent = ''; return; }
   const n = (k) => RAW.filter((r) => r.camp === k).length;
+  // Both numbers, because the volcano counts companies while the campaign split is a property
+  // of contacts. Showing only one of them invites the reader to divide the wrong pair.
   el.textContent = CAMPAIGN === 'all'
-    ? RAW.length + ' contacts \u00b7 ' + n('volcano') + ' Volcano, ' + n('harvest') + ' Harvest'
-    : ALL.length + ' of ' + RAW.length + ' contacts';
+    ? C.length + ' companies \u00b7 ' + RAW.length + ' contacts \u00b7 ' + n('volcano') + ' Volcano, ' + n('harvest') + ' Harvest'
+    : C.length + ' companies \u00b7 ' + ALL.length + ' of ' + RAW.length + ' contacts';
 }
 const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
 const DISP_LABEL = { opted_out: 'asked to opt out', not_interested: 'not interested', disqualified: 'disqualified', engaged: 'engaged' };
+
+// ---- contacts -> companies -------------------------------------------------------------
+// The volcano plots companies, because that is the unit a deal is actually done with. Two
+// people at one firm reading the same email is one account warming up, not two.
+//
+// THE RULE. A company is at least as hot as its hottest person, plus a bonus for every OTHER
+// person there who is genuinely engaged. Multi-threading is real buying signal, so it has to
+// count for something; a plain sum would let four lukewarm opens outrank one genuine reply,
+// which is backwards. Bands keep their existing thresholds so the words mean what they did.
+const CO_ENGAGED = 25;    // a person counts toward breadth once they are Warm in their own right
+const CO_BONUS = 15;      // per additional engaged person
+const CO_BONUS_CAP = 45;  // breadth stops adding after three of them
+
+function groupByCompany(rows) {
+  const by = new Map();
+  for (const r of rows) {
+    // A contact with no association would silently vanish from a company view, so it stands
+    // alone as its own row rather than being dropped.
+    const key = r.co || ('solo:' + r.id);
+    if (!by.has(key)) by.set(key, []);
+    by.get(key).push(r);
+  }
+  return [...by.entries()].map(([key, people]) => {
+    const sum = (f) => people.reduce((n, p) => n + (Number(f(p)) || 0), 0);
+    const any = (f) => people.some((p) => f(p));
+    const heats = people.map((p) => effHeat(p)).sort((a, b) => b - a);
+    const extra = heats.slice(1).filter((h) => h >= CO_ENGAGED).length;
+    const heat = (heats[0] || 0) + Math.min(CO_BONUS_CAP, extra * CO_BONUS);
+    // Whoever is furthest along on LinkedIn represents the account.
+    const lead = people.slice().sort((a, b) => (b.li || 0) - (a.li || 0))[0];
+    const name = (people.find((p) => p.c) || {}).c || '(no company name)';
+    return {
+      id: key.startsWith('solo:') ? people[0].id : key,
+      isCo: !key.startsWith('solo:'),
+      people: people.slice().sort((a, b) => effHeat(b) - effHeat(a)),
+      nPeople: people.length,
+      n: name, ln: '', t: '', c: name,
+      v: lead.v, o: lead.o, camp: lead.camp,
+      // Internal only when the whole account is: one teammate among real prospects must not
+      // zero a live account's heat.
+      int: people.every((p) => p.int),
+      disp: people.every((p) => RULED_OUT.includes(p.disp)) ? people[0].disp : '',
+      heat,
+      coHeat: heat, maxHeat: heats[0] || 0, breadth: extra,
+      op: sum((p) => p.op), opGenuine: sum((p) => p.opGenuine), cl: sum((p) => p.cl),
+      rp: sum((p) => p.rp), gr: sum((p) => p.gr), vv: sum((p) => p.vv),
+      lc: sum((p) => p.lc), emSent: sum((p) => p.emSent),
+      ct: any((p) => p.ct) ? 1 : 0, em: any((p) => p.em) ? 1 : 0, lin: any((p) => p.lin) ? 1 : 0,
+      ar: any((p) => p.ar) ? 1 : 0, vx: any((p) => p.vx) ? 1 : 0,
+      li: lead.li || 0, ls: lead.ls || '',
+      lct: people.reduce((a, p) => { for (const [k, v] of Object.entries(p.lct || {})) a[k] = (a[k] || 0) + v; return a; }, {}),
+    };
+  });
+}
+
 function applyView() {
-  if (VIEW === 'ever') { C = ALL; RULED = []; }
-  else { RULED = ALL.filter((r) => RULED_OUT.includes(r.disp)); C = ALL.filter((r) => !RULED_OUT.includes(r.disp)); }
+  // Ruling out happens per contact, before the grouping, so one person opting out does not
+  // remove their colleagues or the account.
+  const live = VIEW === 'ever' ? ALL : ALL.filter((r) => !RULED_OUT.includes(r.disp));
+  RULED = VIEW === 'ever' ? [] : ALL.filter((r) => RULED_OUT.includes(r.disp));
+  C = groupByCompany(live);
 }
 function setView(v) {
   VIEW = v;
