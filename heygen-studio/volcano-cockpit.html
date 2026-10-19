@@ -374,7 +374,8 @@
           <button type="button" data-v="ever">Ever reached</button>
         </div>
         <div class="vtoggle" id="camptoggle" role="group" aria-label="Campaign">
-          <button type="button" data-c="all" class="on">All campaigns</button>
+          <button type="button" data-c="harvest-au" class="on">Harvest AU</button>
+          <button type="button" data-c="all">All campaigns</button>
           <button type="button" data-c="volcano">Volcano</button>
           <button type="button" data-c="harvest">Harvest</button>
         </div>
@@ -1333,9 +1334,11 @@ let VIEW = 'live';
 // Which campaign the page is showing. Everything below the selector reads C, which is derived
 // from ALL, which is derived from RAW, so filtering here reaches the volcano, the drill-downs,
 // the contact search and the source cards without any of them needing to know about campaigns.
-let CAMPAIGN = 'all';
+// Australia is the campaign actually running, so the page opens on it rather than on a
+// total that mixes it with two paused audiences.
+let CAMPAIGN = 'harvest-au';
 let RAW = [];
-const CAMPAIGN_LABEL = { volcano: 'Volcano MVP', harvest: 'Harvest' };
+const CAMPAIGN_LABEL = { volcano: 'Volcano MVP', harvest: 'Harvest', 'harvest-au': 'Harvest AU' };
 function applyCampaign() {
   ALL = CAMPAIGN === 'all' ? RAW : RAW.filter((r) => r.camp === CAMPAIGN);
 }
@@ -1360,7 +1363,8 @@ function stampCampaign() {
   // Both numbers, because the volcano counts companies while the campaign split is a property
   // of contacts. Showing only one of them invites the reader to divide the wrong pair.
   el.textContent = CAMPAIGN === 'all'
-    ? C.length + ' companies \u00b7 ' + RAW.length + ' contacts \u00b7 ' + n('volcano') + ' Volcano, ' + n('harvest') + ' Harvest'
+    ? C.length + ' companies \u00b7 ' + RAW.length + ' contacts \u00b7 '
+      + n('harvest-au') + ' Harvest AU, ' + n('volcano') + ' Volcano, ' + n('harvest') + ' Harvest'
     : C.length + ' companies \u00b7 ' + ALL.length + ' of ' + RAW.length + ' contacts';
 }
 const RULED_OUT = ['opted_out', 'not_interested', 'disqualified'];
