@@ -44,9 +44,13 @@ const LIST_ID = '3698';
 //
 // Cutoff = everything before it is our own testing, not prospects. Counting July activity
 // once crowned a test session as the hottest lead in the pipeline.
+// Every campaign value that volcano_campaign can hold. A campaign missing from here is never
+// rolled up, so its heat stays at zero and it cannot appear on the cockpit however the page is
+// filtered. The scheduled job runs each of these in turn rather than only the default.
 const CAMPAIGNS = {
   volcano: { cutoff: '2026-08-26' },
-  harvest: { cutoff: '2026-10-06' },   // launch week; move this if the start date shifts
+  harvest: { cutoff: '2026-10-06' },      // launch week; move this if the start date shifts
+  'harvest-au': { cutoff: '2026-10-19' }, // Australia relaunch, live on both channels
 };
 const CAMPAIGN = (process.argv.find((a) => a.startsWith('--campaign=')) || '').split('=')[1]
   || process.env.VOLCANO_CAMPAIGN || 'volcano';

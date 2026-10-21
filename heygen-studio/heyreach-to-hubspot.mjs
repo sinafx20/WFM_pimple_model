@@ -28,6 +28,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { heyreachCampaigns } from './campaign-registry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -45,7 +46,16 @@ const hr = (path_, body) => fetch('https://api.heyreach.io/api/public' + path_, 
 });
 
 const OWNER = { sina: '80406430', denzel: '80127259' };
-const map = JSON.parse(fs.readFileSync(p('heyreach-real-campaigns.json'), 'utf8'));
+
+// Every campaign that exists, asked of HeyReach rather than read from a file written months
+// ago. The file listed the Volcano campaigns only, so Harvest, Harvest AU and AIA Brisbane
+// were all invisible to this sync and nobody could tell: a sync over a short list still
+// reports success. See campaign-registry.mjs for what is deliberately excluded.
+const discovered = await heyreachCampaigns(HK);
+const map = Object.fromEntries(discovered.map((c) => [c.key, c]));
+console.log(`campaigns discovered: ${discovered.length}`);
+const noOwner = discovered.filter((c) => !c.owner);
+if (noOwner.length) console.log(`  ${noOwner.length} name no AE, so their notes carry no owner: ${noOwner.map((c) => c.name).join(', ')}`);
 
 // --- pull every lead across the real campaigns ---
 const leads = [];
@@ -155,13 +165,22 @@ console.log('timeline-worthy events:', wanted.length,
 // --- resolve contacts ---
 const emails = [...new Set(wanted.map(w => w.email))];
 const byEmail = {};
+// Associating the note to the company as well as the contact is what puts LinkedIn activity on
+// the COMPANY timeline. HubSpot does surface some contact activity on a company record, but
+// only for objects that carry the association; without it an AE opening the company sees
+// nothing, which is the view that matters when several people at one firm are being worked.
+const companyOf = {};
 for (let i = 0; i < emails.length; i += 100) {
   const r = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/batch/read', {
     method: 'POST', headers: H,
-    body: JSON.stringify({ idProperty: 'email', properties: ['email'], inputs: emails.slice(i, i + 100).map(e => ({ id: e })) }),
+    body: JSON.stringify({ idProperty: 'email', properties: ['email', 'associatedcompanyid'],
+      inputs: emails.slice(i, i + 100).map(e => ({ id: e })) }),
   });
   const b = await r.json();
-  (b.results || []).forEach(c => { byEmail[(c.properties.email || '').toLowerCase()] = c.id; });
+  (b.results || []).forEach(c => {
+    byEmail[(c.properties.email || '').toLowerCase()] = c.id;
+    if (c.properties.associatedcompanyid) companyOf[c.id] = String(c.properties.associatedcompanyid);
+  });
 }
 const resolved = wanted.filter(w => byEmail[w.email]);
 console.log('contacts resolved:', Object.keys(byEmail).length, '| events on known contacts:', resolved.length);
@@ -208,7 +227,14 @@ for (const w of todo) {
         hs_note_body: body,
         ...(OWNER[w.owner] ? { hubspot_owner_id: OWNER[w.owner] } : {}),
       },
-      associations: [{ to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }],
+      associations: [
+        { to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] },
+        // 190 is note -> company. Skipped silently when the contact has no company, which is
+        // normal for a few records and not worth failing a timeline write over.
+        ...(companyOf[contactId]
+          ? [{ to: { id: companyOf[contactId] }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 190 }] }]
+          : []),
+      ],
     }),
   });
   if (r.ok) { ok++; if (ok % 25 === 0) console.log('  ...' + ok + ' written'); }

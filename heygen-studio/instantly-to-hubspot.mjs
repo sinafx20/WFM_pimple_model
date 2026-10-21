@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { instantlyCampaigns } from './campaign-registry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const p = (f) => path.join(__dirname, f);
@@ -51,7 +52,11 @@ const ownerOf = (m) => isOutbound(m)
 const LEDGER = p('instantly-hubspot-ledger.json');
 const ledger = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : { synced: {} };
 
-const map = JSON.parse(fs.readFileSync(p('instantly-real-campaigns.json'), 'utf8'));
+// Every campaign Instantly has, not the five verticals a file recorded months ago. Harvest,
+// Harvest AU and AIA Brisbane were all missing from that file, so their emails never reached a
+// timeline and the script still exited reporting success.
+const discovered = await instantlyCampaigns(K);
+console.log(`campaigns discovered: ${discovered.length}`);
 
 // Instantly allows 20 requests a minute and answers 429 past that. Left unthrottled this
 // pulls ~40 pages in seconds, gets refused, and — before this was added — reported
@@ -72,24 +77,45 @@ async function instantly(url) {
       await sleep(back);
       continue;
     }
+    // 5xx is transient here. Discovery multiplied the number of campaigns this walks from 10
+    // to 20 and Instantly began returning the occasional 500, which aborted the entire sync
+    // over one bad response; every campaign answered fine when retried. Still throws once the
+    // attempts are spent, because a persistent 500 is a real fault and must not read as
+    // "no messages".
+    if (r.status >= 500) {
+      const back = 4000 * attempt;
+      console.log(`  Instantly ${r.status}, retrying in ${back / 1000}s (attempt ${attempt}/5)`);
+      await sleep(back);
+      continue;
+    }
     throw new Error(`Instantly ${r.status}: ${(await r.text()).slice(0, 200)}`);
   }
-  throw new Error('Instantly still rate limiting after 5 attempts');
+  throw new Error('Instantly kept failing after 5 attempts (429 or 5xx)');
 }
 
 // --- pull every message ---
 const msgs = [];
-for (const [vert, byAe] of Object.entries(map)) {
-  for (const [ae, id] of Object.entries(byAe)) {
-    let cur = null;
+// One campaign that will not answer must not stop the other nineteen from reaching a
+// timeline, but it must not pass silently either: a sync that skips a campaign and still
+// prints success is exactly how Harvest went unnoticed for weeks. Failures are collected,
+// named, and turned into a non-zero exit at the end.
+const failedCampaigns = [];
+for (const c of discovered) {
+  let cur = null;
+  try {
     do {
-      const u = `https://api.instantly.ai/api/v2/emails?campaign_id=${id}&limit=100` + (cur ? `&starting_after=${cur}` : '');
+      const u = `https://api.instantly.ai/api/v2/emails?campaign_id=${c.id}&limit=100` + (cur ? `&starting_after=${cur}` : '');
       const b = await instantly(u);
-      (b.items || []).forEach(e => msgs.push({ ...e, vert, ae }));
+      (b.items || []).forEach(e => msgs.push({ ...e, vert: c.name, ae: c.owner }));
       cur = b.next_starting_after || null;
     } while (cur);
+  } catch (e) {
+    console.error(`  ! ${c.name} (${String(c.id).slice(0, 8)}): ${e.message}`);
+    failedCampaigns.push(c.name);
   }
 }
+if (failedCampaigns.length) console.error(`
+${failedCampaigns.length} campaign(s) could not be read: ${failedCampaigns.join(', ')}`);
 console.log('Instantly messages found:', msgs.length);
 // A genuine zero here would mean every campaign is empty, which contradicts the lead
 // counts. Treat it as a fault rather than quietly syncing nothing.
@@ -102,13 +128,19 @@ if (!pending.length) { console.log('\nNothing to do.'); process.exit(0); }
 // --- resolve contacts by email ---
 const emails = [...new Set(pending.map(m => (m.lead || '').toLowerCase()).filter(Boolean))];
 const byEmail = {};
+// Associating the email to the company as well as the contact is what puts it on the COMPANY
+// timeline, which is the view that matters once several people at one firm are being worked.
+const companyOf = {};
 for (let i = 0; i < emails.length; i += 100) {
   const r = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/batch/read', {
     method: 'POST', headers: H,
-    body: JSON.stringify({ idProperty: 'email', properties: ['email'], inputs: emails.slice(i, i + 100).map(e => ({ id: e })) }),
+    body: JSON.stringify({ idProperty: 'email', properties: ['email', 'associatedcompanyid'], inputs: emails.slice(i, i + 100).map(e => ({ id: e })) }),
   });
   const b = await r.json();
-  (b.results || []).forEach(c => { byEmail[(c.properties.email || '').toLowerCase()] = c.id; });
+  (b.results || []).forEach(c => {
+    byEmail[(c.properties.email || '').toLowerCase()] = c.id;
+    if (c.properties.associatedcompanyid) companyOf[c.id] = String(c.properties.associatedcompanyid);
+  });
 }
 const missing = emails.filter(e => !byEmail[e]);
 console.log('contacts resolved:', Object.keys(byEmail).length, '| not in HubSpot:', missing.length);
@@ -164,7 +196,17 @@ for (const m of work) {
   };
   const r = await fetch('https://api.hubapi.com/crm/v3/objects/emails', {
     method: 'POST', headers: H,
-    body: JSON.stringify({ properties: props, associations: [{ to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 198 }] }] }),
+    body: JSON.stringify({
+      properties: props,
+      associations: [
+        { to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 198 }] },
+        // 186 is email -> company. Omitted when the contact has no company rather than failing
+        // the write, which would lose the contact timeline entry over a missing association.
+        ...(companyOf[contactId]
+          ? [{ to: { id: companyOf[contactId] }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 186 }] }]
+          : []),
+      ],
+    }),
   });
   if (r.ok) {
     const b = await r.json();
@@ -178,3 +220,9 @@ for (const m of work) {
 }
 fs.writeFileSync(LEDGER, JSON.stringify(ledger, null, 1));
 console.log(`\ndone: ${ok} written, ${fail} failed. Ledger has ${Object.keys(ledger.synced).length} synced messages.`);
+// A campaign that could not be read at all is a bigger problem than a message that failed to
+// write, and it has to surface as a red run rather than a line nobody scrolls back to.
+if (failedCampaigns.length) {
+  console.error(`${failedCampaigns.length} campaign(s) were skipped entirely: ${failedCampaigns.join(', ')}`);
+  process.exitCode = 1;
+}

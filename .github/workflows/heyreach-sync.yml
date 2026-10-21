@@ -36,6 +36,18 @@ jobs:
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
         run: node heyreach-to-hubspot.mjs --commit
 
+      # Email was never scheduled at all. instantly-to-hubspot existed and worked, but only
+      # ever ran when somebody remembered to run it, so campaign emails reached a timeline in
+      # bursts and then stopped. Both channels belong on the same cadence or a record shows
+      # LinkedIn activity with the emails that prompted it missing.
+      - name: Sync campaign emails to HubSpot
+        if: always()
+        working-directory: heygen-studio
+        env:
+          INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+        run: node instantly-to-hubspot.mjs --commit
+
       # Runs second because it reads what the step above just wrote. This is what keeps the
       # cockpit live and what gives the routing workflows something to fire on: without it,
       # volcano_heat never moves and a contact can engage without anyone being told.
@@ -49,7 +61,16 @@ jobs:
           # Without this the rollup silently skips open counts AND reply sentiment, which is how
           # an unsubscribe could go undetected on every scheduled run.
           INSTANTLY_API_KEY: ${{ secrets.INSTANTLY_API_KEY }}
-        run: node volcano-rollup.mjs --commit
+        # Once per campaign. This ran bare, which means it rolled up only the default campaign,
+        # so every Harvest contact sat at zero heat and could not appear on the cockpit under
+        # any filter. A new campaign value needs adding to CAMPAIGNS in volcano-rollup.mjs and
+        # to this list, and `|| true` keeps one campaign's failure from hiding the others.
+        run: |
+          for c in volcano harvest harvest-au; do
+            echo "::group::rollup $c"
+            node volcano-rollup.mjs --campaign=$c --commit || echo "rollup $c FAILED"
+            echo "::endgroup::"
+          done
 
       # Runs last, on what the rollup just decided. Ruling someone out of the volcano only
       # changed the dashboard; this is what actually stops the sending, which is the part the
