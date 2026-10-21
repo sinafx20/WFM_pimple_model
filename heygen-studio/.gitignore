@@ -19,8 +19,8 @@ logs/
 
 # Ad-hoc probes and their dumps. Written to answer one question and then kept
 # only until the answer lands in a real script. Underscore prefix = throwaway.
-_*.json
-_*.mjs
-
-# Offline cockpit snapshots: they bake in real prospect names and companies.
-_*.html
+#
+# Matched by PREFIX, not by extension. The extension list missed a .txt dry-run dump
+# holding prospect addresses and email bodies, and this repo is public, so the rule is
+# now the convention itself: anything starting with an underscore stays local.
+_*
