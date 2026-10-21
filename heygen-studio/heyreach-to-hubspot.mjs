@@ -213,7 +213,14 @@ for (const id of new Set(resolved.map(w => byEmail[w.email]))) {
   existing[id] = markers;
 }
 
-const inWindow = resolved.filter(w => new Date(w.at || 0) >= SYNC_FROM);
+// An event with NO timestamp is unknown, not old. Treating a missing date as the epoch
+// silently dropped all 8 AIA Brisbane notes: HeyReach reports those 7 leads with a connection
+// status and no lastActionTime at all. Losing real activity to a missing field is the exact
+// failure this sync exists to end, so undated events are kept and the note is stamped with the
+// time it was written.
+const inWindow = resolved.filter(w => !w.at || new Date(w.at) >= SYNC_FROM);
+const undated = inWindow.filter(w => !w.at).length;
+if (undated) console.log(`  ${undated} event(s) carry no timestamp from HeyReach and are kept, dated as written`);
 console.log(`cutoff ${SYNC_FROM.toISOString().slice(0, 10)}: ${inWindow.length} events in window, `
   + `${resolved.length - inWindow.length} older and left alone`);
 const todo = inWindow.filter(w => !existing[byEmail[w.email]]?.has(`[volcano:${w.kind}:${w.leadId}]`));

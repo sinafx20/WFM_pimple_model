@@ -33,6 +33,15 @@ export const EXCLUDE_HEYREACH = new Set([
   // prospects, so syncing them would put "we sent you a LinkedIn request" on the timeline of
   // people who were being used to check a video rendered. Discovery finds them precisely
   // because it is thorough, which is why the exclusions have to be explicit.
+  // The Volcano LinkedIn campaigns, excluded alongside their email counterparts on the same
+  // call. All are FINISHED or paused and their 738 notes are already on timelines; keeping them
+  // discoverable only risks re-writing history nobody asked for. Date alone cannot do this
+  // either, now that undated events are kept rather than dropped.
+  587470, 587469, 587468, 587467, 587466, 587465,  // Volcano InMail rescue, all verticals
+  575394, 575393, 565053, 565052, 565051, 565049,  // Volcano LI, all verticals
+  565048, 565047, 565046, 500646,
+  495417,  // Volcano LI - Sina v2 (connection-aware), draft
+  495367,  // Volcano LI - Sina, paused
   497592,  // Volcano DEMO - fire now (Jo)
   497484,  // Volcano LI TEST - known contacts (20)
   495434,  // Volcano - AI video test (Ryan)
