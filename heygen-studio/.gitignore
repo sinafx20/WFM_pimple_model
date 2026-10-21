@@ -24,3 +24,7 @@ logs/
 # holding prospect addresses and email bodies, and this repo is public, so the rule is
 # now the convention itself: anything starting with an underscore stays local.
 _*
+
+# Super volcano data, rebuilt by super-volcano-rollup.mjs. ~600KB of company records
+# including names and owners; published as an artifact file rather than tracked here.
+super-volcano.json

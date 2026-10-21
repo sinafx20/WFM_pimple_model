@@ -1,0 +1,300 @@
+<title>Super Volcano</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: one column. Volcano and its band legend side by side on desktop, stacked on a
+     phone, with the drill-down table beneath. Committed single dark look, matching the
+     campaign cockpit this grew out of: a lit crater reads as nothing on a white page. */
+  :root{
+    color-scheme: dark;
+    --bg:#07100d; --panel:#0d1a16; --ink:#EAF4F0; --muted:#9DB9AE; --faint:#67847a;
+    --line:#1d2f29; --leaf:#0D8D5C; --money:#63DB94;
+    --cold:#4b6b7d; --warm:#c98500; --hot:#e2683c; --erupt:#ff4d3d;
+    --font:'DM Sans',-apple-system,'Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{background:var(--bg)}
+  body{margin:0;color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding-block:22px 48px;
+        padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;margin-bottom:4px}
+  h1{font-size:clamp(21px,3.2vw,29px);margin:0;letter-spacing:-.02em;font-weight:700;text-wrap:balance}
+  .built{color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+  .lede{color:var(--muted);font-size:13.5px;margin:6px 0 18px;max-width:72ch}
+
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .chip{appearance:none;background:transparent;border:1px solid var(--line);color:var(--muted);
+        border-radius:100px;padding:5px 13px;font:inherit;font-size:12px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--leaf);color:var(--ink)}
+  .chip.on{background:var(--leaf);border-color:var(--leaf);color:#04140e;font-weight:600}
+  .chip:focus-visible{outline:2px solid var(--money);outline-offset:2px}
+
+  .stage{display:grid;grid-template-columns:1fr 228px;gap:18px;align-items:start}
+  @media (max-width:760px){.stage{grid-template-columns:1fr}}
+  .viz{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+  svg.volcano{display:block;width:100%;height:auto}
+
+  .bands{display:flex;flex-direction:column;gap:7px}
+  .bandrow{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+           border-radius:11px;padding:9px 12px;cursor:pointer;transition:.15s;text-align:left;font:inherit;color:inherit;width:100%}
+  .bandrow:hover{border-color:var(--leaf)}
+  .bandrow.on{border-color:var(--money)}
+  .bandrow.zero{opacity:.42}
+  .bandrow:focus-visible{outline:2px solid var(--money);outline-offset:2px}
+  .sw{width:9px;height:9px;border-radius:50%;flex:none}
+  .bn{font-size:12.5px;font-weight:600;display:block}
+  .br{font-size:11px;color:var(--faint)}
+  .bc{margin-left:auto;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .hcard{position:absolute;z-index:5;width:272px;background:#0a1512;border:1px solid var(--line);
+         border-radius:12px;padding:13px;box-shadow:0 14px 34px rgba(0,0,0,.6);pointer-events:none;
+         opacity:0;transition:opacity .13s}
+  .hcard.show{opacity:1;pointer-events:auto}
+  .hn{font-weight:700;font-size:14px;line-height:1.25}
+  .ht{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .hrow{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .tag{font-size:10px;border:1px solid var(--line);border-radius:100px;padding:2px 8px;color:var(--muted)}
+  .hheat{margin-left:auto;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .bars{margin-top:11px;display:grid;gap:5px}
+  .bar{display:grid;grid-template-columns:58px 1fr 26px;align-items:center;gap:7px;font-size:10.5px;color:var(--faint)}
+  .track{height:5px;background:#132420;border-radius:3px;overflow:hidden}
+  .fill{height:100%;border-radius:3px}
+  .bar b{color:var(--muted);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .hnote{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+  .hslink{display:block;margin-top:10px;text-align:center;background:var(--money);color:#06211a;
+          border-radius:100px;padding:7px;font-size:11.5px;font-weight:700;text-decoration:none}
+
+  .drill{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .dhead{display:flex;align-items:baseline;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .dhead h2{margin:0;font-size:14px;font-weight:700}
+  .dcount{color:var(--faint);font-size:12px;margin-left:auto;font-variant-numeric:tabular-nums}
+  .tscroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:620px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);
+     font-weight:600;padding:9px 15px;border-bottom:1px solid var(--line)}
+  td{padding:10px 15px;border-bottom:1px solid #152421;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  .who{font-weight:600}
+  .sub{color:var(--faint);font-size:11px;display:block;margin-top:1px}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .heatpill{display:inline-block;min-width:30px;text-align:center;border-radius:100px;padding:2px 7px;
+            font-weight:700;font-size:11.5px;font-variant-numeric:tabular-nums}
+  a.row{color:var(--money);text-decoration:none;font-size:11.5px;white-space:nowrap}
+  a.row:hover{text-decoration:underline}
+  .empty{padding:26px 15px;color:var(--faint);font-size:12.5px}
+  .foot{margin-top:18px;color:var(--faint);font-size:11.5px;max-width:76ch}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+
+<div class="wrap">
+  <header>
+    <h1>Super Volcano</h1>
+    <span class="built" id="built">loading…</span>
+  </header>
+  <p class="lede" id="lede">Every company across the outbound segments, placed by how close it is to a
+    booked meeting. The summit is a meeting in the diary, so an account erupts and then leaves the board.</p>
+
+  <div class="controls" id="segs"></div>
+  <div class="controls" id="owners"></div>
+
+  <div class="stage">
+    <div class="viz" id="viz">
+      <svg class="volcano" id="svg" viewBox="0 0 1000 560" role="img"
+           aria-label="Companies plotted on a volcano by proximity to a booked meeting">
+        <defs>
+          <radialGradient id="sky" cx="50%" cy="86%" r="72%">
+            <stop offset="0%" stop-color="#17302a"/><stop offset="100%" stop-color="#07100d"/>
+          </radialGradient>
+          <linearGradient id="rock" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#16302a"/><stop offset="100%" stop-color="#0a1a16"/>
+          </linearGradient>
+          <filter id="glow" x="-120%" y="-120%" width="340%" height="340%">
+            <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <rect width="1000" height="560" fill="url(#sky)"/>
+        <ellipse id="cglow" cx="500" cy="92" rx="130" ry="44" fill="#ff4d3d" opacity="0"/>
+        <path d="M500 78 L860 520 L140 520 Z" fill="url(#rock)" stroke="#1d3a33" stroke-width="1"/>
+        <g id="embers"></g>
+        <g id="rules" font-size="10" fill="#4e6c63" font-family="DM Sans, sans-serif"></g>
+      </svg>
+      <div class="hcard" id="hcard" aria-live="polite"></div>
+    </div>
+    <div class="bands" id="bandlist"></div>
+  </div>
+
+  <div class="drill">
+    <div class="dhead">
+      <h2 id="dtitle">Hottest accounts</h2>
+      <span class="dcount" id="dcount"></span>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Company</th><th>Segments</th><th>AE</th><th>Why it is here</th><th class="num">Heat</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+const PORTAL = '24214994';
+const BANDS = [
+  { k:'eruption', n:'Eruption', range:'meeting booked', col:'var(--erupt)', hex:'#ff4d3d', y0:150, y1:92  },
+  { k:'hot',      n:'Hot',      range:'65 to 99',       col:'var(--hot)',   hex:'#e2683c', y0:260, y1:152 },
+  { k:'warm',     n:'Warm',     range:'25 to 64',       col:'var(--warm)',  hex:'#c98500', y0:390, y1:262 },
+  { k:'cold',     n:'Cold',     range:'under 25',       col:'var(--cold)',  hex:'#4b6b7d', y0:514, y1:392 },
+];
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// Deterministic jitter, so an ember keeps its spot between renders instead of jumping on filter.
+const rnd = (i,salt) => { const x = Math.sin((i+1)*12.9898 + salt*78.233)*43758.5453; return x - Math.floor(x); };
+const halfWidth = y => Math.max(8, (y - 78) * (360/442));   // the cone's half width at height y
+
+let DATA = null, SEG = 'all', OWNER = 'all', OPEN = null, VIEW = [];
+
+function placed(){
+  return VIEW.map((c,i) => {
+    const b = BANDS.find(x => x.k === c.band) || BANDS[3];
+    const span = b.k === 'eruption' ? 1 : (b.k==='hot'?35:b.k==='warm'?40:25);
+    const base = b.k === 'eruption' ? 100 : (b.k==='hot'?65:b.k==='warm'?25:0);
+    const f = Math.min(1, Math.max(0, (c.heat - base) / span));
+    const y = b.y0 - f*(b.y0-b.y1);
+    const hw = halfWidth(y) - 12;
+    return { c, b, x: 500 + (rnd(i,2)*2-1)*hw, y: y - rnd(i,5)*7 };
+  });
+}
+
+function draw(){
+  const pts = placed();
+  const order = ['cold','warm','hot','eruption'];
+  pts.sort((a,b) => order.indexOf(a.b.k) - order.indexOf(b.b.k));
+  document.getElementById('embers').innerHTML = pts.map((p,i) => {
+    const big = p.b.k==='eruption'||p.b.k==='hot';
+    const r = p.b.k==='cold'?2.6:p.b.k==='warm'?3.4:4.8;
+    return '<g class="dot" data-i="'+i+'" tabindex="0" role="button" aria-label="'+esc(p.c.name)+', heat '+p.c.heat+'">'
+      + '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="9" fill="transparent"/>'
+      + '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+p.b.hex+'" opacity="'+(p.b.k==='cold'?.55:.95)+'"'
+      + (big?' filter="url(#glow)"':'') + '/></g>';
+  }).join('');
+
+  const counts = {}; VIEW.forEach(c => counts[c.band] = (counts[c.band]||0)+1);
+  document.getElementById('cglow').setAttribute('opacity', counts.eruption ? Math.min(.85,.3+counts.eruption*.18) : 0);
+  document.getElementById('rules').innerHTML = BANDS.map(b =>
+    '<text x="150" y="'+(b.y0-4)+'">'+b.n.toLowerCase()+'</text>').join('');
+
+  document.getElementById('bandlist').innerHTML = BANDS.map(b =>
+    '<button class="bandrow'+(!(counts[b.k]||0)?' zero':'')+(OPEN===b.k?' on':'')+'" data-b="'+b.k+'">'
+    + '<span class="sw" style="background:'+b.hex+'"></span>'
+    + '<span><span class="bn" style="color:'+b.hex+'">'+b.n+'</span><span class="br">'+b.range+'</span></span>'
+    + '<span class="bc" style="color:'+b.hex+'">'+(counts[b.k]||0)+'</span></button>').join('');
+  document.querySelectorAll('.bandrow').forEach(el =>
+    el.onclick = () => { OPEN = OPEN===el.dataset.b ? null : el.dataset.b; draw(); table(); });
+
+  wire(pts);
+}
+
+function why(c){
+  const bits = [];
+  if (c.booked) bits.push('meeting in the diary');
+  if (c.intent) bits.push(c.intent.replace(/\.$/,''));
+  if (c.callAge !== null && c.callAge <= 120) bits.push('called '+c.callAge+'d ago');
+  else if (c.meetAge !== null && c.meetAge >= 0 && c.meetAge <= 365) bits.push('met '+c.meetAge+'d ago');
+  if (c.nextActivity && new Date(c.nextActivity) > new Date()) bits.push('next step scheduled');
+  if (c.note) bits.push(c.note);
+  return bits.length ? bits.join(' · ') : 'no activity recorded';
+}
+
+function wire(pts){
+  const card = document.getElementById('hcard'), host = document.getElementById('viz'), svg = document.getElementById('svg');
+  let t = null;
+  const show = p => {
+    clearTimeout(t);
+    const c = p.c, rect = svg.getBoundingClientRect(), s = rect.width/1000;
+    const comp = [['fit',c.fit,25,'#63DB94'],['signal',c.signal,30,'#53A8F8'],['motion',c.motion,45,'#c98500'],['semantic',c.semantic,40,'#b06be0']];
+    card.innerHTML =
+      '<div class="hn">'+esc(c.name)+'</div>'
+      + '<div class="ht">'+(c.staff?c.staff+' staff · ':'')+esc((c.industry||'industry unknown').toLowerCase().replace(/_/g,' '))+'</div>'
+      + '<div class="hrow">'+c.segments.map(s=>'<span class="tag">'+esc(DATA.segments[s]||s)+'</span>').join('')
+      + '<span class="hheat" style="color:'+p.b.hex+'">'+c.heat+'</span></div>'
+      + '<div class="bars">'+comp.map(([n,v,max,col]) =>
+          '<div class="bar"><span>'+n+'</span><span class="track"><span class="fill" style="width:'
+          + Math.round(v/max*100)+'%;background:'+col+'"></span></span><b>'+v+'</b></div>').join('')+'</div>'
+      + '<div class="hnote">'+esc(why(c))+'</div>'
+      + '<a class="hslink" href="https://app.hubspot.com/contacts/'+PORTAL+'/record/0-2/'+c.id+'" target="_blank" rel="noopener">Open in HubSpot &#8599;</a>';
+    card.classList.add('show');
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    let left = p.x*s + 16; if (left + cw > host.clientWidth - 8) left = p.x*s - cw - 16; if (left < 8) left = 8;
+    let top = p.y*s - ch/2; top = Math.max(8, Math.min(top, host.clientHeight - ch - 8));
+    card.style.left = left+'px'; card.style.top = top+'px';
+  };
+  document.querySelectorAll('#embers .dot').forEach(gEl => {
+    const p = pts[+gEl.dataset.i];
+    gEl.addEventListener('mouseenter', () => show(p));
+    gEl.addEventListener('focus', () => show(p));
+    gEl.addEventListener('mouseleave', () => { t = setTimeout(()=>card.classList.remove('show'), 220); });
+  });
+  card.onmouseenter = () => clearTimeout(t);
+  card.onmouseleave = () => card.classList.remove('show');
+}
+
+function table(){
+  const list = (OPEN ? VIEW.filter(c=>c.band===OPEN) : VIEW).slice().sort((a,b)=>b.heat-a.heat);
+  const shown = list.slice(0,60);
+  document.getElementById('dtitle').textContent = OPEN
+    ? (BANDS.find(b=>b.k===OPEN).n + ' accounts') : 'Hottest accounts';
+  document.getElementById('dcount').textContent = list.length
+    ? (shown.length < list.length ? 'showing '+shown.length+' of '+list.length : list.length+' account'+(list.length>1?'s':''))
+    : '';
+  document.getElementById('rows').innerHTML = shown.length ? shown.map(c => {
+    const b = BANDS.find(x=>x.k===c.band)||BANDS[3];
+    return '<tr><td><span class="who">'+esc(c.name)+'</span>'
+      + '<span class="sub">'+(c.staff?c.staff+' staff':'size unknown')+(c.contacts?' · '+c.contacts+' contact'+(c.contacts>1?'s':''):'')+'</span></td>'
+      + '<td>'+c.segments.map(s=>'<span class="tag">'+esc(DATA.segments[s]||s)+'</span>').join(' ')+'</td>'
+      + '<td>'+(c.owner?esc(c.owner):'<span class="sub">unassigned</span>')+'</td>'
+      + '<td><span class="sub" style="font-size:12px;color:var(--muted)">'+esc(why(c))+'</span></td>'
+      + '<td class="num"><span class="heatpill" style="background:'+b.hex+'22;color:'+b.hex+'">'+c.heat+'</span></td>'
+      + '<td><a class="row" href="https://app.hubspot.com/contacts/'+PORTAL+'/record/0-2/'+c.id+'" target="_blank" rel="noopener">HubSpot &#8599;</a></td></tr>';
+  }).join('') : '<tr><td colspan="6" class="empty">Nothing matches these filters.</td></tr>';
+}
+
+function apply(){
+  VIEW = DATA.companies.filter(c =>
+    (SEG==='all' || c.segments.includes(SEG)) && (OWNER==='all' || c.owner===OWNER));
+  draw(); table();
+}
+
+function controls(){
+  const segs = [['all','Everything']].concat(Object.entries(DATA.segments));
+  document.getElementById('segs').innerHTML = segs.map(([k,label]) =>
+    '<button class="chip'+(SEG===k?' on':'')+'" data-k="'+k+'">'+esc(label)+'</button>').join('');
+  document.querySelectorAll('#segs .chip').forEach(el =>
+    el.onclick = () => { SEG = el.dataset.k; OPEN = null; controls(); apply(); });
+
+  const owners = [...new Set(DATA.companies.map(c=>c.owner).filter(Boolean))].sort();
+  document.getElementById('owners').innerHTML = [['all','All AEs']].concat(owners.map(o=>[o,o]))
+    .map(([k,label]) => '<button class="chip'+(OWNER===k?' on':'')+'" data-k="'+k+'">'+esc(label)+'</button>').join('');
+  document.querySelectorAll('#owners .chip').forEach(el =>
+    el.onclick = () => { OWNER = el.dataset.k; OPEN = null; controls(); apply(); });
+}
+
+fetch('./super-volcano.json').then(r => r.json()).then(j => {
+  DATA = j;
+  const d = new Date(j.builtAt);
+  document.getElementById('built').textContent =
+    j.companies.length + ' companies · built ' + d.toLocaleString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  const sem = j.companies.filter(c=>c.semantic>0).length;
+  document.getElementById('foot').textContent =
+    'Height is fit, signal and motion combined, out of 100. The semantic component is reserved for the daily '
+    + 'call-log read and is filled on ' + sem + ' of ' + j.companies.length + ' accounts, so motion is currently '
+    + 'mechanical: recency of a logged call or meeting, and whether a next step is already scheduled.';
+  controls(); apply();
+}).catch(e => {
+  document.getElementById('built').textContent = 'could not load the data file';
+  document.getElementById('lede').textContent = 'super-volcano.json did not load: ' + e.message;
+});
+</script>
