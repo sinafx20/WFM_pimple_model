@@ -44,7 +44,9 @@ const QUIET = process.argv.includes('--quiet');
 // The segments in play, and what being in one means. `weight` nudges fit: a confirmed Harvest
 // user is a better prospect than a cold warm-outbound record at the same headcount.
 const SEGMENTS = {
-  4165: { key: 'warm', label: 'Warm outbound', weight: 0 },
+  // 4165 ALL WARM OUTBOUND is deliberately absent. It is a superset: all 1420 companies in
+  // the six segments below are also in it, and none are in it alone, so as a chip it filtered
+  // nothing and as a tag it appeared on every row. Dropping it loses no company.
   4137: { key: 'intent-crm', label: 'CRM broad intent', weight: 4 },
   4039: { key: 'trial', label: 'Unconverted trial', weight: 6 },
   4048: { key: 'harvest', label: 'Confirmed Harvest', weight: 6 },
@@ -111,7 +113,7 @@ const READ = [
   'hs_latest_intent_signal_occurred_at', 'hs_count_intent_signals_created_last_30_days',
   'intent_summary', 'intent_source', 'intent_last_seen', 'intent_research_topics',
   // Written by the daily Claude run. Absent for now, read anyway so the slot is real.
-  'volcano_motion_score', 'volcano_motion_note', 'volcano_next_action',
+  'volcano_motion_score', 'volcano_motion_note', 'volcano_next_action', 'volcano_motion_at',
 ];
 const companies = [];
 for (let i = 0; i < ids.length; i += 100) {
@@ -174,7 +176,16 @@ const rows = companies.map((c) => {
   motion = Math.min(45, motion);
 
   // SEMANTIC: the daily Claude run's reading of the call summaries. Zero until it writes.
-  const semantic = Math.min(40, Number(c.volcano_motion_score) || 0);
+  // A read of the call logs is an opinion with a date on it. Two weeks on it is probably still
+  // true; two months on it is an account nobody has looked at, and letting it hold full weight
+  // would park stale accounts near the summit and hide the ones that moved this week.
+  const semAge = DAYS(c.volcano_motion_at);
+  const semRaw = Math.min(40, Number(c.volcano_motion_score) || 0);
+  const semantic = semAge === null ? semRaw
+    : semAge <= 14 ? semRaw
+    : semAge <= 30 ? Math.round(semRaw * 0.6)
+    : semAge <= 60 ? Math.round(semRaw * 0.3)
+    : 0;
 
   // The summit, and only this. A future task or next-activity date is a reminder, not a
   // meeting, so it earns motion points above but never the summit.
