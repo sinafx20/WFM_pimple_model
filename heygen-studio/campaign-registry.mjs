@@ -41,6 +41,27 @@ export const EXCLUDE_HEYREACH = new Set([
 ]);
 export const EXCLUDE_INSTANTLY = new Set([]);
 
+// Seat id -> AE. The same mapping heyreach-to-hubspot uses for inbox conversations, kept here
+// so a campaign whose NAME names no AE can still be attributed. The AIA Brisbane campaigns are
+// exactly that case: nothing in "AIA Brisbane 2026 - 20+ seats" says who runs it, but it sends
+// from seat 223029, which is Denzel. Without this their LinkedIn activity lands on timelines
+// owned by nobody, and an unowned note is one no AE ever gets told about.
+export const SEAT_OWNER = { 221310: 'sina', 223029: 'denzel' };
+
+async function seatOwner(apiKey, campaignId) {
+  try {
+    const r = await fetch(`https://api.heyreach.io/api/public/campaign/GetById?campaignId=${campaignId}`,
+      { headers: { 'X-API-KEY': apiKey, accept: 'application/json' } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    // A campaign can run from several seats. One seat means one owner; more than one is
+    // ambiguous and is left unowned rather than guessed.
+    const ids = (d.campaignAccountIds || []).map(Number);
+    const owners = [...new Set(ids.map((i) => SEAT_OWNER[i]).filter(Boolean))];
+    return owners.length === 1 ? owners[0] : null;
+  } catch { return null; }
+}
+
 export async function heyreachCampaigns(apiKey, { includeExcluded = false } = {}) {
   const out = [];
   for (let offset = 0; ; offset += 100) {
@@ -58,16 +79,24 @@ export async function heyreachCampaigns(apiKey, { includeExcluded = false } = {}
     if (items.length < 100) break;
     await sleep(300);
   }
-  return out
-    .filter((c) => includeExcluded || !EXCLUDE_HEYREACH.has(c.id))
-    .map((c) => ({
-      platform: 'heyreach',
-      campaignId: c.id,
-      key: c.name,
-      name: c.name,
-      status: c.status,
-      owner: ownerFromName(c.name),
-    }));
+  const kept = out.filter((c) => includeExcluded || !EXCLUDE_HEYREACH.has(c.id));
+  const mapped = kept.map((c) => ({
+    platform: 'heyreach',
+    campaignId: c.id,
+    key: c.name,
+    name: c.name,
+    status: c.status,
+    owner: ownerFromName(c.name),
+  }));
+  // Only the ones the name could not answer, so this costs one extra call per unnamed campaign
+  // rather than one per campaign.
+  for (const c of mapped) {
+    if (c.owner) continue;
+    c.owner = await seatOwner(apiKey, c.campaignId);
+    if (c.owner) c.ownerFrom = 'seat';
+    await sleep(250);
+  }
+  return mapped;
 }
 
 export async function instantlyCampaigns(apiKey, { includeExcluded = false } = {}) {
@@ -115,7 +144,12 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
   hr.forEach((c) => console.log(`  ${String(c.campaignId).padEnd(8)} ${String(c.status).padEnd(12)} ${(c.owner || 'NO OWNER').padEnd(9)} ${c.name}`));
   console.log(`\nInstantly: ${inst.length} campaigns in scope`);
   inst.forEach((c) => console.log(`  ${String(c.id).slice(0, 8)} ${String(ST[c.status] ?? c.status).padEnd(10)} ${(c.owner || 'NO OWNER').padEnd(9)} ${c.name}`));
-  const orphans = [...hr, ...inst].filter((c) => !c.owner);
-  console.log(`\n${orphans.length} campaign(s) whose name names no AE; their activity is written with no owner:`);
-  orphans.forEach((c) => console.log(`  ${c.platform}: ${c.name}`));
+  // Only HeyReach needs a campaign-level owner. instantly-to-hubspot reads the sending address
+  // on each message, which is strictly better: the AIA campaigns send from both AEs' mailboxes,
+  // so a single campaign-level owner would mislabel half of them.
+  const orphans = hr.filter((c) => !c.owner);
+  console.log(`\n${orphans.length} HeyReach campaign(s) with no owner from name or seat; their notes carry no owner:`);
+  orphans.forEach((c) => console.log(`  ${c.name}`));
+  const instNoName = inst.filter((c) => !c.owner).length;
+  if (instNoName) console.log(`${instNoName} Instantly campaign(s) name no AE, which is fine: owner is read per message from the sending address.`);
 }

@@ -1,0 +1,4 @@
+campaigns discovered: 20
+  Instantly 500, retrying in 4s (attempt 1/5)
+  Instantly 500, retrying in 8s (attempt 2/5)
+  Instantly 500, retrying in 12s (attempt 3/5)

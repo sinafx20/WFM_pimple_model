@@ -100,19 +100,35 @@ const msgs = [];
 // prints success is exactly how Harvest went unnoticed for weeks. Failures are collected,
 // named, and turned into a non-zero exit at the end.
 const failedCampaigns = [];
+// PAGE SIZE IS ADAPTIVE. "Volcano MVP - Consulting - Sina" answers 500 at limit=100 and 200 at
+// limit=25, every time, so this is a page-size fault on Instantly's side and not a wobble:
+// retrying the same request could never have worked. Each campaign starts at 100 and halves
+// after a failed pass, which costs nothing for the campaigns that are fine.
 for (const c of discovered) {
-  let cur = null;
-  try {
-    do {
-      const u = `https://api.instantly.ai/api/v2/emails?campaign_id=${c.id}&limit=100` + (cur ? `&starting_after=${cur}` : '');
-      const b = await instantly(u);
-      (b.items || []).forEach(e => msgs.push({ ...e, vert: c.name, ae: c.owner }));
-      cur = b.next_starting_after || null;
-    } while (cur);
-  } catch (e) {
-    console.error(`  ! ${c.name} (${String(c.id).slice(0, 8)}): ${e.message}`);
-    failedCampaigns.push(c.name);
+  let got = false;
+  for (const limit of [100, 50, 25, 10]) {
+    const batch = [];
+    let cur = null;
+    try {
+      do {
+        const u = `https://api.instantly.ai/api/v2/emails?campaign_id=${c.id}&limit=${limit}`
+          + (cur ? `&starting_after=${cur}` : '');
+        const b = await instantly(u);
+        (b.items || []).forEach(e => batch.push({ ...e, vert: c.name, ae: c.owner }));
+        cur = b.next_starting_after || null;
+      } while (cur);
+    } catch (e) {
+      console.error(`  ! ${c.name} at limit=${limit}: ${e.message.slice(0, 90)}`);
+      continue;   // same campaign, smaller page
+    }
+    // Only commit the campaign's messages once a pass completed, so a partial read never
+    // looks like the whole campaign and leaves half its emails off the timeline for good.
+    msgs.push(...batch);
+    if (limit !== 100) console.log(`  ${c.name}: read at limit=${limit} (${batch.length} messages)`);
+    got = true;
+    break;
   }
+  if (!got) failedCampaigns.push(c.name);
 }
 if (failedCampaigns.length) console.error(`
 ${failedCampaigns.length} campaign(s) could not be read: ${failedCampaigns.join(', ')}`);
