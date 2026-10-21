@@ -39,7 +39,27 @@ export const EXCLUDE_HEYREACH = new Set([
   495416,  // Volcano - AI video test
   495358,  // test pimple
 ]);
-export const EXCLUDE_INSTANTLY = new Set([]);
+// The Volcano MVP email campaigns. Excluded on Sina's call of 2026-10-22: those contacts have
+// been worked already, and filling their timelines with months of backdated email buys nothing.
+//
+// This is a LIST and the date cutoff is not, which looks inconsistent until you see why both
+// are needed. The cutoff alone cannot do this job: Volcano is not finished, and one of these
+// campaigns was still sending ~180 emails in October, so any date that lets Harvest AU and AIA
+// through lets those in too. Excluding by id says "not this campaign, ever" without touching
+// the default, so a campaign created tomorrow is still picked up by the cutoff with nobody
+// editing anything. Delete an id from here to start syncing that campaign again.
+export const EXCLUDE_INSTANTLY = new Set([
+  'fe4daa0f-23a7-446d-9f9d-ea8a4f452a54',  // Volcano MVP - Construction - Sina
+  'fa3e7591-734e-4afc-b73e-aa1de4d06f64',  // Volcano MVP - Architecture - Denzel
+  'e623d78a-b3ef-452d-a0c1-654580f3ee9f',  // Volcano MVP - Consulting - Denzel
+  'daf00323-da01-428b-85a2-b5b000ff9989',  // Volcano MVP - Consulting - Sina
+  'd8a34f04-44db-4360-954f-40ad7f31ab41',  // Volcano MVP - Construction - Denzel
+  'bd4874c8-4e85-491d-a875-72064f9ac8d7',  // Volcano MVP - Creative - Sina
+  '592ec354-570f-4211-aaa5-640fefd224fa',  // Volcano MVP - Engineering - Denzel
+  '188f4f4a-33b7-4f85-b59f-9777a1c5f4f0',  // Volcano MVP - Creative - Denzel
+  '0c9b9727-5c10-4b24-ad75-b76f5780d3fd',  // Volcano MVP - Engineering - Sina
+  '0b5e3547-8d1b-4366-85d5-af9a14638e76',  // Volcano MVP - Architecture - Sina
+]);
 
 // Seat id -> AE. The same mapping heyreach-to-hubspot uses for inbox conversations, kept here
 // so a campaign whose NAME names no AE can still be attributed. The AIA Brisbane campaigns are

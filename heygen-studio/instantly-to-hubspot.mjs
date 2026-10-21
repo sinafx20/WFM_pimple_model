@@ -32,6 +32,9 @@ const COMMIT = process.argv.includes('--commit');
 
 // Sending address decides the owner. Verified 2026-08-29 against real senders; do not
 // infer ownership from vertical, which was the bug that mis-assigned 153 contacts.
+// 'sina' | 'denzel' as the registry derives them from a campaign name, to the HubSpot owner id.
+const OWNER_ID = { sina: '80406430', denzel: '80127259' };
+
 const OWNER_BY_SENDER = (from) => {
   const local = String(from || '').split('@')[0].toLowerCase();
   if (local.startsWith('sina')) return '80406430';
@@ -45,9 +48,36 @@ const OWNER_BY_SENDER = (from) => {
 const OUR_DOMAINS = /@(cloud|team)?workflowmax.com$/i;
 const isOutbound = (m) => OUR_DOMAINS.test(String(m.from_address_email || ''));
 // On an inbound reply the AE is whoever it was sent TO.
-const ownerOf = (m) => isOutbound(m)
+// Outbound: the sending mailbox names the AE. Inbound: the mailbox it was sent TO does, but
+// Instantly does not always populate to_address_email_list on a reply, which left six replies
+// owned by nobody. The campaign the reply belongs to is the fallback, since a reply to a
+// campaign is a reply to whoever runs it. AE_BY_CAMPAIGN is the name-derived owner carried on
+// each message as `ae`; a campaign naming no AE still yields null, which is honest.
+const ownerOf = (m) => (isOutbound(m)
   ? OWNER_BY_SENDER(m.from_address_email)
-  : OWNER_BY_SENDER(String(m.to_address_email_list || '').split(',')[0]);
+  : OWNER_BY_SENDER(String(m.to_address_email_list || '').split(',')[0]))
+  || OWNER_ID[m.ae] || null;
+
+// HOW FAR BACK TO GO.
+//
+// The Volcano MVP emails from September are deliberately NOT backfilled. Sina's call on
+// 2026-10-22: those contacts have been worked already and filling their timelines with dozens
+// of backdated emails buys nothing, while the campaigns that matter are the ones running now.
+//
+// A DATE, NOT A LIST OF CAMPAIGNS, because the requirement is "everything from here every time
+// I set up a campaign". A campaign list would need editing every time one is created, which is
+// the maintenance burden that left Harvest invisible for a month in the first place. A cutoff
+// needs nothing: anything sent after it syncs, whoever made the campaign and whenever.
+//
+// It also means a still-running older campaign keeps reporting. daf00323 is an ACTIVE Volcano
+// campaign, and its NEW sends are current activity worth seeing even though its history is not.
+//
+// 9 October is chosen, not rounded: Harvest APAC sent on the 8th, Harvest AU on the 19th and
+// 20th, AIA Brisbane on the 21st. Sina asked for AU and AIA only, and that date is the one
+// boundary that separates them from the APAC batch without naming a single campaign.
+//
+// Override for a one-off backfill with SYNC_FROM=2026-01-01.
+const SYNC_FROM = new Date(process.env.SYNC_FROM || '2026-10-09T00:00:00Z');
 
 const LEDGER = p('instantly-hubspot-ledger.json');
 const ledger = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : { synced: {} };
@@ -137,8 +167,63 @@ console.log('Instantly messages found:', msgs.length);
 // counts. Treat it as a fault rather than quietly syncing nothing.
 if (!msgs.length) { console.error('No messages returned. That is almost certainly an API fault, not an empty pipeline. Aborting.'); process.exit(1); }
 
-const pending = msgs.filter(m => !ledger.synced[m.id]);
-console.log('already synced:', msgs.length - pending.length, '| to sync:', pending.length);
+// --- what is already on a timeline -------------------------------------------------------
+//
+// THE LEDGER IS A CACHE, NOT THE TRUTH. instantly-hubspot-ledger.json is gitignored, so a
+// GitHub runner starts with an empty one and would happily rewrite every message it has ever
+// written: within a day a contact would carry the same email a dozen times. It also
+// under-reports locally, because runs whose ledger was lost still wrote real engagements. It
+// knew about 384 of 2601 while most of the Volcano emails were already in HubSpot.
+//
+// So the real check is HubSpot itself, the same principle heyreach-to-hubspot already uses.
+// Each email we write carries hs_email_message_id, Instantly's own id for that message, and
+// that property is exactly searchable. State lives where the writes do.
+const dated = (m) => new Date(m.timestamp_email || m.timestamp_created || 0);
+const tooOld = msgs.filter(m => dated(m) < SYNC_FROM);
+const inWindow = msgs.filter(m => dated(m) >= SYNC_FROM);
+console.log(`cutoff ${SYNC_FROM.toISOString().slice(0, 10)}: ${inWindow.length} in window, ${tooOld.length} older and left alone`);
+const ledgerKnown = inWindow.filter(m => ledger.synced[m.id]).length;
+const candidates = inWindow.filter(m => !ledger.synced[m.id]);
+
+const already = new Set();
+const withKey = candidates.filter(m => m.message_id);
+const noKey = candidates.filter(m => !m.message_id);
+for (let i = 0; i < withKey.length; i += 100) {
+  const values = withKey.slice(i, i + 100).map(m => String(m.message_id));
+  let b = null;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const r = await fetch('https://api.hubapi.com/crm/v3/objects/emails/search', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({
+        filterGroups: [{ filters: [{ propertyName: 'hs_email_message_id', operator: 'IN', values }] }],
+        properties: ['hs_email_message_id'], limit: 100,
+      }),
+    });
+    if (r.status === 429) { await sleep(2000 * attempt); continue; }
+    b = await r.json();
+    break;
+  }
+  // A failed lookup must stop the run. Treating it as "nothing found" is what turns a
+  // transient error into a timeline full of duplicates.
+  if (!b || b.status === 'error') {
+    console.error(`REFUSING: could not check HubSpot for existing emails: ${b?.message || 'no response'}`);
+    console.error('Writing blind here duplicates every message already on a timeline.');
+    process.exit(1);
+  }
+  (b.results || []).forEach(e => already.add(String(e.properties.hs_email_message_id)));
+  await sleep(250);
+}
+const pending = candidates.filter(m => !m.message_id || !already.has(String(m.message_id)));
+console.log(`already synced: ${ledgerKnown} known to the local ledger, `
+  + `${already.size} more already on a HubSpot timeline`);
+if (noKey.length) console.log(`  ${noKey.length} message(s) carry no message_id and cannot be checked; they are treated as new`);
+console.log('to sync:', pending.length);
+// Which campaigns that actually is. Asserting "only the new ones" is worth nothing next to
+// printing them, and this is the last checkpoint before real timeline writes.
+const perCampaign = {};
+pending.forEach((m) => { perCampaign[m.vert] = (perCampaign[m.vert] || 0) + 1; });
+Object.entries(perCampaign).sort((a, b) => b[1] - a[1])
+  .forEach(([name, n]) => console.log(`    ${String(n).padStart(5)}  ${name}`));
 if (!pending.length) { console.log('\nNothing to do.'); process.exit(0); }
 
 // --- resolve contacts by email ---

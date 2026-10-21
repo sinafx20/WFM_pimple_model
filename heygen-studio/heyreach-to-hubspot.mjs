@@ -45,6 +45,16 @@ const hr = (path_, body) => fetch('https://api.heyreach.io/api/public' + path_, 
   body: JSON.stringify(body),
 });
 
+// HOW FAR BACK TO GO. Matches instantly-to-hubspot: Sina wants Harvest AU and AIA Brisbane
+// and nothing older. A date does the job where a campaign filter cannot, because notes built
+// from the LinkedIn inbox are labelled 'linkedin-inbox' rather than the campaign they belong
+// to, so there is no campaign name to filter them on. Their timestamps are real, so the cutoff
+// keeps the recent conversations and drops the rest.
+//
+// Safe for the backlog: 738 notes from earlier campaigns are already on timelines, so nothing
+// is lost by declining to write older ones again.
+const SYNC_FROM = new Date(process.env.SYNC_FROM || '2026-10-09T00:00:00Z');
+
 const OWNER = { sina: '80406430', denzel: '80127259' };
 
 // Every campaign that exists, asked of HeyReach rather than read from a file written months
@@ -203,11 +213,21 @@ for (const id of new Set(resolved.map(w => byEmail[w.email]))) {
   existing[id] = markers;
 }
 
-const todo = resolved.filter(w => !existing[byEmail[w.email]]?.has(`[volcano:${w.kind}:${w.leadId}]`));
+const inWindow = resolved.filter(w => new Date(w.at || 0) >= SYNC_FROM);
+console.log(`cutoff ${SYNC_FROM.toISOString().slice(0, 10)}: ${inWindow.length} events in window, `
+  + `${resolved.length - inWindow.length} older and left alone`);
+const todo = inWindow.filter(w => !existing[byEmail[w.email]]?.has(`[volcano:${w.kind}:${w.leadId}]`));
 console.log(`\n${COMMIT ? 'WRITING' : 'DRY RUN'} ${todo.length} notes (${resolved.length - todo.length} already on timelines)`);
 const byKind = {};
 todo.forEach(w => { byKind[w.kind] = (byKind[w.kind] || 0) + 1; });
 Object.entries(byKind).forEach(([k, n]) => console.log(`  ${String(n).padStart(4)}  ${k}`));
+// And which campaigns those came from. The kind breakdown says what is being written but not
+// who it lands on, and "only the new campaigns" is a claim worth printing rather than trusting.
+const byCampaign = {};
+todo.forEach(w => { byCampaign[w.campaign] = (byCampaign[w.campaign] || 0) + 1; });
+console.log('  by campaign:');
+Object.entries(byCampaign).sort((a, b) => b[1] - a[1])
+  .forEach(([name, n]) => console.log(`  ${String(n).padStart(4)}  ${name}`));
 
 if (!COMMIT) {
   todo.slice(0, 5).forEach(w => console.log(`\n  example: ${w.email}\n    ${w.text}\n    marker [volcano:${w.kind}:${w.leadId}], owner ${OWNER[w.owner] || '?'}, ${String(w.at || '').slice(0, 10)}`));
