@@ -14,7 +14,7 @@
   *{box-sizing:border-box}
   html,body{background:var(--bg)}
   body{margin:0;color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1180px;margin:0 auto;padding-block:22px 48px;
+  .wrap{max-width:1500px;margin:0 auto;padding-block:22px 48px;
         padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
   header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;margin-bottom:4px}
@@ -23,14 +23,17 @@
   .lede{color:var(--muted);font-size:13.5px;margin:6px 0 18px;max-width:72ch}
 
   .controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-  .chip{appearance:none;background:transparent;border:1px solid var(--line);color:var(--muted);
-        border-radius:100px;padding:5px 13px;font:inherit;font-size:12px;cursor:pointer;transition:.15s}
-  .chip:hover{border-color:var(--leaf);color:var(--ink)}
-  .chip.on{background:var(--leaf);border-color:var(--leaf);color:#04140e;font-weight:600}
-  .chip:focus-visible{outline:2px solid var(--money);outline-offset:2px}
+  .pick{display:flex;align-items:center;gap:7px}
+  .pick label{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);font-weight:600}
+  select{appearance:none;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+         border-radius:9px;padding:7px 30px 7px 11px;font:inherit;font-size:12.5px;cursor:pointer;
+         background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%239DB9AE' stroke-width='1.5' fill='none'/></svg>");
+         background-repeat:no-repeat;background-position:right 11px center}
+  select:hover{border-color:var(--leaf)}
+  select:focus-visible{outline:2px solid var(--money);outline-offset:2px}
 
-  .stage{display:grid;grid-template-columns:1fr 228px;gap:18px;align-items:start}
-  @media (max-width:760px){.stage{grid-template-columns:1fr}}
+  .stage{display:grid;grid-template-columns:1fr 240px;gap:20px;align-items:start}
+  @media (max-width:860px){.stage{grid-template-columns:1fr}}
   .viz{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
   svg.volcano{display:block;width:100%;height:auto}
 
@@ -97,12 +100,16 @@
   <p class="lede" id="lede">Every company across the outbound segments, placed by how close it is to a
     booked meeting. The summit is a meeting in the diary, so an account erupts and then leaves the board.</p>
 
-  <div class="controls" id="segs"></div>
-  <div class="controls" id="owners"></div>
+  <div class="controls">
+    <span class="pick"><label for="segsel">Reason on the board</label>
+      <select id="segsel"></select></span>
+    <span class="pick"><label for="ownsel">AE</label>
+      <select id="ownsel"></select></span>
+  </div>
 
   <div class="stage">
     <div class="viz" id="viz">
-      <svg class="volcano" id="svg" viewBox="0 0 1000 560" role="img"
+      <svg class="volcano" id="svg" preserveAspectRatio="xMidYMid meet" viewBox="0 0 1000 760" role="img"
            aria-label="Companies plotted on a volcano by proximity to a booked meeting">
         <defs>
           <radialGradient id="sky" cx="50%" cy="86%" r="72%">
@@ -115,9 +122,9 @@
             <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
-        <rect width="1000" height="560" fill="url(#sky)"/>
-        <ellipse id="cglow" cx="500" cy="92" rx="130" ry="44" fill="#ff4d3d" opacity="0"/>
-        <path d="M500 78 L860 520 L140 520 Z" fill="url(#rock)" stroke="#1d3a33" stroke-width="1"/>
+        <rect width="1000" height="760" fill="url(#sky)"/>
+        <ellipse id="cglow" cx="500" cy="104" rx="150" ry="52" fill="#ff4d3d" opacity="0"/>
+        <path d="M500 86 L900 716 L100 716 Z" fill="url(#rock)" stroke="#1d3a33" stroke-width="1"/>
         <g id="embers"></g>
         <g id="rules" font-size="10" fill="#4e6c63" font-family="DM Sans, sans-serif"></g>
       </svg>
@@ -145,15 +152,15 @@
 <script>
 const PORTAL = '24214994';
 const BANDS = [
-  { k:'eruption', n:'Eruption', range:'meeting booked', col:'var(--erupt)', hex:'#ff4d3d', y0:150, y1:92  },
-  { k:'hot',      n:'Hot',      range:'65 to 99',       col:'var(--hot)',   hex:'#e2683c', y0:260, y1:152 },
-  { k:'warm',     n:'Warm',     range:'25 to 64',       col:'var(--warm)',  hex:'#c98500', y0:390, y1:262 },
-  { k:'cold',     n:'Cold',     range:'under 25',       col:'var(--cold)',  hex:'#4b6b7d', y0:514, y1:392 },
+  { k:'eruption', n:'Meeting booked', range:'in the diary', col:'var(--erupt)', hex:'#ff4d3d', y0:190, y1:100 },
+  { k:'hot',      n:'Hot',           range:'65 to 99',   col:'var(--hot)',   hex:'#e2683c', y0:350, y1:194 },
+  { k:'warm',     n:'Warm',          range:'25 to 64',   col:'var(--warm)',  hex:'#c98500', y0:540, y1:354 },
+  { k:'cold',     n:'Cold',          range:'under 25',   col:'var(--cold)',  hex:'#4b6b7d', y0:708, y1:544 },
 ];
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 // Deterministic jitter, so an ember keeps its spot between renders instead of jumping on filter.
 const rnd = (i,salt) => { const x = Math.sin((i+1)*12.9898 + salt*78.233)*43758.5453; return x - Math.floor(x); };
-const halfWidth = y => Math.max(8, (y - 78) * (360/442));   // the cone's half width at height y
+const halfWidth = y => Math.max(8, (y - 86) * (400/630));   // the cone's half width at height y
 
 let DATA = null, SEG = 'all', OWNER = 'all', OPEN = null, VIEW = [];
 
@@ -175,7 +182,7 @@ function draw(){
   pts.sort((a,b) => order.indexOf(a.b.k) - order.indexOf(b.b.k));
   document.getElementById('embers').innerHTML = pts.map((p,i) => {
     const big = p.b.k==='eruption'||p.b.k==='hot';
-    const r = p.b.k==='cold'?2.6:p.b.k==='warm'?3.4:4.8;
+    const r = p.b.k==='cold'?3.2:p.b.k==='warm'?4.2:6;
     return '<g class="dot" data-i="'+i+'" tabindex="0" role="button" aria-label="'+esc(p.c.name)+', heat '+p.c.heat+'">'
       + '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="9" fill="transparent"/>'
       + '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+p.b.hex+'" opacity="'+(p.b.k==='cold'?.55:.95)+'"'
@@ -185,7 +192,7 @@ function draw(){
   const counts = {}; VIEW.forEach(c => counts[c.band] = (counts[c.band]||0)+1);
   document.getElementById('cglow').setAttribute('opacity', counts.eruption ? Math.min(.85,.3+counts.eruption*.18) : 0);
   document.getElementById('rules').innerHTML = BANDS.map(b =>
-    '<text x="150" y="'+(b.y0-4)+'">'+b.n.toLowerCase()+'</text>').join('');
+    '<text x="112" y="'+(b.y0-4)+'">'+b.n.toLowerCase()+'</text>').join('');
 
   document.getElementById('bandlist').innerHTML = BANDS.map(b =>
     '<button class="bandrow'+(!(counts[b.k]||0)?' zero':'')+(OPEN===b.k?' on':'')+'" data-b="'+b.k+'">'
@@ -198,15 +205,53 @@ function draw(){
   wire(pts);
 }
 
-function why(c){
+// What an AE needs before dialling, in the order they would ask it: is anything in the diary,
+// what did we last actually say to each other, what have they done since, and who they are.
+// The short version fits a table cell; the long one fills the hover card.
+function ago(d){
+  if (d === null || d === undefined) return null;
+  if (d < 0) return 'upcoming';
+  if (d === 0) return 'today';
+  if (d < 14) return d + ' days ago';
+  if (d < 60) return Math.round(d/7) + ' weeks ago';
+  if (d < 400) return Math.round(d/30) + ' months ago';
+  return Math.round(d/365) + ' years ago';
+}
+function why(c, long){
   const bits = [];
-  if (c.booked) bits.push('meeting in the diary');
-  if (c.intent) bits.push(c.intent.replace(/\.$/,''));
-  if (c.callAge !== null && c.callAge <= 120) bits.push('called '+c.callAge+'d ago');
-  else if (c.meetAge !== null && c.meetAge >= 0 && c.meetAge <= 365) bits.push('met '+c.meetAge+'d ago');
-  if (c.nextActivity && new Date(c.nextActivity) > new Date()) bits.push('next step scheduled');
-  if (c.note) bits.push(c.note);
-  return bits.length ? bits.join(' · ') : 'no activity recorded';
+  if (c.booked) bits.push('Meeting booked');
+  if (c.nextActivity && new Date(c.nextActivity) > new Date())
+    bits.push('next step on ' + new Date(c.nextActivity).toLocaleDateString('en-AU',{day:'numeric',month:'short'}));
+
+  // The conversation. A call outranks a meeting note outranks a bare "contacted" stamp.
+  if (c.callAge !== null) bits.push('last call ' + ago(c.callAge));
+  else if (c.meetAge !== null) bits.push('last meeting ' + ago(c.meetAge));
+  else if (c.touchAge !== null) bits.push('last contacted ' + ago(c.touchAge));
+  else bits.push('never contacted');
+
+  // What our campaigns got back. Named explicitly, because "signal" on its own tells an AE
+  // nothing about whether the person actually did something.
+  if (c.eng) {
+    const e = [];
+    if (c.eng.replied) e.push('replied');
+    if (c.eng.visits) e.push(c.eng.visits + ' page visit' + (c.eng.visits>1?'s':''));
+    if (c.eng.clicks) e.push(c.eng.clicks + ' click' + (c.eng.clicks>1?'s':''));
+    if (long && c.eng.opens) e.push(c.eng.opens + ' open' + (c.eng.opens>1?'s':''));
+    if (e.length) bits.push('campaign: ' + e.join(', '));
+  }
+
+  // Third-party and first-party intent, already a sentence from the backfill.
+  // Lowercase the first letter only. A blanket toLowerCase turned "last seen 11 Oct" into
+  // "11 oct", and the month is the part an AE actually reads.
+  if (c.intent) { const t = c.intent.replace(/\.$/,''); bits.push(t.charAt(0).toLowerCase() + t.slice(1)); }
+  else if (c.intentAge !== null && c.intentAge <= 60) bits.push('intent signal ' + ago(c.intentAge));
+
+  if (long) {
+    if (c.deals) bits.push(c.deals + ' deal' + (c.deals>1?'s':'') + ' on record');
+    if (c.lifecycle) bits.push(c.lifecycle.replace(/([a-z])([A-Z])/g,'$1 $2'));
+  }
+  if (c.note) bits.push(c.note);          // the daily read, once it writes
+  return bits.join(' · ');
 }
 
 function wire(pts){
@@ -224,7 +269,7 @@ function wire(pts){
       + '<div class="bars">'+comp.map(([n,v,max,col]) =>
           '<div class="bar"><span>'+n+'</span><span class="track"><span class="fill" style="width:'
           + Math.round(v/max*100)+'%;background:'+col+'"></span></span><b>'+v+'</b></div>').join('')+'</div>'
-      + '<div class="hnote">'+esc(why(c))+'</div>'
+      + '<div class="hnote">'+esc(why(c,true))+'</div>'+ (c.nextAction ? '<div class="hnote" style="color:var(--money)">'+esc(c.nextAction)+'</div>' : '')
       + '<a class="hslink" href="https://app.hubspot.com/contacts/'+PORTAL+'/record/0-2/'+c.id+'" target="_blank" rel="noopener">Open in HubSpot &#8599;</a>';
     card.classList.add('show');
     const cw = card.offsetWidth, ch = card.offsetHeight;
@@ -269,17 +314,18 @@ function apply(){
 }
 
 function controls(){
+  const seg = document.getElementById('segsel');
   const segs = [['all','Everything']].concat(Object.entries(DATA.segments));
-  document.getElementById('segs').innerHTML = segs.map(([k,label]) =>
-    '<button class="chip'+(SEG===k?' on':'')+'" data-k="'+k+'">'+esc(label)+'</button>').join('');
-  document.querySelectorAll('#segs .chip').forEach(el =>
-    el.onclick = () => { SEG = el.dataset.k; OPEN = null; controls(); apply(); });
+  const count = k => k==='all' ? DATA.companies.length : DATA.companies.filter(c=>c.segments.includes(k)).length;
+  seg.innerHTML = segs.map(([k,label]) =>
+    '<option value="'+k+'"'+(SEG===k?' selected':'')+'>'+esc(label)+' ('+count(k)+')</option>').join('');
+  seg.onchange = () => { SEG = seg.value; OPEN = null; apply(); };
 
+  const own = document.getElementById('ownsel');
   const owners = [...new Set(DATA.companies.map(c=>c.owner).filter(Boolean))].sort();
-  document.getElementById('owners').innerHTML = [['all','All AEs']].concat(owners.map(o=>[o,o]))
-    .map(([k,label]) => '<button class="chip'+(OWNER===k?' on':'')+'" data-k="'+k+'">'+esc(label)+'</button>').join('');
-  document.querySelectorAll('#owners .chip').forEach(el =>
-    el.onclick = () => { OWNER = el.dataset.k; OPEN = null; controls(); apply(); });
+  own.innerHTML = [['all','All AEs']].concat(owners.map(o=>[o,o])).map(([k,label]) =>
+    '<option value="'+k+'"'+(OWNER===k?' selected':'')+'>'+esc(label)+'</option>').join('');
+  own.onchange = () => { OWNER = own.value; OPEN = null; apply(); };
 }
 
 fetch('./super-volcano.json').then(r => r.json()).then(j => {

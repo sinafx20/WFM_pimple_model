@@ -20,7 +20,9 @@
 // be argued with rather than reverse-engineered:
 //
 //   FIT     0-25   employee count x industry. Static, so it breaks ties rather than drives.
-//   SIGNAL  0-30   intent recency and type, plus campaign engagement already on the contacts.
+//   SIGNAL  0-35   intent recency and type, plus what the Instantly and HeyReach campaigns
+//                  actually produced: opens that survived bot filtering, link clicks and
+//                  tracked page visits, read off the contacts and rolled up to the company.
 //   MOTION  0-45   two-way activity: how recently a real conversation happened, and whether a
 //                  next step is scheduled. This is the one that should dominate.
 //   SEMANTIC 0-40  left for the daily Claude run to write back. Reading "still interested but
@@ -44,15 +46,14 @@ const QUIET = process.argv.includes('--quiet');
 // The segments in play, and what being in one means. `weight` nudges fit: a confirmed Harvest
 // user is a better prospect than a cold warm-outbound record at the same headcount.
 const SEGMENTS = {
-  // 4165 ALL WARM OUTBOUND is deliberately absent. It is a superset: all 1420 companies in
-  // the six segments below are also in it, and none are in it alone, so as a chip it filtered
-  // nothing and as a tag it appeared on every row. Dropping it loses no company.
-  4137: { key: 'intent-crm', label: 'CRM broad intent', weight: 4 },
-  4039: { key: 'trial', label: 'Unconverted trial', weight: 6 },
-  4048: { key: 'harvest', label: 'Confirmed Harvest', weight: 6 },
-  4075: { key: 'closed-lost', label: 'Closed lost', weight: 4 },
-  4157: { key: 'intent-new', label: 'New, intent ICP', weight: 4 },
-  4111: { key: 'harvest-au', label: 'Harvest AU campaign', weight: 2 },
+  // Two lists share a key where they describe the same motion, so the board shows four
+  // reasons an account is on it rather than six list names. Duplicate keys collapse.
+  4039: { key: 'trial',       label: 'Unconverted trial engagement',  weight: 6 },
+  4048: { key: 'harvest',     label: 'Harvest Campaign activity',     weight: 6 },
+  4111: { key: 'harvest',     label: 'Harvest Campaign activity',     weight: 6 },
+  4075: { key: 'closed-lost', label: 'Closed-lost re-engagement',     weight: 4 },
+  4137: { key: 'signals',     label: 'Research + Web Visitor signals', weight: 4 },
+  4157: { key: 'signals',     label: 'Research + Web Visitor signals', weight: 4 },
 };
 
 // Industries we actually sell into, from the six verticals the campaign content is built for.
@@ -127,6 +128,48 @@ for (let i = 0; i < ids.length; i += 100) {
 }
 console.log(`\r  read ${companies.length}/${ids.length} company records`);
 
+// ---------------------------------------------------------------- campaign engagement
+// Opens, clicks and page visits live on the CONTACT, written by volcano-rollup from Instantly
+// and HeyReach. The super volcano plots companies, so they have to be rolled up a level. One
+// search over everyone carrying volcano_campaign covers every campaign at once, which is why
+// this does not need to know which campaigns exist.
+//
+// A genuine reply counts as MOTION, not signal: a reply is two-way, the same reason a logged
+// call outranks a sent email. Opens and clicks are them looking at us, which is signal.
+const engagement = new Map();
+{
+  const CF = ['associatedcompanyid', 'volcano_heat', 'volcano_genuine_opens', 'volcano_email_clicks',
+    'volcano_verified_visits', 'volcano_genuine_reply', 'volcano_li_stage', 'volcano_campaign'];
+  let n = 0;
+  for (let after = 0; ;) {
+    const b = await hs('https://api.hubapi.com/crm/v3/objects/contacts/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [{ propertyName: 'volcano_campaign', operator: 'HAS_PROPERTY' }] }],
+        properties: CF, limit: 100, after: String(after),
+      }),
+    });
+    for (const c of b.results || []) {
+      const p = c.properties;
+      const co = p.associatedcompanyid;
+      if (!co) continue;
+      n++;
+      const e = engagement.get(String(co)) || { opens: 0, clicks: 0, visits: 0, replied: false, liReplied: false, campaigns: new Set() };
+      e.opens += Number(p.volcano_genuine_opens) || 0;
+      e.clicks += Number(p.volcano_email_clicks) || 0;
+      e.visits += Number(p.volcano_verified_visits) || 0;
+      if (String(p.volcano_genuine_reply).toLowerCase() === 'true') e.replied = true;
+      if (p.volcano_li_stage === 'Replied') e.liReplied = true;
+      if (p.volcano_campaign) e.campaigns.add(p.volcano_campaign);
+      engagement.set(String(co), e);
+    }
+    if (!b.paging?.next?.after) break;
+    after = b.paging.next.after;
+    await sleep(140);
+  }
+  console.log(`campaign engagement: ${n} contacts across ${engagement.size} companies`);
+}
+
 // ---------------------------------------------------------------- score
 const OWNER = { 80406430: 'Sina', 80127259: 'Denzel', 80127257: 'Mark' };
 const staffBand = (n) => {
@@ -156,7 +199,17 @@ const rows = companies.map((c) => {
   }
   if (/website_visit/.test(c.intent_source || '')) signal += 6;   // first-party beats inferred
   if (Number(c.hs_count_intent_signals_created_last_30_days) > 1) signal += 4;
-  signal = Math.min(30, signal);
+
+  // What our own campaigns produced. A tracked page visit is the strongest of these: they
+  // clicked through and read something. An open is the weakest and is capped hard, because
+  // even bot-filtered opens are noisy.
+  const eng = engagement.get(String(c.id)) || null;
+  if (eng) {
+    if (eng.visits > 0) signal += Math.min(12, 8 + (eng.visits - 1) * 2);
+    if (eng.clicks > 0) signal += Math.min(8, 5 + (eng.clicks - 1));
+    if (eng.opens > 0) signal += Math.min(4, 2 + Math.floor(eng.opens / 3));
+  }
+  signal = Math.min(35, signal);
 
   // MOTION: that a conversation is alive. Calls and meetings outrank a sent email, because one
   // is two-way and the other is only us talking.
@@ -173,6 +226,8 @@ const rows = companies.map((c) => {
   } else if (touchAge !== null && touchAge <= 60) motion += 5;
   if (future(c.notes_next_activity_date)) motion += 12;          // somebody already owes a step
   if (Number(c.num_contacted_notes) > 2) motion += 5;
+  // A reply to a campaign is a live two-way signal and belongs here, not in signal.
+  if (eng && (eng.replied || eng.liReplied)) motion += 14;
   motion = Math.min(45, motion);
 
   // SEMANTIC: the daily Claude run's reading of the call summaries. Zero until it writes.
@@ -201,6 +256,8 @@ const rows = companies.map((c) => {
     lifecycle: c.lifecyclestage || '',
     heat, booked, fit, signal, motion, semantic,
     intent: c.intent_summary || '', intentSource: c.intent_source || '',
+    eng: eng ? { opens: eng.opens, clicks: eng.clicks, visits: eng.visits,
+                 replied: eng.replied || eng.liReplied, campaigns: [...eng.campaigns] } : null,
     intentAge, callAge, meetAge, touchAge,
     nextActivity: c.notes_next_activity_date || null,
     contacts: Number(c.num_associated_contacts) || 0,
@@ -230,7 +287,7 @@ if (!QUIET) {
 const out = {
   builtAt: new Date().toISOString(),
   segments: Object.fromEntries(Object.entries(SEGMENTS).map(([id, s]) => [s.key, s.label])),
-  weights: { fit: 25, signal: 30, motion: 45, semantic: 40, note: 'eruption is a future booked meeting' },
+  weights: { fit: 25, signal: 35, motion: 45, semantic: 40, note: 'eruption is a future booked meeting' },
   bands, companies: rows,
 };
 fs.writeFileSync(p('super-volcano.json'), JSON.stringify(out));
